@@ -217,6 +217,87 @@ body {
 	box-sizing: border-box;
 }
 
+
+
+
+#customize-info,
+#customize-theme-controls .customize-pane-parent,
+#customize-theme-controls .customize-pane-child {
+	width: 100%;
+	margin: 0;
+	padding: 0;
+	-webkit-box-sizing: border-box;
+	-moz-box-sizing: border-box;
+	box-sizing: border-box;
+
+	transition: 0.36s transform cubic-bezier(0.19, 1, 0.22, 1);
+	/*visibility: visible !important;*/
+	overflow: visible !important;
+}
+
+#customize-info,
+#customize-theme-controls .customize-pane-parent {
+	position: relative;
+	visibility: visible;
+	transform: translateX(0);
+}
+
+.section-open #customize-theme-controls .customize-pane-parent,
+.in-sub-panel #customize-theme-controls .customize-pane-parent,
+.section-open #customize-info,
+.in-sub-panel #customize-info,
+.in-sub-panel.section-open #customize-theme-controls .customize-pane-child.current-panel {
+	transform: translateX(-100%);
+	/*visibility: hidden;*/
+}
+
+.section-open #customize-theme-controls .customize-pane-parent,
+.in-sub-panel #customize-theme-controls .customize-pane-parent,
+.section-open #customize-info,
+.in-sub-panel #customize-info,
+.animating.section-open.in-sub-panel #customize-theme-controls .customize-pane-parent,
+.animating.section-open.in-sub-panel #customize-info, {
+	visibility: hidden;
+}
+
+.animating.section-open #customize-theme-controls .customize-pane-parent,
+.animating.in-sub-panel #customize-theme-controls .customize-pane-parent,
+.animating.section-open #customize-info,
+.animating.in-sub-panel #customize-info {
+	visibility: visible;
+}
+
+#customize-theme-controls .customize-pane-child {
+	position: absolute;
+	top: 0;
+	left: 0;
+	transform: translateX(100%);
+	visibility: hidden;
+}
+
+#customize-theme-controls .customize-pane-child.accordion-section-content,
+#customize-theme-controls .customize-pane-child.accordion-sub-container {
+	display: block;
+}
+
+#customize-theme-controls .customize-pane-child.accordion-section-content {
+	padding: 12px;
+}
+
+#customize-theme-controls .customize-pane-child.open,
+#customize-theme-controls .customize-pane-child.current-panel {
+	transform: translateX(0);
+}
+
+#customize-theme-controls .customize-pane-child.open,
+#customize-theme-controls .customize-pane-child.current-panel,
+#customize-theme-controls .customize-pane-child.animating {
+	visibility: visible;
+}
+
+
+
+
 .customize-section-description-container {
 	margin-bottom: 15px;
 }
@@ -256,22 +337,22 @@ h3.customize-section-title {
 	color: #555;
 }
 
-#customize-theme-controls {
+/*#customize-theme-controls {
 	position: relative;
 	left: 0;
 	-webkit-transition: .18s left ease-in-out;
 	transition: .18s left ease-in-out;
-}
+}*/
 
-.ios #customize-theme-controls {
+/*.ios #customize-theme-controls {
 	-webkit-transition: left 0s;
 	transition: left 0s;
-}
+}*/
 
-.section-open #customize-info,
+/*.section-open #customize-info,
 .section-open #customize-theme-controls {
 	left: -100%;
-}
+}*/
 
 .accordion-sub-container.control-panel-content {
 	display: none;
@@ -410,7 +491,7 @@ h3.customize-section-title {
 	padding-left: 62px;
 }
 
-#customize-info,
+/*#customize-info,
 #customize-theme-controls > ul > .accordion-section {
 	position: relative;
 	left: 0;
@@ -423,17 +504,17 @@ h3.customize-section-title {
 	-webkit-transition: left 0s;
 	transition: left 0s;
 }
-
-.in-sub-panel #customize-info,
+*/
+/*.in-sub-panel #customize-info,
 .in-sub-panel #customize-theme-controls > ul > .accordion-section {
 	left: -300px;
 	width: 300px;
-}
+}*/
 
-.in-sub-panel #customize-theme-controls .accordion-section.current-panel {
+/*.in-sub-panel #customize-theme-controls .accordion-section.current-panel {
 	width: 100%;
 }
-
+*/
 #customize-theme-controls .control-section.current-panel {
 	padding: 0;
 }
@@ -459,13 +540,13 @@ h3.customize-section-title {
 	overflow-y: hidden;
 }
 
-.wp-full-overlay.section-open .wp-full-overlay-sidebar-content .accordion-section.open {
+/*.wp-full-overlay.section-open .wp-full-overlay-sidebar-content .accordion-section.open {
 	visibility: visible;
 }
 
 .wp-full-overlay.section-open .wp-full-overlay-sidebar-content .accordion-section.open .accordion-section-content {
 	overflow-y: auto;
-}
+}*/
 
 p.customize-section-description {
 	font-style: normal;

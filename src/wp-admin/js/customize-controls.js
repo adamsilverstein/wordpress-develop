@@ -163,6 +163,31 @@
 	};
 
 	/**
+	 * Return browser supported `transitionend` event name
+	 *
+	 * @since 
+	 *
+	 * @returns {String}
+	 */
+	api.utils.getNormalizedTransitionendEvent = function () {
+		var t,
+			undefined,
+			el = document.createElement( 'div' ),
+			transitions = {
+				'transition'      : 'transitionend',
+				'OTransition'     : 'oTransitionEnd',
+				'MozTransition'   : 'transitionend',
+				'WebkitTransition': 'webkitTransitionEnd'
+			};
+
+		for ( t in transitions ) {
+			if ( transitions.hasOwnProperty( t ) && undefined !== el.style[ t ] ) {
+				return transitions[t];
+			}
+		}
+	};
+
+	/**
 	 * Base class for Panel and Section.
 	 *
 	 * @since 4.1.0
@@ -213,6 +238,8 @@
 			if ( 0 === container.container.length ) {
 				container.container = $( container.getContainer() );
 			}
+
+			container.content = container.getContent();
 
 			container.deferred = {
 				embedded: new $.Deferred()
@@ -481,6 +508,34 @@
 			}
 
 			return '<li></li>';
+		},
+
+		getContent: function () {
+			var container = this,
+				list = container.container.find( 'ul:first' ),
+				contentId = 'sub-accordion-list-' + container.id;
+
+			container.setOwnership( contentId );
+
+			return list.detach().attr( {
+				id: contentId,
+				class: 'customize-pane-child ' + list.attr( 'class' )
+			} );
+		},
+
+		setOwnership: function ( elementId ) {
+			var container = this.container,
+				ownedElements = container.attr( 'aria-owns' );
+
+			if ( _.isUndefined( ownedElements ) ) {
+				container.attr( {
+					'aria-owns': elementId
+				} );
+			} else {
+				container.attr( {
+					'aria-owns': ownedElements + ' ' + elementId
+				} );
+			}
 		}
 	});
 
@@ -543,7 +598,9 @@
 		 * @since 4.1.0
 		 */
 		embed: function () {
-			var section = this, inject;
+			var inject,
+				section = this,
+				container = $( '#customize-theme-controls' );
 
 			// Watch for changes to the panel state
 			inject = function ( panelId ) {
@@ -553,18 +610,21 @@
 					api.panel( panelId, function ( panel ) {
 						// The panel has been registered, wait for it to become ready/initialized
 						panel.deferred.embedded.done( function () {
-							parentContainer = panel.container.find( 'ul:first' );
+							parentContainer = panel.content; // panel.container.find( 'ul:first' );
 							if ( ! section.container.parent().is( parentContainer ) ) {
 								parentContainer.append( section.container );
+								//section.setOwnership( section.content.attr( 'id' ) );
+								container.append( section.content );
 							}
 							section.deferred.embedded.resolve();
 						});
 					} );
 				} else {
 					// There is no panel, so embed the section in the root of the customizer
-					parentContainer = $( '#customize-theme-controls' ).children( 'ul' ); // @todo This should be defined elsewhere, and to be configurable
+					parentContainer = $( '.customize-pane-parent' ); // @todo This should be defined elsewhere, and to be configurable
 					if ( ! section.container.parent().is( parentContainer ) ) {
 						parentContainer.append( section.container );
+						container.append( section.content );
 					}
 					section.deferred.embedded.resolve();
 				}
@@ -586,10 +646,14 @@
 		 * @since 4.1.0
 		 */
 		attachEvents: function () {
-			var section = this;
+			var section = this,
+				expandCollapseEventTypes = 'click keydown',
+				expandCollapseEventHandler,
+				overlay = section.content.closest( '.wp-full-overlay' ),
+				normalizedTransitionendEventName = api.utils.getNormalizedTransitionendEvent();
 
 			// Expand/Collapse accordion sections on click.
-			section.container.find( '.accordion-section-title, .customize-section-back' ).on( 'click keydown', function( event ) {
+			expandCollapseEventHandler = function ( event ) {
 				if ( api.utils.isKeydownButNotEnterEvent( event ) ) {
 					return;
 				}
@@ -600,6 +664,14 @@
 				} else {
 					section.expand();
 				}
+			};
+
+			section.container.find( '.accordion-section-title' ).on( expandCollapseEventTypes, expandCollapseEventHandler );
+			section.content.find( '.customize-section-back' ).on( expandCollapseEventTypes, expandCollapseEventHandler );
+
+			section.content.on( normalizedTransitionendEventName, function() {
+				section.content.removeClass( 'animating' );
+				overlay.removeClass( 'animating' );
 			});
 		},
 
@@ -644,46 +716,51 @@
 		onChangeExpanded: function ( expanded, args ) {
 			var section = this,
 				container = section.container.closest( '.wp-full-overlay-sidebar-content' ),
-				content = section.container.find( '.accordion-section-content' ),
+				content = section.content, //section.container.find( '.accordion-section-content' ),
 				overlay = section.container.closest( '.wp-full-overlay' ),
-				backBtn = section.container.find( '.customize-section-back' ),
-				sectionTitle = section.container.find( '.accordion-section-title' ).first(),
-				headerActionsHeight = $( '#customize-header-actions' ).height(),
-				resizeContentHeight, expand, position, scroll;
+				backBtn = content.find( '.customize-section-back' ), //section.container.find( '.customize-section-back' ),
+				sectionTitle = content.find( '.accordion-section-title' ).first(), // section.container.find( '.accordion-section-title' ).first(),
+				// headerActionsHeight = $( '#customize-header-actions' ).height(),
+				// resizeContentHeight,
+				expand, position, scroll;
 
-			if ( expanded && ! section.container.hasClass( 'open' ) ) {
+			// if ( expanded && ! section.container.hasClass( 'open' ) ) {
+			if ( expanded && ! content.hasClass( 'open' ) ) {
 
 				if ( args.unchanged ) {
 					expand = args.completeCallback;
 				} else {
 					container.scrollTop( 0 );
-					resizeContentHeight = function() {
-						var matchMedia, offset;
-						matchMedia = window.matchMedia || window.msMatchMedia;
-						offset = 90; // 45px for customize header actions + 45px for footer actions.
+					// resizeContentHeight = function() {
+					// 	var matchMedia, offset;
+					// 	matchMedia = window.matchMedia || window.msMatchMedia;
+					// 	offset = 90; // 45px for customize header actions + 45px for footer actions.
 
-						// No footer on small screens.
-						if ( matchMedia && matchMedia( '(max-width: 640px)' ).matches ) {
-							offset = 45;
-						}
-						content.css( 'height', ( window.innerHeight - offset ) );
-					};
+					// 	// No footer on small screens.
+					// 	if ( matchMedia && matchMedia( '(max-width: 640px)' ).matches ) {
+					// 		offset = 45;
+					// 	}
+					// 	content.css( 'height', ( window.innerHeight - offset ) );
+					// };
 					expand = function() {
-						section.container.addClass( 'open' );
+						// section.container.addClass( 'open' );
+						content.addClass( 'open' );
+						content.addClass( 'animating' );
 						overlay.addClass( 'section-open' );
-						position = content.offset().top;
-						scroll = container.scrollTop();
-						content.css( 'margin-top', ( headerActionsHeight - position - scroll ) );
-						resizeContentHeight();
+						overlay.addClass( 'animating' );
+						// position = content.offset().top;
+						// scroll = container.scrollTop();
+						// content.css( 'margin-top', ( headerActionsHeight - position - scroll ) );
+						// resizeContentHeight();
 						sectionTitle.attr( 'tabindex', '-1' );
 						backBtn.attr( 'tabindex', '0' );
-						backBtn.focus();
+						// backBtn.focus();
 						if ( args.completeCallback ) {
 							args.completeCallback();
 						}
 
 						// Fix the height after browser resize.
-						$( window ).on( 'resize.customizer-section', _.debounce( resizeContentHeight, 100 ) );
+						// $( window ).on( 'resize.customizer-section', _.debounce( resizeContentHeight, 100 ) );
 
 						section._recalculateTopMargin();
 					};
@@ -709,18 +786,22 @@
 					expand();
 				}
 
-			} else if ( ! expanded && section.container.hasClass( 'open' ) ) {
-				section.container.removeClass( 'open' );
+			// } else if ( ! expanded && section.container.hasClass( 'open' ) ) {
+			} else if ( ! expanded && content.hasClass( 'open' ) ) {
+				// section.container.removeClass( 'open' );
+				content.removeClass( 'open' );
+				content.addClass( 'animating' );
 				overlay.removeClass( 'section-open' );
-				content.css( 'margin-top', '' );
-				container.scrollTop( 0 );
+				overlay.addClass( 'animating' );
+				// content.css( 'margin-top', '' );
+				// container.scrollTop( 0 );
 				backBtn.attr( 'tabindex', '-1' );
 				sectionTitle.attr( 'tabindex', '0' );
-				sectionTitle.focus();
+				// sectionTitle.focus();
 				if ( args.completeCallback ) {
 					args.completeCallback();
 				}
-				$( window ).off( 'resize.customizer-section' );
+				// $( window ).off( 'resize.customizer-section' );
 			} else {
 				if ( args.completeCallback ) {
 					args.completeCallback();
@@ -735,16 +816,17 @@
 		 * @private
 		 */
 		_recalculateTopMargin: function() {
-			var section = this, content, offset, headerActionsHeight;
-			content = section.container.find( '.accordion-section-content' );
-			if ( 0 === content.length ) {
-				return;
-			}
-			headerActionsHeight = $( '#customize-header-actions' ).height();
-			offset = ( content.offset().top - headerActionsHeight );
-			if ( 0 < offset ) {
-				content.css( 'margin-top', ( parseInt( content.css( 'margin-top' ), 10 ) - offset ) );
-			}
+			return;
+			// var section = this, content, offset, headerActionsHeight;
+			// content = section.container.find( '.accordion-section-content' );
+			// if ( 0 === content.length ) {
+			// 	return;
+			// }
+			// headerActionsHeight = $( '#customize-header-actions' ).height();
+			// offset = ( content.offset().top - headerActionsHeight );
+			// if ( 0 < offset ) {
+			// 	content.css( 'margin-top', ( parseInt( content.css( 'margin-top' ), 10 ) - offset ) );
+			// }
 		}
 	});
 
@@ -982,7 +1064,8 @@
 		 * @private
 		 */
 		_recalculateTopMargin: function() {
-			api.Panel.prototype._recalculateTopMargin.call( this );
+			return;
+			// api.Panel.prototype._recalculateTopMargin.call( this );
 		},
 
 		/**
@@ -1211,16 +1294,18 @@
 		 */
 		embed: function () {
 			var panel = this,
-				parentContainer = $( '#customize-theme-controls > ul' ); // @todo This should be defined elsewhere, and to be configurable
+				container = $( '#customize-theme-controls' ),
+				parentContainer = $( '.customize-pane-parent' ); // @todo This should be defined elsewhere, and to be configurable
 
 			if ( ! panel.container.parent().is( parentContainer ) ) {
 				parentContainer.append( panel.container );
+				container.append( panel.content );
 				panel.renderContent();
 			}
 
-			api.bind( 'pane-contents-reflowed', _.debounce( function() {
-				panel._recalculateTopMargin();
-			}, 100 ) );
+			// api.bind( 'pane-contents-reflowed', _.debounce( function() {
+			// 	panel._recalculateTopMargin();
+			// }, 100 ) );
 
 			panel.deferred.embedded.resolve();
 		},
@@ -1229,7 +1314,9 @@
 		 * @since 4.1.0
 		 */
 		attachEvents: function () {
-			var meta, panel = this;
+			var meta, panel = this,
+				overlay = panel.content.closest( '.wp-full-overlay' ),
+				normalizedTransitionendEventName = api.utils.getNormalizedTransitionendEvent();
 
 			// Expand/Collapse accordion sections on click.
 			panel.container.find( '.accordion-section-title' ).on( 'click keydown', function( event ) {
@@ -1244,7 +1331,8 @@
 			});
 
 			// Close panel.
-			panel.container.find( '.customize-panel-back' ).on( 'click keydown', function( event ) {
+			// panel.container.find( '.customize-panel-back' ).on( 'click keydown', function( event ) {
+			panel.content.find( '.customize-panel-back' ).on( 'click keydown', function( event ) {
 				if ( api.utils.isKeydownButNotEnterEvent( event ) ) {
 					return;
 				}
@@ -1255,7 +1343,7 @@
 				}
 			});
 
-			meta = panel.container.find( '.panel-meta:first' );
+			meta = panel.content.find( '.panel-meta:first' );
 
 			meta.find( '> .accordion-section-title .customize-help-toggle' ).on( 'click keydown', function( event ) {
 				if ( api.utils.isKeydownButNotEnterEvent( event ) ) {
@@ -1263,7 +1351,7 @@
 				}
 				event.preventDefault(); // Keep this AFTER the key filter above
 
-				meta = panel.container.find( '.panel-meta' );
+				// meta = panel.container.find( '.panel-meta' );
 				if ( meta.hasClass( 'cannot-expand' ) ) {
 					return;
 				}
@@ -1278,6 +1366,11 @@
 					meta.toggleClass( 'open' );
 					$( this ).attr( 'aria-expanded', true );
 				}
+			});
+
+			panel.content.on( normalizedTransitionendEventName, function() {
+				panel.content.removeClass( 'animating' );
+				overlay.removeClass( 'animating' );
 			});
 
 		},
@@ -1335,15 +1428,16 @@
 			// Note: there is a second argument 'args' passed
 			var position, scroll,
 				panel = this,
-				accordionSection = panel.container.closest( '.accordion-section' ),
+				accordionSection = panel.content; // .closest( '.accordion-section' ),
 				overlay = accordionSection.closest( '.wp-full-overlay' ),
 				container = accordionSection.closest( '.wp-full-overlay-sidebar-content' ),
 				siblings = container.find( '.open' ),
-				topPanel = overlay.find( '#customize-theme-controls > ul > .accordion-section > .accordion-section-title' ),
+				// topPanel = overlay.find( '#customize-theme-controls > ul > .accordion-section > .accordion-section-title' ),
+				topPanel = accordionSection.find( '.accordion-section-title' ),
 				backBtn = accordionSection.find( '.customize-panel-back' ),
-				panelTitle = accordionSection.find( '.accordion-section-title' ).first(),
-				content = accordionSection.find( '.control-panel-content' ),
-				headerActionsHeight = $( '#customize-header-actions' ).height();
+				panelTitle = accordionSection.find( '.accordion-section-title' ).first();
+				// content = panel.content, // accordionSection.find( '.control-panel-content' ),
+				// headerActionsHeight = $( '#customize-header-actions' ).height();
 
 			if ( expanded ) {
 
@@ -1359,35 +1453,39 @@
 					}
 				});
 
-				content.show( 0, function() {
-					content.parent().show();
-					position = content.offset().top;
-					scroll = container.scrollTop();
-					content.css( 'margin-top', ( headerActionsHeight - position - scroll ) );
+				// content.show( 0, function() {
+					// content.parent().show();
+					// position = content.offset().top;
+					// scroll = container.scrollTop();
+					// content.css( 'margin-top', ( headerActionsHeight - position - scroll ) );
 					accordionSection.addClass( 'current-panel' );
 					overlay.addClass( 'in-sub-panel' );
-					container.scrollTop( 0 );
+					accordionSection.addClass( 'animating' );
+					overlay.addClass( 'animating' );
+					// container.scrollTop( 0 );
 					if ( args.completeCallback ) {
 						args.completeCallback();
 					}
-				} );
+				// } );
 				topPanel.attr( 'tabindex', '-1' );
 				backBtn.attr( 'tabindex', '0' );
-				backBtn.focus();
-				panel._recalculateTopMargin();
+				// backBtn.focus();
+				// panel._recalculateTopMargin();
 			} else {
 				siblings.removeClass( 'open' );
 				accordionSection.removeClass( 'current-panel' );
 				overlay.removeClass( 'in-sub-panel' );
-				content.delay( 180 ).hide( 0, function() {
-					content.css( 'margin-top', 'inherit' ); // Reset
+				accordionSection.addClass( 'animating' );
+				overlay.addClass( 'animating' );
+				// content.delay( 180 ).hide( 0, function() {
+				// 	content.css( 'margin-top', 'inherit' ); // Reset
 					if ( args.completeCallback ) {
 						args.completeCallback();
 					}
-				} );
+				// } );
 				topPanel.attr( 'tabindex', '0' );
 				backBtn.attr( 'tabindex', '-1' );
-				panelTitle.focus();
+				// panelTitle.focus();
 				container.scrollTop( 0 );
 			}
 		},
@@ -1399,11 +1497,12 @@
 		 * @private
 		 */
 		_recalculateTopMargin: function() {
-			var panel = this, headerActionsHeight, content, accordionSection;
-			headerActionsHeight = $( '#customize-header-actions' ).height();
-			accordionSection = panel.container.closest( '.accordion-section' );
-			content = accordionSection.find( '.control-panel-content' );
-			content.css( 'margin-top', ( parseInt( content.css( 'margin-top' ), 10 ) - ( content.offset().top - headerActionsHeight ) ) );
+			return;
+			// var panel = this, headerActionsHeight, content, accordionSection;
+			// headerActionsHeight = $( '#customize-header-actions' ).height();
+			// accordionSection = panel.container.closest( '.accordion-section' );
+			// content = accordionSection.find( '.control-panel-content' );
+			// content.css( 'margin-top', ( parseInt( content.css( 'margin-top' ), 10 ) - ( content.offset().top - headerActionsHeight ) ) );
 		},
 
 		/**
@@ -1424,7 +1523,7 @@
 				template = wp.template( 'customize-panel-default-content' );
 			}
 			if ( template && panel.container ) {
-				panel.container.find( '.accordion-sub-container' ).html( template( panel.params ) );
+				panel.content.html( template( panel.params ) );
 			}
 		}
 	});
@@ -1557,7 +1656,7 @@
 				api.section( sectionId, function ( section ) {
 					// Wait for the section to be ready/initialized
 					section.deferred.embedded.done( function () {
-						parentContainer = section.container.find( 'ul:first' );
+						parentContainer = section.content; // section.container.find( 'ul:first' );
 						if ( ! control.container.parent().is( parentContainer ) ) {
 							parentContainer.append( control.container );
 							control.renderContent();
@@ -3451,7 +3550,7 @@
 				var sections = panel.sections(),
 					sectionContainers = _.pluck( sections, 'container' );
 				rootNodes.push( panel );
-				appendContainer = panel.container.find( 'ul:first' );
+				appendContainer = panel.content; // panel.container.find( 'ul:first' );
 				if ( ! api.utils.areElementListsEqual( sectionContainers, appendContainer.children( '[id]' ) ) ) {
 					_( sections ).each( function ( section ) {
 						appendContainer.append( section.container );
@@ -3467,7 +3566,7 @@
 				if ( ! section.panel() ) {
 					rootNodes.push( section );
 				}
-				appendContainer = section.container.find( 'ul:first' );
+				appendContainer = section.content; // section.container.find( 'ul:first' );
 				if ( ! api.utils.areElementListsEqual( controlContainers, appendContainer.children( '[id]' ) ) ) {
 					_( controls ).each( function ( control ) {
 						appendContainer.append( control.container );
@@ -3479,7 +3578,7 @@
 			// Sort the root panels and sections
 			rootNodes.sort( api.utils.prioritySort );
 			rootContainers = _.pluck( rootNodes, 'container' );
-			appendContainer = $( '#customize-theme-controls' ).children( 'ul' ); // @todo This should be defined elsewhere, and to be configurable
+			appendContainer = $( '.customize-pane-parent' ); //$( '#customize-theme-controls' ).children( 'ul' ); // @todo This should be defined elsewhere, and to be configurable
 			if ( ! api.utils.areElementListsEqual( rootContainers, appendContainer.children() ) ) {
 				_( rootNodes ).each( function ( rootNode ) {
 					appendContainer.append( rootNode.container );
