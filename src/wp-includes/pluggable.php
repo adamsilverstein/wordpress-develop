@@ -54,59 +54,41 @@ if ( !function_exists('wp_get_current_user') ) :
 /**
  * Retrieve the current user object.
  *
- * @since 2.0.3
- *
- * @global WP_User $current_user
- *
- * @return WP_User Current user WP_User object
- */
-function wp_get_current_user() {
-	global $current_user;
-
-	get_currentuserinfo();
-
-	return $current_user;
-}
-endif;
-
-if ( !function_exists('get_currentuserinfo') ) :
-/**
- * Populate global variables with information about the currently logged in user.
- *
  * Will set the current user, if the current user is not set. The current user
  * will be set to the logged-in person. If no user is logged-in, then it will
  * set the current user to 0, which is invalid and won't have any permissions.
  *
- * @since 0.71
+ * @since 2.0.3
  *
- * @global WP_User $current_user Checks if the current user is set
+ * @global WP_User $current_user Checks if the current user is set.
  *
- * @return false|void False on XML-RPC Request and invalid auth cookie.
+ * @return WP_User Current WP_User instance.
  */
-function get_currentuserinfo() {
+function wp_get_current_user() {
 	global $current_user;
 
 	if ( ! empty( $current_user ) ) {
-		if ( $current_user instanceof WP_User )
-			return;
+		if ( $current_user instanceof WP_User ) {
+			return $current_user;
+		}
 
 		// Upgrade stdClass to WP_User
 		if ( is_object( $current_user ) && isset( $current_user->ID ) ) {
 			$cur_id = $current_user->ID;
 			$current_user = null;
 			wp_set_current_user( $cur_id );
-			return;
+			return $current_user;
 		}
 
 		// $current_user has a junk value. Force to WP_User with ID 0.
 		$current_user = null;
 		wp_set_current_user( 0 );
-		return false;
+		return $current_user;
 	}
 
 	if ( defined('XMLRPC_REQUEST') && XMLRPC_REQUEST ) {
 		wp_set_current_user( 0 );
-		return false;
+		return $current_user;
 	}
 
 	/**
@@ -125,10 +107,12 @@ function get_currentuserinfo() {
 	$user_id = apply_filters( 'determine_current_user', false );
 	if ( ! $user_id ) {
 		wp_set_current_user( 0 );
-		return false;
+		return $current_user;
 	}
 
 	wp_set_current_user( $user_id );
+
+	return $current_user;
 }
 endif;
 
@@ -560,29 +544,31 @@ endif;
 
 if ( !function_exists('wp_authenticate') ) :
 /**
- * Checks a user's login information and logs them in if it checks out.
+ * Authenticate a user, confirming the login credentials are valid.
  *
  * @since 2.5.0
  *
- * @param string $username User's username
- * @param string $password User's password
- * @return WP_User|WP_Error WP_User object if login successful, otherwise WP_Error object.
+ * @param string $username User's username.
+ * @param string $password User's password.
+ * @return WP_User|WP_Error WP_User object if the credentials are valid,
+ *                          otherwise WP_Error.
  */
 function wp_authenticate($username, $password) {
 	$username = sanitize_user($username);
 	$password = trim($password);
 
 	/**
-	 * Filter the user to authenticate.
+	 * Filter whether a set of user login credentials are valid.
 	 *
-	 * If a non-null value is passed, the filter will effectively short-circuit
-	 * authentication, returning an error instead.
+	 * A WP_User object is returned if the credentials authenticate a user.
+	 * WP_Error or null otherwise.
 	 *
 	 * @since 2.8.0
 	 *
-	 * @param null|WP_User $user     User to authenticate.
-	 * @param string       $username User login.
-	 * @param string       $password User password
+	 * @param null|WP_User|WP_Error $user     WP_User if the user is authenticated.
+	 *                                        WP_Error or null otherwise.
+	 * @param string                $username User login.
+	 * @param string                $password User password
 	 */
 	$user = apply_filters( 'authenticate', null, $username, $password );
 
@@ -841,7 +827,7 @@ endif;
 
 if ( !function_exists('wp_set_auth_cookie') ) :
 /**
- * Sets the authentication cookies based on user ID.
+ * Log in a user by setting authentication cookies.
  *
  * The $remember parameter increases the time that the cookie will be kept. The
  * default the cookie is kept without remembering is two days. When $remember is
@@ -1340,7 +1326,8 @@ function wp_validate_redirect($location, $default = '') {
 	// In php 5 parse_url may fail if the URL query part contains http://, bug #38143
 	$test = ( $cut = strpos($location, '?') ) ? substr( $location, 0, $cut ) : $location;
 
-	$lp  = parse_url($test);
+	// @-operator is used to prevent possible warnings in PHP < 5.3.3.
+	$lp = @parse_url($test);
 
 	// Give up if malformed URL
 	if ( false === $lp )
@@ -1350,12 +1337,19 @@ function wp_validate_redirect($location, $default = '') {
 	if ( isset($lp['scheme']) && !('http' == $lp['scheme'] || 'https' == $lp['scheme']) )
 		return $default;
 
-	// Reject if scheme is set but host is not. This catches urls like https:host.com for which parse_url does not set the host field.
-	if ( isset($lp['scheme'])  && !isset($lp['host']) )
+	// Reject if certain components are set but host is not. This catches urls like https:host.com for which parse_url does not set the host field.
+	if ( ! isset( $lp['host'] ) && ( isset( $lp['scheme'] ) || isset( $lp['user'] ) || isset( $lp['pass'] ) || isset( $lp['port'] ) ) ) {
 		return $default;
+	}
+
+	// Reject malformed components parse_url() can return on odd inputs.
+	foreach ( array( 'user', 'pass', 'host' ) as $component ) {
+		if ( isset( $lp[ $component ] ) && strpbrk( $lp[ $component ], ':/?#@' ) ) {
+			return $default;
+		}
+	}
 
 	$wpp = parse_url(home_url());
-	$site = parse_url( site_url() );
 
 	/**
 	 * Filter the whitelist of hosts to redirect to.
@@ -1365,9 +1359,9 @@ function wp_validate_redirect($location, $default = '') {
 	 * @param array       $hosts An array of allowed hosts.
 	 * @param bool|string $host  The parsed host; empty if not isset.
 	 */
-	$allowed_hosts = (array) apply_filters( 'allowed_redirect_hosts', array( $wpp['host'], $site['host'] ), isset( $lp['host'] ) ? $lp['host'] : '' );
+	$allowed_hosts = (array) apply_filters( 'allowed_redirect_hosts', array($wpp['host']), isset($lp['host']) ? $lp['host'] : '' );
 
-	if ( isset($lp['host']) && ( ! in_array( $lp['host'], $allowed_hosts ) && ( $lp['host'] != strtolower( $wpp['host'] ) || $lp['host'] != strtolower( $site['host'] ) ) ) )
+	if ( isset($lp['host']) && ( !in_array($lp['host'], $allowed_hosts) && $lp['host'] != strtolower($wpp['host'])) )
 		$location = $default;
 
 	return $location;
@@ -2490,3 +2484,4 @@ function wp_text_diff( $left_string, $right_string, $args = null ) {
 	return $r;
 }
 endif;
+

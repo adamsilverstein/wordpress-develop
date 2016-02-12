@@ -948,6 +948,61 @@ function get_page_of_comment( $comment_ID, $args = array() ) {
 }
 
 /**
+ * Get the maximum character lengths for the comment form fields.
+ *
+ * @since 4.5.0
+ *
+ * @global wpdb $wpdb WordPress database abstraction object.
+ *
+ * @return array Maximum character length for the comment form fields.
+ */
+function wp_get_comment_fields_max_lengths() {
+	global $wpdb;
+
+	$lengths = array(
+		'comment_author'       => 245,
+		'comment_author_email' => 100,
+		'comment_author_url'   => 200,
+		'comment_content'      => 65525,
+	);
+
+	if ( $wpdb->is_mysql ) {
+		foreach ( $lengths as $column => $length ) {
+			$col_length = $wpdb->get_col_length( $wpdb->comments, $column );
+			$max_length = 0;
+
+			// No point if we can't get the DB column lengths
+			if ( $col_length === false ) {
+				break;
+			}
+
+			if ( ! is_array( $col_length ) && (int) $col_length > 0 ) {
+				$max_length = (int) $col_length;
+			} elseif ( is_array( $col_length ) && isset( $col_length['length'] ) && intval( $col_length['length'] ) > 0 ) {
+				$max_length = (int) $col_length['length'];
+
+				if ( ! empty( $col_length['type'] ) && 'byte' === $col_length['type'] ) {
+					$max_length = $max_length - 10;
+				}
+			}
+
+			if ( $max_length > 0 ) {
+				$lengths[ $column ] = $max_length;
+			}
+		}
+	}
+
+	/**
+	 * Filters the lengths for the comment form fields.
+	 *
+	 * @since 4.5.0
+	 *
+	 * @param array  $lengths Associative array 'field_name' => 'maximum length'.
+	 */
+	return apply_filters( 'wp_get_comment_fields_max_lengths', $lengths );
+}
+
+/**
  * Does comment contain blacklisted characters or words.
  *
  * @since 1.5.0
@@ -1939,7 +1994,7 @@ function wp_update_comment($commentarr) {
 
 	$comment_ID = $data['comment_ID'];
 	$comment_post_ID = $data['comment_post_ID'];
-	$keys = array( 'comment_post_ID', 'comment_content', 'comment_author', 'comment_author_email', 'comment_approved', 'comment_karma', 'comment_author_url', 'comment_date', 'comment_date_gmt', 'comment_type', 'comment_parent', 'user_id' );
+	$keys = array( 'comment_post_ID', 'comment_content', 'comment_author', 'comment_author_email', 'comment_approved', 'comment_karma', 'comment_author_url', 'comment_date', 'comment_date_gmt', 'comment_type', 'comment_parent', 'user_id', 'comment_agent', 'comment_author_IP' );
 	$data = wp_array_slice_assoc( $data, $keys );
 	$rval = $wpdb->update( $wpdb->comments, $data, compact( 'comment_ID' ) );
 
@@ -2057,7 +2112,24 @@ function wp_update_comment_count_now($post_id) {
 		return false;
 
 	$old = (int) $post->comment_count;
-	$new = (int) $wpdb->get_var( $wpdb->prepare("SELECT COUNT(*) FROM $wpdb->comments WHERE comment_post_ID = %d AND comment_approved = '1'", $post_id) );
+
+	/**
+	 * Filters a post's comment count before it is updated in the database.
+	 *
+	 * @since 4.5.0
+	 *
+	 * @param int $new     The new comment count. Default null.
+	 * @param int $old     The old comment count.
+	 * @param int $post_id Post ID.
+	 */
+	$new = apply_filters( 'pre_wp_update_comment_count_now', null, $old, $post_id );
+
+	if ( is_null( $new ) ) {
+		$new = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $wpdb->comments WHERE comment_post_ID = %d AND comment_approved = '1'", $post_id ) );
+	} else {
+		$new = (int) $new;
+	}
+
 	$wpdb->update( $wpdb->posts, array('comment_count' => $new), array('ID' => $post_id) );
 
 	clean_post_cache( $post );
@@ -2461,15 +2533,24 @@ function xmlrpc_pingback_error( $ixr_error ) {
 //
 
 /**
- * Removes comment ID from the comment cache.
+ * Removes a comment from the object cache.
  *
  * @since 2.3.0
  *
- * @param int|array $ids Comment ID or array of comment IDs to remove from cache
+ * @param int|array $ids Comment ID or an array of comment IDs to remove from cache.
  */
 function clean_comment_cache($ids) {
 	foreach ( (array) $ids as $id ) {
 		wp_cache_delete( $id, 'comment' );
+
+		/**
+		 * Fires after a comment has been removed from the object cache.
+		 *
+		 * @since 4.5.0
+		 *
+		 * @param int $id Comment ID.
+		 */
+		do_action( 'clean_comment_cache', $id );
 	}
 
 	wp_cache_set( 'last_changed', microtime(), 'comment' );
@@ -2769,6 +2850,7 @@ function wp_handle_comment_submission( $comment_data ) {
 	}
 
 	$comment_type = '';
+	$max_lengths = wp_get_comment_fields_max_lengths();
 
 	if ( get_option( 'require_name_email' ) && ! $user->exists() ) {
 		if ( 6 > strlen( $comment_author_email ) || '' == $comment_author ) {
@@ -2778,8 +2860,22 @@ function wp_handle_comment_submission( $comment_data ) {
 		}
 	}
 
+	if ( isset( $comment_author ) && $max_lengths['comment_author'] < mb_strlen( $comment_author, '8bit' ) ) {
+		return new WP_Error( 'comment_author_column_length', __( '<strong>ERROR</strong>: your name is too long.' ), 200 );
+	}
+
+	if ( isset( $comment_author_email ) && $max_lengths['comment_author_email'] < strlen( $comment_author_email ) ) {
+		return new WP_Error( 'comment_author_email_column_length', __( '<strong>ERROR</strong>: your email address is too long.' ), 200 );
+	}
+
+	if ( isset( $comment_author_url ) && $max_lengths['comment_author_url'] < strlen( $comment_author_url ) ) {
+		return new WP_Error( 'comment_author_url_column_length', __( '<strong>ERROR</strong>: your url is too long.' ), 200 );
+	}
+
 	if ( '' == $comment_content ) {
 		return new WP_Error( 'require_valid_comment', __( '<strong>ERROR</strong>: please type a comment.' ), 200 );
+	} elseif ( $max_lengths['comment_content'] < mb_strlen( $comment_content, '8bit' ) ) {
+		return new WP_Error( 'comment_content_column_length', __( '<strong>ERROR</strong>: your comment is too long.' ), 200 );
 	}
 
 	$commentdata = compact(

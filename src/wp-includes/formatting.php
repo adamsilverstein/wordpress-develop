@@ -3888,7 +3888,7 @@ function sanitize_option( $option, $value ) {
  *
  * @param mixed    $value    The array, object, or scalar.
  * @param callable $callback The function to map onto $value.
- * @return The value with the callback applied to all non-arrays and non-objects inside it.
+ * @return mixed The value with the callback applied to all non-arrays and non-objects inside it.
  */
 function map_deep( $value, $callback ) {
 	if ( is_array( $value ) ) {
@@ -4532,7 +4532,7 @@ function print_emoji_detection_script() {
 		 *
 		 * @param string The emoji base URL.
 		 */
-		'baseUrl' => apply_filters( 'emoji_url', set_url_scheme( '//s.w.org/images/core/emoji/72x72/' ) ),
+		'baseUrl' => apply_filters( 'emoji_url', 'https://s.w.org/images/core/emoji/72x72/' ),
 
 		/**
 		 * Filter the extension of the emoji files.
@@ -4644,7 +4644,7 @@ function wp_staticize_emoji( $text ) {
 	$text = wp_encode_emoji( $text );
 
 	/** This filter is documented in wp-includes/formatting.php */
-	$cdn_url = apply_filters( 'emoji_url', set_url_scheme( '//s.w.org/images/core/emoji/72x72/' ) );
+	$cdn_url = apply_filters( 'emoji_url', 'https://s.w.org/images/core/emoji/72x72/' );
 
 	/** This filter is documented in wp-includes/formatting.php */
 	$ext = apply_filters( 'emoji_ext', '.png' );

@@ -117,11 +117,14 @@ function _get_plugin_data_markup_translate( $plugin_file, $plugin_data, $markup 
 	// Translate fields
 	if ( $translate ) {
 		if ( $textdomain = $plugin_data['TextDomain'] ) {
-			if ( $plugin_data['DomainPath'] )
-				load_plugin_textdomain( $textdomain, false, dirname( $plugin_file ) . $plugin_data['DomainPath'] );
-			else
-				load_plugin_textdomain( $textdomain, false, dirname( $plugin_file ) );
-		} elseif ( in_array( basename( $plugin_file ), array( 'hello.php', 'akismet.php' ) ) ) {
+			if ( ! is_textdomain_loaded( $textdomain ) ) {
+				if ( $plugin_data['DomainPath'] ) {
+					load_plugin_textdomain( $textdomain, false, dirname( $plugin_file ) . $plugin_data['DomainPath'] );
+				} else {
+					load_plugin_textdomain( $textdomain, false, dirname( $plugin_file ) );
+				}
+			}
+		} elseif ( 'hello.php' == basename( $plugin_file ) ) {
 			$textdomain = 'default';
 		}
 		if ( $textdomain ) {
@@ -424,7 +427,12 @@ function _get_dropins() {
 }
 
 /**
- * Check whether the plugin is active by checking the active_plugins list.
+ * Check whether a plugin is active.
+ *
+ * Only plugins installed in the plugins/ folder can be active.
+ *
+ * Plugins in the mu-plugins/ folder can't be "activated," so this function will
+ * return false for those plugins.
  *
  * @since 2.5.0
  *
@@ -452,6 +460,11 @@ function is_plugin_inactive( $plugin ) {
 
 /**
  * Check whether the plugin is active for the entire network.
+ *
+ * Only plugins installed in the plugins/ folder can be active.
+ *
+ * Plugins in the mu-plugins/ folder can't be "activated," so this function will
+ * return false for those plugins.
  *
  * @since 3.0.0
  *
