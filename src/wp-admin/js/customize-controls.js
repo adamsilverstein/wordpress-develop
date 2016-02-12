@@ -649,8 +649,8 @@
 			var section = this,
 				expandCollapseEventTypes = 'click keydown',
 				expandCollapseEventHandler,
-				overlay = section.content.closest( '.wp-full-overlay' ),
-				normalizedTransitionendEventName = api.utils.getNormalizedTransitionendEvent();
+				overlay = section.content.closest( '.wp-full-overlay' );
+				//normalizedTransitionendEventName = api.utils.getNormalizedTransitionendEvent();
 
 			// Expand/Collapse accordion sections on click.
 			expandCollapseEventHandler = function ( event ) {
@@ -669,10 +669,10 @@
 			section.container.find( '.accordion-section-title' ).on( expandCollapseEventTypes, expandCollapseEventHandler );
 			section.content.find( '.customize-section-back' ).on( expandCollapseEventTypes, expandCollapseEventHandler );
 
-			section.content.on( normalizedTransitionendEventName, function() {
-				section.content.removeClass( 'animating' );
-				overlay.removeClass( 'animating' );
-			});
+			// section.content.on( normalizedTransitionendEventName, function() {
+			// 	section.content.removeClass( 'animating' );
+			// 	overlay.removeClass( 'animating' );
+			// });
 		},
 
 		/**
@@ -722,6 +722,7 @@
 				sectionTitle = content.find( '.accordion-section-title' ).first(), // section.container.find( '.accordion-section-title' ).first(),
 				// headerActionsHeight = $( '#customize-header-actions' ).height(),
 				// resizeContentHeight,
+				normalizedTransitionendEventName = api.utils.getNormalizedTransitionendEvent(),
 				expand, position, scroll;
 
 			// if ( expanded && ! section.container.hasClass( 'open' ) ) {
@@ -745,9 +746,13 @@
 					expand = function() {
 						// section.container.addClass( 'open' );
 						content.addClass( 'open' );
-						content.addClass( 'animating' );
 						overlay.addClass( 'section-open' );
+						content.addClass( 'animating' );
 						overlay.addClass( 'animating' );
+						content.one( normalizedTransitionendEventName, function() {
+							content.removeClass( 'animating' );
+							overlay.removeClass( 'animating' );
+						});
 						// position = content.offset().top;
 						// scroll = container.scrollTop();
 						// content.css( 'margin-top', ( headerActionsHeight - position - scroll ) );
@@ -790,9 +795,13 @@
 			} else if ( ! expanded && content.hasClass( 'open' ) ) {
 				// section.container.removeClass( 'open' );
 				content.removeClass( 'open' );
-				content.addClass( 'animating' );
 				overlay.removeClass( 'section-open' );
+				content.addClass( 'animating' );
 				overlay.addClass( 'animating' );
+				content.one( normalizedTransitionendEventName, function() {
+					content.removeClass( 'animating' );
+					overlay.removeClass( 'animating' );
+				});
 				// content.css( 'margin-top', '' );
 				// container.scrollTop( 0 );
 				backBtn.attr( 'tabindex', '-1' );
@@ -1315,8 +1324,8 @@
 		 */
 		attachEvents: function () {
 			var meta, panel = this,
-				overlay = panel.content.closest( '.wp-full-overlay' ),
-				normalizedTransitionendEventName = api.utils.getNormalizedTransitionendEvent();
+				overlay = panel.content.closest( '.wp-full-overlay' );
+				//normalizedTransitionendEventName = api.utils.getNormalizedTransitionendEvent();
 
 			// Expand/Collapse accordion sections on click.
 			panel.container.find( '.accordion-section-title' ).on( 'click keydown', function( event ) {
@@ -1368,10 +1377,10 @@
 				}
 			});
 
-			panel.content.on( normalizedTransitionendEventName, function() {
-				panel.content.removeClass( 'animating' );
-				overlay.removeClass( 'animating' );
-			});
+			// panel.content.on( normalizedTransitionendEventName, function() {
+			// 	panel.content.removeClass( 'animating' );
+			// 	overlay.removeClass( 'animating' );
+			// });
 
 		},
 
@@ -1435,7 +1444,8 @@
 				// topPanel = overlay.find( '#customize-theme-controls > ul > .accordion-section > .accordion-section-title' ),
 				topPanel = accordionSection.find( '.accordion-section-title' ),
 				backBtn = accordionSection.find( '.customize-panel-back' ),
-				panelTitle = accordionSection.find( '.accordion-section-title' ).first();
+				panelTitle = accordionSection.find( '.accordion-section-title' ).first(),
+				normalizedTransitionendEventName = api.utils.getNormalizedTransitionendEvent();
 				// content = panel.content, // accordionSection.find( '.control-panel-content' ),
 				// headerActionsHeight = $( '#customize-header-actions' ).height();
 
@@ -1462,6 +1472,10 @@
 					overlay.addClass( 'in-sub-panel' );
 					accordionSection.addClass( 'animating' );
 					overlay.addClass( 'animating' );
+					accordionSection.one( normalizedTransitionendEventName, function() {
+						accordionSection.removeClass( 'animating' );
+						overlay.removeClass( 'animating' );
+					});
 					// container.scrollTop( 0 );
 					if ( args.completeCallback ) {
 						args.completeCallback();
@@ -1477,6 +1491,10 @@
 				overlay.removeClass( 'in-sub-panel' );
 				accordionSection.addClass( 'animating' );
 				overlay.addClass( 'animating' );
+				accordionSection.one( normalizedTransitionendEventName, function() {
+					accordionSection.removeClass( 'animating' );
+					overlay.removeClass( 'animating' );
+				});
 				// content.delay( 180 ).hide( 0, function() {
 				// 	content.css( 'margin-top', 'inherit' ); // Reset
 					if ( args.completeCallback ) {
