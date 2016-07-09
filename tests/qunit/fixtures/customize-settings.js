@@ -1,9 +1,9 @@
 window.wp = window.wp || {};
-window.wp.customize = window.wp.customize || { get: function(){}  };
+window.wp.customize = window.wp.customize || { get: function() {} };
 
 var customizerRootElement;
 customizerRootElement = jQuery( '<div id="customize-theme-controls"><ul></ul></div>' );
-customizerRootElement.css( { position: 'absolute', left: -10000, top: -10000 } ); // remove from view
+customizerRootElement.css( { position: 'absolute', left: -10000, top: -10000 } ); // Remove from view.
 jQuery( document.body ).append( customizerRootElement );
 
 window._wpCustomizeSettings = {
@@ -112,6 +112,11 @@ window._wpCustomizeSettings = {
 		'fixture-setting': {
 			'transport': 'postMessage',
 			'value': 'Lorem Ipsum'
+		},
+		'fixture-setting-abbr': {
+			'transport': 'postMessage',
+			'value': 'NASA',
+			'type': 'abbreviation'
 		}
 	},
 	'theme': {
@@ -130,6 +135,18 @@ window._wpCustomizeSettings = {
 		'login': 'http://example.org/wp-login.php?interim-login=1&customize-login=1',
 		'parent': 'http://example.org/wp-admin/',
 		'preview': 'http://example.org/'
+	},
+	'previewableDevices': {
+		'desktop': {
+			'label': 'Enter desktop preview mode',
+			'default': true
+		},
+		'tablet': {
+			'label': 'Enter tablet preview mode'
+		},
+		'mobile': {
+			'label': 'Enter mobile preview mode'
+		}
 	}
 };
 window._wpCustomizeControlsL10n = {};

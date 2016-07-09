@@ -6,6 +6,18 @@ function rand_str($len=32) {
 	return substr(md5(uniqid(rand())), 0, $len);
 }
 
+function rand_long_str( $length ) {
+	$chars = 'abcdefghijklmnopqrstuvwxyz';
+	$string = '';
+
+	for ( $i = 0; $i < $length; $i++ ) {
+		$rand = rand( 0, strlen( $chars ) - 1 );
+		$string .= substr( $chars, $rand, 1 );
+	}
+
+	return $string;
+}
+
 // strip leading and trailing whitespace from each line in the string
 function strip_ws($txt) {
 	$lines = explode("\n", $txt);
@@ -323,18 +335,11 @@ if ( !function_exists( 'str_getcsv' ) ) {
  * Removes the post type and its taxonomy associations.
  */
 function _unregister_post_type( $cpt_name ) {
-	unset( $GLOBALS['wp_post_types'][ $cpt_name ] );
-	unset( $GLOBALS['_wp_post_type_features'][ $cpt_name ] );
-
-	foreach ( $GLOBALS['wp_taxonomies'] as $taxonomy ) {
-		if ( false !== $key = array_search( $cpt_name, $taxonomy->object_type ) ) {
-			unset( $taxonomy->object_type[$key] );
-		}
-	}
+	unregister_post_type( $cpt_name );
 }
 
 function _unregister_taxonomy( $taxonomy_name ) {
-	unset( $GLOBALS['wp_taxonomies'][$taxonomy_name] );
+	unregister_taxonomy( $taxonomy_name );
 }
 
 /**
@@ -357,12 +362,12 @@ function _cleanup_query_vars() {
 		unset( $GLOBALS[$v] );
 
 	foreach ( get_taxonomies( array() , 'objects' ) as $t ) {
-		if ( ! empty( $t->query_var ) )
+		if ( $t->publicly_queryable && ! empty( $t->query_var ) )
 			$GLOBALS['wp']->add_query_var( $t->query_var );
 	}
 
 	foreach ( get_post_types( array() , 'objects' ) as $t ) {
-		if ( ! empty( $t->query_var ) )
+		if ( is_post_type_viewable( $t ) && ! empty( $t->query_var ) )
 			$GLOBALS['wp']->add_query_var( $t->query_var );
 	}
 }
@@ -380,6 +385,7 @@ class wpdb_exposed_methods_for_testing extends wpdb {
 		global $wpdb;
 		$this->dbh = $wpdb->dbh;
 		$this->use_mysqli = $wpdb->use_mysqli;
+		$this->is_mysql = $wpdb->is_mysql;
 		$this->ready = true;
 		$this->field_types = $wpdb->field_types;
 		$this->charset = $wpdb->charset;
@@ -388,4 +394,62 @@ class wpdb_exposed_methods_for_testing extends wpdb {
 	public function __call( $name, $arguments ) {
 		return call_user_func_array( array( $this, $name ), $arguments );
 	}
+}
+
+/**
+ * Determine approximate backtrack count when running PCRE.
+ *
+ * @return int The backtrack count.
+ */
+function benchmark_pcre_backtracking( $pattern, $subject, $strategy ) {
+	$saved_config = ini_get( 'pcre.backtrack_limit' );
+	
+	// Attempt to prevent PHP crashes.  Adjust these lower when needed.
+	if ( version_compare( phpversion(), '5.4.8', '>' ) ) {
+		$limit = 1000000;
+	} else {
+		$limit = 20000;  // 20,000 is a reasonable upper limit, but see also https://core.trac.wordpress.org/ticket/29557#comment:10
+	}
+
+	// Start with small numbers, so if a crash is encountered at higher numbers we can still debug the problem.
+	for( $i = 4; $i <= $limit; $i *= 2 ) {
+
+		ini_set( 'pcre.backtrack_limit', $i );
+		
+		switch( $strategy ) {
+		case 'split':
+			preg_split( $pattern, $subject );
+			break;
+		case 'match':
+			preg_match( $pattern, $subject );
+			break;
+		case 'match_all':
+			$matches = array();
+			preg_match_all( $pattern, $subject, $matches );
+			break;
+		}
+
+		ini_set( 'pcre.backtrack_limit', $saved_config );
+
+		switch( preg_last_error() ) {
+		case PREG_NO_ERROR:
+			return $i;
+		case PREG_BACKTRACK_LIMIT_ERROR:
+			continue;
+		case PREG_RECURSION_LIMIT_ERROR:
+			trigger_error('PCRE recursion limit encountered before backtrack limit.');
+			return;
+		case PREG_BAD_UTF8_ERROR:
+			trigger_error('UTF-8 error during PCRE benchmark.');
+			return;
+		case PREG_INTERNAL_ERROR:
+			trigger_error('Internal error during PCRE benchmark.');
+			return;
+		default:
+			trigger_error('Unexpected error during PCRE benchmark.');
+			return;
+		}
+	}
+
+	return $i;
 }

@@ -51,26 +51,13 @@ class Tests_Functions extends WP_UnitTestCase {
 		$this->assertInternalType( 'string', $args['bar'] );
 	}
 
-	function test_size_format() {
-		$b  = 1;
-		$kb = 1024;
-		$mb = $kb*1024;
-		$gb = $mb*1024;
-		$tb = $gb*1024;
-		// test if boundaries are correct
-		$this->assertEquals('1 GB', size_format($gb, 0));
-		$this->assertEquals('1 MB', size_format($mb, 0));
-		$this->assertEquals('1 kB', size_format($kb, 0));
-		$this->assertEquals('1 B',  size_format($b, 0));
-		// now some values around
-		// add some bytes to make sure the result isn't 1.4999999
-		$this->assertEquals('1.5 TB', size_format($tb + $tb/2 + $mb, 1));
-		$this->assertEquals('1,023.999 GB', size_format($tb-$mb-$kb, 3));
-		// edge
-		$this->assertFalse(size_format(-1));
-		$this->assertFalse(size_format(0));
-		$this->assertFalse(size_format('baba'));
-		$this->assertFalse(size_format(array()));
+	/**
+	 * @ticket 35972
+	 */
+	function test_bool_from_yn() {
+		$this->assertTrue( bool_from_yn( 'Y' ) );
+		$this->assertTrue( bool_from_yn( 'y' ) );
+		$this->assertFalse( bool_from_yn( 'n' ) );
 	}
 
 	function test_path_is_absolute() {
@@ -113,6 +100,34 @@ class Tests_Functions extends WP_UnitTestCase {
 			$this->assertFalse( path_is_absolute($path), "path_is_absolute('$path') should return false" );
 	}
 
+	/**
+	 * @ticket 33265
+	 * @ticket 35996
+	 *
+	 * @dataProvider data_wp_normalize_path
+	 */
+	function test_wp_normalize_path( $path, $expected ) {
+		$this->assertEquals( $expected, wp_normalize_path( $path ) );
+	}
+	function data_wp_normalize_path() {
+		return array(
+			// Windows paths
+			array( 'C:\\www\\path\\', 'C:/www/path/' ),
+			array( 'C:\\www\\\\path\\', 'C:/www/path/' ),
+			array( 'c:/www/path', 'C:/www/path' ),
+			array( 'c:\\www\\path\\', 'C:/www/path/' ), // uppercase drive letter
+			array( 'c:\\\\www\\path\\', 'C:/www/path/' ),
+			array( '\\\\Domain\\DFSRoots\\share\\path\\', '//Domain/DFSRoots/share/path/' ),
+			array( '\\\\Server\\share\\path', '//Server/share/path' ),
+			array( '\\\\Server\\share', '//Server/share' ),
+
+			// Linux paths
+			array( '/www/path/', '/www/path/' ),
+			array( '/www/path/////', '/www/path/' ),
+			array( '/www/path', '/www/path' ),
+		);
+	}
+
 	function test_wp_unique_filename() {
 
 		$testdir = DIR_TESTDATA . '/images/';
@@ -122,8 +137,8 @@ class Tests_Functions extends WP_UnitTestCase {
 
 		// check number is appended for file already exists
 		$this->assertFileExists( $testdir . 'test-image.png', 'Test image does not exist' );
-		$this->assertEquals( 'test-image1.png', wp_unique_filename( $testdir, 'test-image.png' ), 'Number not appended correctly' );
-		$this->assertFileNotExists( $testdir . 'test-image1.png' );
+		$this->assertEquals( 'test-image-1.png', wp_unique_filename( $testdir, 'test-image.png' ), 'Number not appended correctly' );
+		$this->assertFileNotExists( $testdir . 'test-image-1.png' );
 
 		// check special chars
 		$this->assertEquals( 'testtést-imagé.png', wp_unique_filename( $testdir, 'testtést-imagé.png' ), 'Filename with special chars failed' );
@@ -138,7 +153,7 @@ class Tests_Functions extends WP_UnitTestCase {
 		$this->assertEquals( "abcdefgh.png", wp_unique_filename( $testdir, 'abcdefg"h.png' ), 'File with quote failed' );
 
 		// test crazy name (useful for regression tests)
-		$this->assertEquals( '12%af34567890@..%^_-qwerty-fghjkl-zx.png', wp_unique_filename( $testdir, '12%af34567890#~!@#$..%^&*()|_+qwerty  fgh`jkl zx<>?:"{}[]="\'/?.png' ), 'Failed crazy file name' );
+		$this->assertEquals( '12af34567890@..^_qwerty-fghjkl-zx.png', wp_unique_filename( $testdir, '12%af34567890#~!@#$..%^&*()|_+qwerty  fgh`jkl zx<>?:"{}[]="\'/?.png' ), 'Failed crazy file name' );
 
 		// test slashes in names
 		$this->assertEquals( 'abcdefg.png', wp_unique_filename( $testdir, 'abcde\fg.png' ), 'Slash not removed' );
@@ -177,6 +192,45 @@ class Tests_Functions extends WP_UnitTestCase {
 	 */
 	function test_no_new_serializable_types() {
 		$this->assertFalse( is_serialized( 'C:16:"Serialized_Class":6:{a:0:{}}' ) );
+	}
+
+	/**
+	 * @dataProvider data_is_serialized_string
+	 */
+	public function test_is_serialized_string( $value, $result ) {
+		$this->assertSame( is_serialized_string( $value ), $result );
+	}
+
+	public function data_is_serialized_string() {
+		return array(
+			// Not a string.
+			array( 0, false ),
+
+			// Too short when trimmed.
+			array( 's:3   ', false ),
+
+			// Too short.
+			array( 's:3', false ),
+
+			// No colon in second position.
+			array( 's!3:"foo";', false ),
+
+			// No trailing semicolon.
+			array( 's:3:"foo"', false ),
+
+			// Wrong type.
+			array( 'a:3:"foo";', false ),
+
+			// No closing quote.
+			array( 'a:3:"foo;', false ),
+
+			// Wrong number of characters is close enough for is_serialized_string().
+			array( 's:12:"foo";', true ),
+
+			// Okay.
+			array( 's:3:"foo";', true ),
+
+		);
 	}
 
 	/**
@@ -388,6 +442,66 @@ class Tests_Functions extends WP_UnitTestCase {
 	}
 
 	/**
+	 * @dataProvider data_device_can_upload
+	 */
+	function test_device_can_upload( $user_agent, $expected ) {
+		$_SERVER['HTTP_USER_AGENT'] = $user_agent;
+		$actual = _device_can_upload();
+		unset( $_SERVER['HTTP_USER_AGENT'] );
+		$this->assertEquals( $expected, $actual );
+	}
+
+	function data_device_can_upload() {
+		return array(
+			// iPhone iOS 5.0.1, Safari 5.1
+			array(
+				'Mozilla/5.0 (iPhone; CPU iPhone OS 5_0_1 like Mac OS X) AppleWebKit/534.46 (KHTML, like Gecko) Mobile/9A406)',
+				false,
+			),
+			// iPad iOS 3.2, Safari 4.0.4
+			array(
+				'Mozilla/5.0 (iPad; U; CPU OS 3_2 like Mac OS X; en-us) AppleWebKit/531.21.10 (KHTML, like Gecko) Version/4.0.4 Mobile/7B334b Safari/531.21.10',
+				false,
+			),
+			// iPod iOS 4.3.3, Safari 5.0.2
+			array(
+				'Mozilla/5.0 (iPod; U; CPU iPhone OS 4_3_3 like Mac OS X; ja-jp) AppleWebKit/533.17.9 (KHTML, like Gecko) Version/5.0.2 Mobile/8J2 Safari/6533.18.5',
+				false,
+			),
+			// iPhone iOS 6.0.0, Safari 6.0
+			array(
+				'Mozilla/5.0 (iPhone; CPU iPhone OS 6_0 like Mac OS X) AppleWebKit/536.26 (KHTML, like Gecko) Version/6.0 Mobile/10A5376e Safari/8536.25',
+				true,
+			),
+			// iPad iOS 6.0.0, Safari 6.0
+			array(
+				'Mozilla/5.0 (iPad; CPU OS 6_0 like Mac OS X) AppleWebKit/536.26 (KHTML, like Gecko) Version/6.0 Mobile/10A5376e Safari/8536.25',
+				true,
+			),
+			// Android 2.2, Android Webkit Browser
+			array(
+				'Mozilla/5.0 (Android 2.2; Windows; U; Windows NT 6.1; en-US) AppleWebKit/533.19.4 (KHTML, like Gecko) Version/5.0.3 Safari/533.19.4',
+				true,
+			),
+			// BlackBerry 9900, BlackBerry browser
+			array(
+				'Mozilla/5.0 (BlackBerry; U; BlackBerry 9900; en) AppleWebKit/534.11+ (KHTML, like Gecko) Version/7.1.0.346 Mobile Safari/534.11+',
+				true,
+			),
+			// Windows Phone 8.0, Internet Explorer 10.0;
+			array(
+				'Mozilla/5.0 (compatible; MSIE 10.0; Windows Phone 8.0; Trident/6.0; IEMobile/10.0; ARM; Touch; NOKIA; Lumia 920)',
+				true,
+			),
+			// Ubuntu desktop, Firefox 41.0
+			array(
+				'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:41.0) Gecko/20100101 Firefox/41.0',
+				true,
+			),
+		);
+	}
+
+	/**
 	 * @ticket 19354
 	 */
 	function test_data_is_not_an_allowed_protocol() {
@@ -579,6 +693,10 @@ class Tests_Functions extends WP_UnitTestCase {
 	 * @ticket 28786
 	 */
 	function test_wp_json_encode_non_utf8() {
+		if ( ! function_exists( 'mb_detect_order' ) ) {
+			$this->markTestSkipped( 'mbstring extension not available.' );
+		}
+
 		$old_charsets = $charsets = mb_detect_order();
 		if ( ! in_array( 'EUC-JP', $charsets ) ) {
 			$charsets[] = 'EUC-JP';
@@ -599,6 +717,10 @@ class Tests_Functions extends WP_UnitTestCase {
 	 * @ticket 28786
 	 */
 	function test_wp_json_encode_non_utf8_in_array() {
+		if ( ! function_exists( 'mb_detect_order' ) ) {
+			$this->markTestSkipped( 'mbstring extension not available.' );
+		}
+
 		$old_charsets = $charsets = mb_detect_order();
 		if ( ! in_array( 'EUC-JP', $charsets ) ) {
 			$charsets[] = 'EUC-JP';
@@ -646,5 +768,123 @@ class Tests_Functions extends WP_UnitTestCase {
 		$data = array( 'あ', array( array( 1, 2, 3 ) ) );
 		$json = wp_json_encode( $data, 0, 1 );
 		$this->assertFalse( $json );
+	}
+
+	/**
+	 * @ticket 33750
+	 */
+	function test_the_date() {
+		ob_start();
+		the_date();
+		$actual = ob_get_clean();
+		$this->assertEquals( '', $actual );
+
+		$GLOBALS['post']        = self::factory()->post->create_and_get( array(
+			'post_date' => '2015-09-16 08:00:00'
+		) );
+
+		ob_start();
+		$GLOBALS['currentday']  = '18.09.15';
+		$GLOBALS['previousday'] = '17.09.15';
+		the_date();
+		$this->assertEquals( 'September 16, 2015', ob_get_clean() );
+
+		ob_start();
+		$GLOBALS['currentday']  = '18.09.15';
+		$GLOBALS['previousday'] = '17.09.15';
+		the_date( 'Y' );
+		$this->assertEquals( '2015', ob_get_clean() );
+
+		ob_start();
+		$GLOBALS['currentday']  = '18.09.15';
+		$GLOBALS['previousday'] = '17.09.15';
+		the_date( 'Y', 'before ', ' after' );
+		$this->assertEquals( 'before 2015 after', ob_get_clean() );
+
+		ob_start();
+		$GLOBALS['currentday']  = '18.09.15';
+		$GLOBALS['previousday'] = '17.09.15';
+		the_date( 'Y', 'before ', ' after', false );
+		$this->assertEquals( '', ob_get_clean() );
+	}
+
+	/**
+	 * @ticket 36054
+	 * @dataProvider datetime_provider
+	 */
+	function test_mysql_to_rfc3339( $expected, $actual ) {
+		$date_return = mysql_to_rfc3339( $actual );
+
+		$this->assertTrue( is_string( $date_return ), 'The date return must be a string' );
+		$this->assertNotEmpty( $date_return, 'The date return could not be an empty string' );
+		$this->assertEquals( $expected, $date_return, 'The date does not match' );
+		$this->assertEquals( new DateTime( $expected ), new DateTime( $date_return ), 'The date is not the same after the call method' );
+	}
+
+	function datetime_provider() {
+		return array(
+			array( '2016-03-15T18:54:46', '15-03-2016 18:54:46' ),
+			array( '2016-03-02T19:13:25', '2016-03-02 19:13:25' ),
+			array( '2016-03-02T19:13:00', '2016-03-02 19:13' ),
+			array( '2016-03-02T19:13:00', '16-03-02 19:13' ),
+			array( '2016-03-02T19:13:00', '16-03-02 19:13' )
+		);
+	}
+
+	/**
+	 * @ticket 35987
+	 */
+	public function test_wp_get_ext_types() {
+		$extensions = wp_get_ext_types();
+
+		$this->assertInternalType( 'array', $extensions );
+		$this->assertNotEmpty( $extensions );
+
+		add_filter( 'ext2type', '__return_empty_array' );
+		$extensions = wp_get_ext_types();
+		$this->assertSame( array(), $extensions );
+
+		remove_filter( 'ext2type', '__return_empty_array' );
+		$extensions = wp_get_ext_types();
+		$this->assertInternalType( 'array', $extensions );
+		$this->assertNotEmpty( $extensions );
+	}
+
+	/**
+	 * @ticket 35987
+	 */
+	public function test_wp_ext2type() {
+		$extensions = wp_get_ext_types();
+
+		foreach ( $extensions as $type => $extensionList ) {
+			foreach ( $extensionList as $extension ) {
+				$this->assertEquals( $type, wp_ext2type( $extension ) );
+				$this->assertEquals( $type, wp_ext2type( strtoupper( $extension ) ) );
+			}
+		}
+
+		$this->assertNull( wp_ext2type( 'unknown_format' ) );
+	}
+
+	/**
+	 * Tests raising the memory limit.
+	 *
+	 * Unfortunately as the default for 'WP_MAX_MEMORY_LIMIT' in the
+	 * test suite is -1, we can not test the memory limit negotiations.
+	 *
+	 * @ticket 32075
+	 */
+	function test_wp_raise_memory_limit() {
+		if ( -1 !== WP_MAX_MEMORY_LIMIT ) {
+			$this->markTestSkipped( 'WP_MAX_MEMORY_LIMIT should be set to -1' );
+		}
+
+		$ini_limit_before = ini_get( 'memory_limit' );
+		$raised_limit = wp_raise_memory_limit();
+		$ini_limit_after = ini_get( 'memory_limit' );
+
+		$this->assertSame( $ini_limit_before, $ini_limit_after );
+		$this->assertSame( false, $raised_limit );
+		$this->assertEquals( WP_MAX_MEMORY_LIMIT, $ini_limit_after );
 	}
 }

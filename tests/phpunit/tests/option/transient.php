@@ -5,6 +5,14 @@
  */
 class Tests_Option_Transient extends WP_UnitTestCase {
 
+	public function setUp() {
+		parent::setUp();
+
+		if ( wp_using_ext_object_cache() ) {
+			$this->markTestSkipped( 'Not testable with an external object cache.' );
+		}
+	}
+
 	function test_the_basics() {
 		$key = rand_str();
 		$value = rand_str();
@@ -38,14 +46,6 @@ class Tests_Option_Transient extends WP_UnitTestCase {
 	 * @ticket 22807
 	 */
 	function test_transient_data_with_timeout() {
-		if ( is_multisite() ) {
-			$this->markTestSkipped( 'Not testable in MS: wpmu_create_blog() defines WP_INSTALLING.' );
-		}
-
-		if ( wp_using_ext_object_cache() ) {
-			$this->markTestSkipped( 'Not testable with an external object cache.' );
-		}
-
 		$key = rand_str();
 		$value = rand_str();
 
@@ -67,14 +67,6 @@ class Tests_Option_Transient extends WP_UnitTestCase {
 	 * @ticket 22807
 	 */
 	function test_transient_add_timeout() {
-		if ( is_multisite() ) {
-			$this->markTestSkipped( 'Not testable in MS: wpmu_create_blog() defines WP_INSTALLING.' );
-		}
-
-		if ( wp_using_ext_object_cache() ) {
-			$this->markTestSkipped( 'Not testable with an external object cache.' );
-		}
-
 		$key = rand_str();
 		$value = rand_str();
 		$value2 = rand_str();
@@ -98,10 +90,6 @@ class Tests_Option_Transient extends WP_UnitTestCase {
 	 * @ticket 30380
 	 */
 	function test_nonexistent_key_dont_delete_if_false() {
-		if ( wp_using_ext_object_cache() ) {
-			$this->markTestSkipped( 'Not testable with an external object cache.' );
-		}
-
 		// Create a bogus a transient
 		$key = 'test_transient';
 		set_transient( $key, 'test', 60 * 10 );
@@ -130,14 +118,6 @@ class Tests_Option_Transient extends WP_UnitTestCase {
 	 * @ticket 30380
 	 */
 	function test_nonexistent_key_old_timeout() {
-		if ( is_multisite() ) {
-			$this->markTestSkipped( 'Not testable in MS: wpmu_create_blog() defines WP_INSTALLING.' );
-		}
-
-		if ( wp_using_ext_object_cache() ) {
-			$this->markTestSkipped( 'Not testable with an external object cache.' );
-		}
-
 		// Create a transient
 		$key = 'test_transient';
 		set_transient( $key, 'test', 60 * 10 );

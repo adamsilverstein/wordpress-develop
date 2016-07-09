@@ -1,19 +1,19 @@
 <?php
 
+/**
+ * @group query
+ * @group post
+ */
 class Tests_Post_Query extends WP_UnitTestCase {
-	function setUp() {
-		parent::setUp();
-	}
-
 	/**
 	 * @group taxonomy
 	 */
 	function test_category__and_var() {
 		$q = new WP_Query();
 
-		$term_id = $this->factory->category->create( array( 'slug' => 'woo', 'name' => 'WOO!' ) );
-		$term_id2 = $this->factory->category->create( array( 'slug' => 'hoo', 'name' => 'HOO!' ) );
-		$post_id = $this->factory->post->create();
+		$term_id = self::factory()->category->create( array( 'slug' => 'woo', 'name' => 'WOO!' ) );
+		$term_id2 = self::factory()->category->create( array( 'slug' => 'hoo', 'name' => 'HOO!' ) );
+		$post_id = self::factory()->post->create();
 
 		wp_set_post_categories( $post_id, $term_id );
 
@@ -41,8 +41,8 @@ class Tests_Post_Query extends WP_UnitTestCase {
 	 * @group taxonomy
 	 */
 	function test_empty_category__in() {
-		$cat_id = $this->factory->category->create();
-		$post_id = $this->factory->post->create();
+		$cat_id = self::factory()->category->create();
+		$post_id = self::factory()->post->create();
 		wp_set_post_categories( $post_id, $cat_id );
 
 		$q1 = get_posts( array( 'category__in' => array( $cat_id ) ) );
@@ -71,7 +71,7 @@ class Tests_Post_Query extends WP_UnitTestCase {
 	 */
 	function test_the_posts_filter() {
 		// Create posts and clear their caches.
-		$post_ids = $this->factory->post->create_many( 10 );
+		$post_ids = self::factory()->post->create_many( 4 );
 		foreach ( $post_ids as $post_id )
 			clean_post_cache( $post_id );
 
@@ -79,12 +79,12 @@ class Tests_Post_Query extends WP_UnitTestCase {
 
 		$query = new WP_Query( array(
 			'post_type' => 'post',
-			'posts_per_page' => 5,
+			'posts_per_page' => 3,
 		) );
 
-		// Sixth post added in filter
-		$this->assertEquals( 6, count( $query->posts ) );
-		$this->assertEquals( 6, $query->post_count );
+		// Fourth post added in filter
+		$this->assertEquals( 4, count( $query->posts ) );
+		$this->assertEquals( 4, $query->post_count );
 
 		foreach ( $query->posts as $post ) {
 
@@ -115,19 +115,19 @@ class Tests_Post_Query extends WP_UnitTestCase {
 	}
 
 	function test_post__in_ordering() {
-		$post_id1 = $this->factory->post->create( array( 'post_type' => 'page', 'menu_order' => rand( 1, 100 ) ) );
-		$post_id2 = $this->factory->post->create( array( 'post_type' => 'page', 'menu_order' => rand( 1, 100 ) ) );
-		$post_id3 = $this->factory->post->create( array(
+		$post_id1 = self::factory()->post->create( array( 'post_type' => 'page', 'menu_order' => rand( 1, 100 ) ) );
+		$post_id2 = self::factory()->post->create( array( 'post_type' => 'page', 'menu_order' => rand( 1, 100 ) ) );
+		$post_id3 = self::factory()->post->create( array(
 			'post_type' => 'page',
 			'post_parent' => $post_id2,
 			'menu_order' => rand( 1, 100 )
 		) );
-		$post_id4 = $this->factory->post->create( array(
+		$post_id4 = self::factory()->post->create( array(
 			'post_type' => 'page',
 			'post_parent' => $post_id2,
 			'menu_order' => rand( 1, 100 )
 		) );
-		$post_id5 = $this->factory->post->create( array( 'post_type' => 'page', 'menu_order' => rand( 1, 100 ) ) );
+		$post_id5 = self::factory()->post->create( array( 'post_type' => 'page', 'menu_order' => rand( 1, 100 ) ) );
 
 		$ordered = array( $post_id2, $post_id4, $post_id3, $post_id1, $post_id5 );
 
@@ -140,26 +140,26 @@ class Tests_Post_Query extends WP_UnitTestCase {
 	}
 
 	function test_post__in_attachment_ordering() {
-		$post_id = $this->factory->post->create();
+		$post_id = self::factory()->post->create();
 		$att_ids = array();
 		$file = DIR_TESTDATA . '/images/canola.jpg';
-		$att_ids[1] = $this->factory->attachment->create_object( $file, $post_id, array(
+		$att_ids[1] = self::factory()->attachment->create_object( $file, $post_id, array(
 			'post_mime_type' => 'image/jpeg',
 			'menu_order' => rand( 1, 100 )
 		) );
-		$att_ids[2] = $this->factory->attachment->create_object( $file, $post_id, array(
+		$att_ids[2] = self::factory()->attachment->create_object( $file, $post_id, array(
 			'post_mime_type' => 'image/jpeg',
 			'menu_order' => rand( 1, 100 )
 		) );
-		$att_ids[3] = $this->factory->attachment->create_object( $file, $post_id, array(
+		$att_ids[3] = self::factory()->attachment->create_object( $file, $post_id, array(
 			'post_mime_type' => 'image/jpeg',
 			'menu_order' => rand( 1, 100 )
 		) );
-		$att_ids[4] = $this->factory->attachment->create_object( $file, $post_id, array(
+		$att_ids[4] = self::factory()->attachment->create_object( $file, $post_id, array(
 			'post_mime_type' => 'image/jpeg',
 			'menu_order' => rand( 1, 100 )
 		) );
-		$att_ids[5] = $this->factory->attachment->create_object( $file, $post_id, array(
+		$att_ids[5] = self::factory()->attachment->create_object( $file, $post_id, array(
 			'post_mime_type' => 'image/jpeg',
 			'menu_order' => rand( 1, 100 )
 		) );
@@ -176,6 +176,29 @@ class Tests_Post_Query extends WP_UnitTestCase {
 			'orderby' => 'post__in'
 		) );
 		$this->assertEqualSets( $ordered, wp_list_pluck( $attached->posts, 'ID' ) );
+	}
+
+	/**
+	 * @ticket 36515
+	 */
+	public function test_post_name__in_ordering() {
+		$post_id1 = self::factory()->post->create( array( 'post_name' => 'id-1', 'post_type' => 'page' ) );
+		$post_id2 = self::factory()->post->create( array( 'post_name' => 'id-2', 'post_type' => 'page' ) );
+		$post_id3 = self::factory()->post->create( array(
+			'post_name' => 'id-3',
+			'post_type' => 'page',
+			'post_parent' => $post_id2
+		) );
+
+		$ordered = array( 'id-2', 'id-3', 'id-1' );
+
+		$q = new WP_Query( array(
+			'post_type' => 'any',
+			'post_name__in' => $ordered,
+			'orderby' => 'post_name__in'
+		) );
+
+		$this->assertSame( $ordered, wp_list_pluck( $q->posts, 'post_name' ) );
 	}
 
 	function test_post_status() {
@@ -304,6 +327,39 @@ class Tests_Post_Query extends WP_UnitTestCase {
 	}
 
 	/**
+	 * @ticket 35692
+	 */
+	public function test_orderby_rand_with_seed() {
+		$q = new WP_Query( array(
+			'orderby' => 'RAND(5)',
+		) );
+
+		$this->assertContains( 'ORDER BY RAND(5)', $q->request );
+	}
+
+	/**
+	 * @ticket 35692
+	 */
+	public function test_orderby_rand_should_ignore_invalid_seed() {
+		$q = new WP_Query( array(
+			'orderby' => 'RAND(foo)',
+		) );
+
+		$this->assertNotContains( 'ORDER BY RAND', $q->request );
+	}
+
+	/**
+	 * @ticket 35692
+	 */
+	public function test_orderby_rand_with_seed_should_be_case_insensitive() {
+		$q = new WP_Query( array(
+			'orderby' => 'rand(5)',
+		) );
+
+		$this->assertContains( 'ORDER BY RAND(5)', $q->request );
+	}
+
+	/**
 	 * Tests the post_name__in attribute of WP_Query.
 	 *
 	 * @ticket 33065
@@ -311,10 +367,10 @@ class Tests_Post_Query extends WP_UnitTestCase {
 	public function test_post_name__in() {
 		$q = new WP_Query();
 
-		$post_ids[0] = $this->factory->post->create( array( 'post_title' => 'woo', 'post_date' => '2015-07-23 00:00:00' ) );
-		$post_ids[1] = $this->factory->post->create( array( 'post_title' => 'hoo', 'post_date' => '2015-07-23 00:00:00' ) );
-		$post_ids[2] = $this->factory->post->create( array( 'post_title' => 'test', 'post_date' => '2015-07-23 00:00:00' ) );
-		$post_ids[3] = $this->factory->post->create( array( 'post_title' => 'me', 'post_date' => '2015-07-23 00:00:00' ) );
+		$post_ids[0] = self::factory()->post->create( array( 'post_title' => 'woo', 'post_date' => '2015-07-23 00:00:00' ) );
+		$post_ids[1] = self::factory()->post->create( array( 'post_title' => 'hoo', 'post_date' => '2015-07-23 00:00:00' ) );
+		$post_ids[2] = self::factory()->post->create( array( 'post_title' => 'test', 'post_date' => '2015-07-23 00:00:00' ) );
+		$post_ids[3] = self::factory()->post->create( array( 'post_title' => 'me', 'post_date' => '2015-07-23 00:00:00' ) );
 
 		$requested = array( $post_ids[0], $post_ids[3] );
 		$q->query( array(
@@ -331,5 +387,152 @@ class Tests_Post_Query extends WP_UnitTestCase {
 		) );
 		$actual_posts = $q->get_posts();
 		$this->assertEqualSets( $requested, $actual_posts );
+	}
+
+	/**
+	 * @ticket 36687
+	 */
+	public function test_posts_pre_query_filter_should_bypass_database_query() {
+		global $wpdb;
+
+		add_filter( 'posts_pre_query', array( __CLASS__, 'filter_posts_pre_query' ) );
+
+		$num_queries = $wpdb->num_queries;
+		$q = new WP_Query( array(
+			'fields' => 'ids',
+			'no_found_rows' => true,
+		) );
+
+		remove_filter( 'posts_pre_query', array( __CLASS__, 'filter_posts_pre_query' ) );
+
+		$this->assertSame( $num_queries, $wpdb->num_queries );
+		$this->assertSame( array( 12345 ), $q->posts );
+	}
+
+	public static function filter_posts_pre_query( $posts ) {
+		return array( 12345 );
+	}
+
+	/**
+	 * @ticket 36687
+	 */
+	public function test_posts_pre_query_filter_should_respect_set_found_posts() {
+		global $wpdb;
+
+		$this->post_id = self::factory()->post->create();
+
+		// Prevent the DB query
+		add_filter( 'posts_request', '__return_empty_string' );
+		add_filter( 'found_posts_query', '__return_empty_string' );
+
+		// Add the post and found_posts
+		add_filter( 'the_posts', array( $this, 'filter_the_posts' ) );
+		add_filter( 'found_posts', array( $this, 'filter_found_posts' ) );
+
+		$q = new WP_Query( array( 'suppress_filters' => false ) );
+
+		remove_filter( 'posts_request', '__return_empty_string' );
+		remove_filter( 'found_posts_query', '__return_empty_string' );
+		remove_filter( 'the_posts', array( $this, 'filter_the_posts' ) );
+		remove_filter( 'found_posts', array( $this, 'filter_found_posts' ) );
+
+		$this->assertSame( array( $this->post_id ), wp_list_pluck( $q->posts, 'ID' ) );
+		$this->assertSame( 1, $q->found_posts );
+	}
+
+	public function filter_the_posts() {
+		return array( get_post( $this->post_id ) );
+	}
+
+	public function filter_found_posts( $posts ) {
+		return 1;
+	}
+
+	/**
+	 * @ticket 36687
+	 */
+	public function test_set_found_posts_fields_ids() {
+		register_post_type( 'wptests_pt' );
+
+		$posts = self::factory()->post->create_many( 2, array( 'post_type' => 'wptests_pt' ) );
+
+		foreach ( $posts as $p ) {
+			clean_post_cache( $p );
+		}
+
+		$q = new WP_Query( array(
+			'post_type' => 'wptests_pt',
+			'posts_per_page' => 1,
+			'fields' => 'ids',
+		) );
+
+		$this->assertEquals( 2, $q->found_posts );
+		$this->assertEquals( 2, $q->max_num_pages );
+	}
+
+	/**
+	 * @ticket 36687
+	 */
+	public function test_set_found_posts_fields_idparent() {
+		register_post_type( 'wptests_pt' );
+
+		$posts = self::factory()->post->create_many( 2, array( 'post_type' => 'wptests_pt' ) );
+		foreach ( $posts as $p ) {
+			clean_post_cache( $p );
+		}
+
+		$q = new WP_Query( array(
+			'post_type' => 'wptests_pt',
+			'posts_per_page' => 1,
+			'fields' => 'id=>parent',
+		) );
+
+		$this->assertEquals( 2, $q->found_posts );
+		$this->assertEquals( 2, $q->max_num_pages );
+	}
+
+	/**
+	 * @ticket 36687
+	 */
+	public function test_set_found_posts_fields_split_the_query() {
+		register_post_type( 'wptests_pt' );
+
+		$posts = self::factory()->post->create_many( 2, array( 'post_type' => 'wptests_pt' ) );
+		foreach ( $posts as $p ) {
+			clean_post_cache( $p );
+		}
+
+		add_filter( 'split_the_query', '__return_true' );
+		$q = new WP_Query( array(
+			'post_type' => 'wptests_pt',
+			'posts_per_page' => 1,
+		) );
+		remove_filter( 'split_the_query', '__return_true' );
+
+		$this->assertEquals( 2, $q->found_posts );
+		$this->assertEquals( 2, $q->max_num_pages );
+	}
+
+	/**
+	 * @ticket 36687
+	 */
+	public function test_set_found_posts_fields_not_split_the_query() {
+		register_post_type( 'wptests_pt' );
+
+		$posts = self::factory()->post->create_many( 2, array( 'post_type' => 'wptests_pt' ) );
+		foreach ( $posts as $p ) {
+			clean_post_cache( $p );
+		}
+
+		// ! $split_the_query
+		add_filter( 'split_the_query', '__return_false' );
+		$q = new WP_Query( array(
+			'post_type' => 'wptests_pt',
+			'posts_per_page' => 1,
+		) );
+		remove_filter( 'split_the_query', '__return_false' );
+
+		$this->assertEquals( 2, $q->found_posts );
+		$this->assertEquals( 2, $q->max_num_pages );
 	}
 }

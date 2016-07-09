@@ -60,12 +60,7 @@ class Tests_DB extends WP_UnitTestCase {
 		$var = $wpdb->get_var( "SELECT ID FROM $wpdb->users LIMIT 1" );
 		$this->assertGreaterThan( 0, $var );
 
-		if ( $wpdb->use_mysqli ) {
-			mysqli_close( $wpdb->dbh );
-		} else {
-			mysql_close( $wpdb->dbh );
-		}
-		unset( $wpdb->dbh );
+		$wpdb->close();
 
 		$var = $wpdb->get_var( "SELECT ID FROM $wpdb->users LIMIT 1" );
 		$this->assertGreaterThan( 0, $var );
@@ -509,7 +504,7 @@ class Tests_DB extends WP_UnitTestCase {
 			$this->markTestSkipped( 'procedure could not be created (missing privileges?)' );
 		}
 
-		$post_id = $this->factory->post->create();
+		$post_id = self::factory()->post->create();
 
 		$this->assertNotEmpty( $wpdb->get_results( 'CALL `test_mysqli_flush_sync_procedure`' ) );
 		$this->assertNotEmpty( $wpdb->get_results( "SELECT ID FROM `{$wpdb->posts}` LIMIT 1" ) );
@@ -807,5 +802,231 @@ class Tests_DB extends WP_UnitTestCase {
 	function filter_pre_get_col_charset( $charset, $table, $column ) {
 		return 'fake_col_charset';
 	}
-}
 
+	/**
+	 * @ticket 15158
+	 */
+	function test_null_insert() {
+		global $wpdb;
+
+		$key = 'null_insert_key';
+
+		$wpdb->insert(
+			$wpdb->postmeta,
+			array(
+				'meta_key' => $key,
+				'meta_value' => NULL
+			),
+			array( '%s', '%s' )
+		);
+
+		$row = $wpdb->get_row( "SELECT * FROM $wpdb->postmeta WHERE meta_key='$key'" );
+
+		$this->assertNull( $row->meta_value );
+	}
+
+	/**
+	 * @ticket 15158
+	 */
+	function test_null_update_value() {
+		global $wpdb;
+
+		$key = 'null_update_value_key';
+		$value = 'null_update_value_key';
+
+		$wpdb->insert(
+			$wpdb->postmeta,
+			array(
+				'meta_key' => $key,
+				'meta_value' => $value
+			),
+			array( '%s', '%s' )
+		);
+
+		$row = $wpdb->get_row( "SELECT * FROM $wpdb->postmeta WHERE meta_key='$key'" );
+
+		$this->assertSame( $value, $row->meta_value );
+
+		$wpdb->update(
+			$wpdb->postmeta,
+			array( 'meta_value' => NULL ),
+			array(
+				'meta_key' => $key,
+				'meta_value' => $value
+			),
+			array( '%s' ),
+			array( '%s', '%s' )
+		);
+
+		$row = $wpdb->get_row( "SELECT * FROM $wpdb->postmeta WHERE meta_key='$key'" );
+
+		$this->assertNull( $row->meta_value );
+	}
+
+	/**
+	 * @ticket 15158
+	 */
+	function test_null_update_where() {
+		global $wpdb;
+
+		$key = 'null_update_where_key';
+		$value = 'null_update_where_key';
+
+		$wpdb->insert(
+			$wpdb->postmeta,
+			array(
+				'meta_key' => $key,
+				'meta_value' => NULL
+			),
+			array( '%s', '%s' )
+		);
+
+		$row = $wpdb->get_row( "SELECT * FROM $wpdb->postmeta WHERE meta_key='$key'" );
+
+		$this->assertNull( $row->meta_value );
+
+		$wpdb->update(
+			$wpdb->postmeta,
+			array( 'meta_value' => $value ),
+			array(
+				'meta_key' => $key,
+				'meta_value' => NULL
+			),
+			array( '%s' ),
+			array( '%s', '%s' )
+		);
+
+		$row = $wpdb->get_row( "SELECT * FROM $wpdb->postmeta WHERE meta_key='$key'" );
+
+		$this->assertSame( $value, $row->meta_value );
+	}
+
+	/**
+	 * @ticket 15158
+	 */
+	function test_null_delete() {
+		global $wpdb;
+
+		$key = 'null_update_where_key';
+		$value = 'null_update_where_key';
+
+		$wpdb->insert(
+			$wpdb->postmeta,
+			array(
+				'meta_key' => $key,
+				'meta_value' => NULL
+			),
+			array( '%s', '%s' )
+		);
+
+		$row = $wpdb->get_row( "SELECT * FROM $wpdb->postmeta WHERE meta_key='$key'" );
+
+		$this->assertNull( $row->meta_value );
+
+		$wpdb->delete(
+			$wpdb->postmeta,
+			array(
+				'meta_key' => $key,
+				'meta_value' => NULL
+			),
+			array( '%s', '%s' )
+		);
+
+		$row = $wpdb->get_row( "SELECT * FROM $wpdb->postmeta WHERE meta_key='$key'" );
+
+		$this->assertNull( $row );
+	}
+
+	/**
+	 * @ticket 34903
+	 */
+	function test_close() {
+		global $wpdb;
+
+		$this->assertTrue( $wpdb->close() );
+		$this->assertFalse( $wpdb->close() );
+
+		$this->assertFalse( $wpdb->ready );
+		$this->assertFalse( $wpdb->has_connected );
+
+		$wpdb->check_connection();
+
+		$this->assertTrue( $wpdb->close() );
+
+		$wpdb->check_connection();
+	}
+
+	/**
+	 * @ticket 36917
+	 */
+	function test_charset_not_determined_when_disconnected() {
+		global $wpdb;
+
+		$charset = 'utf8';
+		$collate = 'this_isnt_a_collation';
+
+		$wpdb->close();
+
+		$result = $wpdb->determine_charset( $charset, $collate );
+
+		$this->assertSame( compact( 'charset', 'collate' ), $result );
+
+		$wpdb->check_connection();
+	}
+
+	/**
+	 * @ticket 36917
+	 */
+	function test_charset_switched_to_utf8mb4() {
+		global $wpdb;
+
+		if ( ! $wpdb->has_cap( 'utf8mb4' ) ) {
+			$this->markTestSkipped( 'This test requires utf8mb4 support.' );
+		}
+
+		$charset = 'utf8';
+		$collate = 'utf8_general_ci';
+
+		$result = $wpdb->determine_charset( $charset, $collate );
+
+		$this->assertSame( 'utf8mb4', $result['charset'] );
+	}
+
+	/**
+	 * @ticket 32105
+	 * @ticket 36917
+	 */
+	function test_collate_switched_to_utf8mb4_520() {
+		global $wpdb;
+
+		if ( ! $wpdb->has_cap( 'utf8mb4_520' ) ) {
+			$this->markTestSkipped( 'This test requires utf8mb4_520 support.' );
+		}
+
+		$charset = 'utf8';
+		$collate = 'utf8_general_ci';
+
+		$result = $wpdb->determine_charset( $charset, $collate );
+
+		$this->assertSame( 'utf8mb4_unicode_520_ci', $result['collate'] );
+	}
+
+	/**
+	 * @ticket 32405
+	 * @ticket 36917
+	 */
+	function test_non_unicode_collations() {
+		global $wpdb;
+
+		if ( ! $wpdb->has_cap( 'utf8mb4' ) ) {
+			$this->markTestSkipped( 'This test requires utf8mb4 support.' );
+		}
+
+		$charset = 'utf8';
+		$collate = 'utf8_swedish_ci';
+
+		$result = $wpdb->determine_charset( $charset, $collate );
+
+		$this->assertSame( 'utf8mb4_swedish_ci', $result['collate'] );
+	}
+}

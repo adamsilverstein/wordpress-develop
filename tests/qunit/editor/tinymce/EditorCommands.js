@@ -4,7 +4,6 @@ module("tinymce.EditorCommands", {
 
 		tinymce.init({
 			selector: "textarea",
-			plugins: wpPlugins,
 			add_unload_trigger: false,
 			disable_nodechange: true,
 			indent: false,
@@ -46,6 +45,45 @@ test('mceInsertContent - p inside text of p', function() {
 	equal(rng.endContainer.nodeName, 'P');
 	equal(rng.endOffset, 1);
 	equal(rng.startContainer.innerHTML, 'abc');
+});
+
+test('mceInsertContent before HR', function() {
+	var rng;
+
+	editor.setContent('<hr>');
+	editor.focus();
+	rng = editor.dom.createRng();
+	rng.setStart(editor.getBody(), 0);
+	rng.setEnd(editor.getBody(), 0);
+	editor.selection.setRng(rng);
+	editor.execCommand('mceInsertContent', false, 'x');
+	equal(getContent(), '<p>x</p><hr />');
+});
+
+test('mceInsertContent HR at end of H1', function() {
+	editor.setContent('<h1>abc</h1>');
+	Utils.setSelection('h1', 3);
+	editor.execCommand('mceInsertContent', false, '<hr>');
+	equal(editor.selection.getNode(), editor.getBody().lastChild);
+	equal(editor.selection.getNode().nodeName, 'H1');
+	equal(getContent(), '<h1>abc</h1><hr /><h1>\u00a0</h1>');
+});
+
+test('mceInsertContent HR at end of H1 with P sibling', function() {
+	editor.setContent('<h1>abc</h1><p>def</p>');
+	Utils.setSelection('h1', 3);
+	editor.execCommand('mceInsertContent', false, '<hr>');
+	equal(editor.selection.getNode(), editor.getBody().lastChild);
+	equal(editor.selection.getNode().nodeName, 'P');
+	equal(getContent(), '<h1>abc</h1><hr /><p>def</p>');
+});
+
+test('mceInsertContent HR at end of H1 with P sibling', function() {
+	editor.setContent('<h1>abc</h1><p>def</p>');
+	Utils.setSelection('h1', 3);
+	editor.execCommand('mceInsertContent', false, '<table><tr><td></td></tr></table>');
+	equal(editor.selection.getNode().nodeName, 'TD');
+	equal(getContent(), '<h1>abc</h1><table><tbody><tr><td>\u00a0</td></tr></tbody></table><p>def</p>');
 });
 
 test('mceInsertContent - p inside whole p', function() {
@@ -199,7 +237,7 @@ test('mceInsertContent - image inside p', function() {
 	rng.setEnd(editor.dom.select('p')[0].firstChild, 1);
 	editor.selection.setRng(rng);
 	editor.execCommand('mceInsertContent', false, '<img src="about:blank" />');
-	equal(editor.getContent(), '<p><img src="about:blank" alt="" /></p>');
+	equal(editor.getContent(), '<p><img src="about:blank" /></p>');
 	rng = Utils.normalizeRng(editor.selection.getRng(true));
 	ok(rng.collapsed);
 	equal(rng.startContainer.nodeName, 'P');
@@ -249,7 +287,7 @@ test('mceInsertContent - forced root block', function() {
 
 	// Forced root block
 	editor.getBody().innerHTML = '';
-	editor.execCommand('mceInsertContent', false, 'test<strong>123</strong><!-- a -->'); // WP: use <strong> instead of <b>
+	editor.execCommand('mceInsertContent', false, 'test<b>123</b><!-- a -->');
 	// Opera adds an extra paragraph since it adds a BR at the end of the contents pass though this for now since it's an minority browser
 	equal(editor.getContent().replace(/<p>\u00a0<\/p>/g, ''), '<p>test<strong>123</strong></p><!-- a -->');
 });
@@ -260,7 +298,7 @@ test('mceInsertContent - mixed inline content inside td', function() {
 	// Forced root block
 	editor.getBody().innerHTML = '<table><tr><td>X</td></tr></table>';
 	Utils.setSelection('td', 0, 'td', 0);
-	editor.execCommand('mceInsertContent', false, 'test<strong>123</strong><!-- a -->'); // WP: use <strong> instead of <b>
+	editor.execCommand('mceInsertContent', false, 'test<b>123</b><!-- a -->');
 	equal(editor.getContent(), '<table><tbody><tr><td>test<strong>123</strong><!-- a -->X</td></tr></tbody></table>');
 });
 
@@ -406,12 +444,12 @@ test('Formatting commands (xhtmlTextStyles)', function() {
 
 	editor.setContent('test 123');
 	editor.execCommand('SelectAll');
-	editor.execCommand('FontName',false,'Arial');
+	editor.execCommand('FontName', false, 'Arial');
 	equal(editor.getContent(), '<p><span style="font-family: ' + Utils.fontFace('Arial') + ';">test 123</span></p>');
 
 	editor.setContent('test 123');
 	editor.execCommand('SelectAll');
-	editor.execCommand('FontSize',false,'7');
+	editor.execCommand('FontSize', false, '7');
 	equal(editor.getContent(), '<p><span style="font-size: xx-large;">test 123</span></p>');
 
 	editor.setContent('test 123');
@@ -480,18 +518,18 @@ test('Formatting commands (alignInline)', function() {
 
 	editor.setContent('<img src="tinymce/ui/img/raster.gif" />');
 	editor.selection.select(editor.dom.select('img')[0]);
-	editor.execCommand('JustifyLeft'); // WP use classes
-	equal(editor.getContent(), '<p><img class="alignleft" src="tinymce/ui/img/raster.gif" alt="" /></p>');
+	editor.execCommand('JustifyLeft');
+	equal(editor.getContent(), '<p><img style="float: left;" src="tinymce/ui/img/raster.gif" /></p>');
 
 	editor.setContent('<img src="tinymce/ui/img/raster.gif" />');
 	editor.selection.select(editor.dom.select('img')[0]);
-	editor.execCommand('JustifyCenter'); // WP use classes
-	equal(editor.getContent(), '<p><img class="aligncenter" src="tinymce/ui/img/raster.gif" alt="" /></p>');
+	editor.execCommand('JustifyCenter');
+	equal(editor.getContent(), '<p><img style="margin-right: auto; margin-left: auto; display: block;" src="tinymce/ui/img/raster.gif" /></p>');
 
 	editor.setContent('<img src="tinymce/ui/img/raster.gif" />');
 	editor.selection.select(editor.dom.select('img')[0]);
-	editor.execCommand('JustifyRight'); // WP use classes
-	equal(editor.getContent(), '<p><img class="alignright" src="tinymce/ui/img/raster.gif" alt="" /></p>');
+	editor.execCommand('JustifyRight');
+	equal(editor.getContent(), '<p><img style="float: right;" src="tinymce/ui/img/raster.gif" /></p>');
 });
 
 test('mceBlockQuote', function() {
@@ -607,7 +645,7 @@ test('mceInsertLink (link floated img)', function() {
 	editor.setContent('<p><img style="float: right;" src="about:blank" /></p>');
 	editor.execCommand('SelectAll');
 	editor.execCommand('mceInsertLink', false, 'link');
-	equal(editor.getContent(), '<p><a href="link"><img style="float: right;" src="about:blank" alt="" /></a></p>');
+	equal(editor.getContent(), '<p><a href="link"><img style="float: right;" src="about:blank" /></a></p>');
 });
 
 test('mceInsertLink (link adjacent text)', function() {
@@ -785,5 +823,5 @@ test('InsertLineBreak', function() {
 	editor.setContent('<p>123</p>');
 	Utils.setSelection('p', 3);
 	editor.execCommand('InsertLineBreak');
-	equal(Utils.cleanHtml(editor.getBody().innerHTML), (tinymce.isIE && tinymce.Env.ie < 11) ? '<p>123<br></p>': '<p>123<br><br></p>');
+	equal(Utils.cleanHtml(editor.getBody().innerHTML), (tinymce.isIE && tinymce.Env.ie < 11) ? '<p>123<br></p>' : '<p>123<br><br></p>');
 });

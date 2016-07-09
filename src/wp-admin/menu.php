@@ -50,13 +50,14 @@ $menu[10] = array( __('Media'), 'upload_files', 'upload.php', '', 'menu-top menu
 	$submenu['upload.php'][5] = array( __('Library'), 'upload_files', 'upload.php');
 	/* translators: add new file */
 	$submenu['upload.php'][10] = array( _x('Add New', 'file'), 'upload_files', 'media-new.php');
+	$i = 15;
 	foreach ( get_taxonomies_for_attachments( 'objects' ) as $tax ) {
 		if ( ! $tax->show_ui || ! $tax->show_in_menu )
 			continue;
 
 		$submenu['upload.php'][$i++] = array( esc_attr( $tax->labels->menu_name ), $tax->cap->manage_terms, 'edit-tags.php?taxonomy=' . $tax->name . '&amp;post_type=attachment' );
 	}
-	unset($tax);
+	unset( $tax, $i );
 
 $menu[15] = array( __('Links'), 'manage_links', 'link-manager.php', '', 'menu-top menu-icon-links', 'menu-links', 'dashicons-admin-links' );
 	$submenu['link-manager.php'][5] = array( _x('All Links', 'admin menu'), 'manage_links', 'link-manager.php' );
@@ -66,10 +67,21 @@ $menu[15] = array( __('Links'), 'manage_links', 'link-manager.php', '', 'menu-to
 
 // $menu[20] = Pages
 
-$awaiting_mod = wp_count_comments();
-$awaiting_mod = $awaiting_mod->moderated;
-$menu[25] = array( sprintf( __('Comments %s'), "<span class='awaiting-mod count-$awaiting_mod'><span class='pending-count'>" . number_format_i18n($awaiting_mod) . "</span></span>" ), 'edit_posts', 'edit-comments.php', '', 'menu-top menu-icon-comments', 'menu-comments', 'dashicons-admin-comments' );
-unset($awaiting_mod);
+// Avoid the comment count query for users who cannot edit_posts.
+if ( current_user_can( 'edit_posts' ) ) {
+	$awaiting_mod = wp_count_comments();
+	$awaiting_mod = $awaiting_mod->moderated;
+	$menu[25] = array(
+		sprintf( __( 'Comments %s' ), '<span class="awaiting-mod count-' . absint( $awaiting_mod ) . '"><span class="pending-count">' . number_format_i18n( $awaiting_mod ) . '</span></span>' ),
+		'edit_posts',
+		'edit-comments.php',
+		'',
+		'menu-top menu-icon-comments',
+		'menu-comments',
+		'dashicons-admin-comments',
+	);
+	unset( $awaiting_mod );
+}
 
 $submenu[ 'edit-comments.php' ][0] = array( __('All Comments'), 'edit_posts', 'edit-comments.php' );
 
@@ -85,6 +97,7 @@ foreach ( array_merge( $builtin, $types ) as $ptype ) {
 	$ptype_menu_position = is_int( $ptype_obj->menu_position ) ? $ptype_obj->menu_position : ++$_wp_last_object_menu; // If we're to use $_wp_last_object_menu, increment it first.
 	$ptype_for_id = sanitize_html_class( $ptype );
 
+	$menu_icon = 'dashicons-admin-post';
 	if ( is_string( $ptype_obj->menu_icon ) ) {
 		// Special handling for data:image/svg+xml and Dashicons.
 		if ( 0 === strpos( $ptype_obj->menu_icon, 'data:image/svg+xml;base64,' ) || 0 === strpos( $ptype_obj->menu_icon, 'dashicons-' ) ) {
@@ -134,7 +147,7 @@ foreach ( array_merge( $builtin, $types ) as $ptype ) {
 		$submenu[ $ptype_file ][$i++] = array( esc_attr( $tax->labels->menu_name ), $tax->cap->manage_terms, sprintf( $edit_tags_file, $tax->name ) );
 	}
 }
-unset($ptype, $ptype_obj, $ptype_for_id, $ptype_menu_position, $menu_icon, $i, $tax);
+unset( $ptype, $ptype_obj, $ptype_for_id, $ptype_menu_position, $menu_icon, $i, $tax, $post_new_file );
 
 $menu[59] = array( '', 'read', 'separator2', '', 'wp-menu-separator' );
 
@@ -169,7 +182,10 @@ if ( ! is_multisite() ) {
 	add_action('admin_menu', '_add_themes_utility_last', 101);
 }
 /**
+ * Adds the (theme) 'Editor' link to the bottom of the Appearance menu.
  *
+ * @access private
+ * @since 3.0.0
  */
 function _add_themes_utility_last() {
 	// Must use API on the admin_menu hook, direct modification is only possible on/before the _admin_menu hook
@@ -249,7 +265,7 @@ $_wp_real_parent_file['page-new.php'] = 'edit.php?post_type=page';
 $_wp_real_parent_file['wpmu-admin.php'] = 'tools.php';
 $_wp_real_parent_file['ms-admin.php'] = 'tools.php';
 
-// ensure we're backwards compatible
+// Ensure backward compatibility.
 $compat = array(
 	'index' => 'dashboard',
 	'edit' => 'posts',

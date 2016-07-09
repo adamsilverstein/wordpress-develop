@@ -115,7 +115,11 @@ window.wp = window.wp || {};
 			this.active = true;
 			this.body.addClass('customize-loading');
 
-			// Dirty state of Customizer in iframe
+			/*
+			 * Track the dirtiness state (whether the drafted changes have been published)
+			 * of the Customizer in the iframe. This is used to decide whether to display
+			 * an AYS alert if the user tries to close the window before saving changes.
+			 */
 			this.saved = new api.Value( true );
 
 			this.iframe = $( '<iframe />', { 'src': src, 'title': Loader.settings.l10n.mainIframeTitle } ).appendTo( this.element );
@@ -145,12 +149,6 @@ window.wp = window.wp || {};
 
 			// Prompt AYS dialog when navigating away
 			$( window ).on( 'beforeunload', this.beforeunload );
-
-			this.messenger.bind( 'activated', function( location ) {
-				if ( location ) {
-					window.location = location;
-				}
-			});
 
 			this.messenger.bind( 'saved', function () {
 				Loader.saved( true );

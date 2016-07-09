@@ -11,15 +11,18 @@
             <exclude>tests/phpunit/tests/image/editor.php</exclude>
             <exclude>tests/phpunit/tests/image/editor_gd.php</exclude>
             <exclude>tests/phpunit/tests/image/editor_imagick.php</exclude>
+            <exclude>tests/phpunit/tests/oembed/headers.php</exclude>
             <file phpVersion="5.3.0">tests/phpunit/tests/actions/closures.php</file>
             <file phpVersion="5.3.0">tests/phpunit/tests/image/editor.php</file>
             <file phpVersion="5.3.0">tests/phpunit/tests/image/editor_gd.php</file>
             <file phpVersion="5.3.0">tests/phpunit/tests/image/editor_imagick.php</file>
+            <file phpVersion="5.3.0">tests/phpunit/tests/oembed/headers.php</file>
         </testsuite>
     </testsuites>
     <groups>
         <exclude>
             <group>ajax</group>
+            <group>ms-files</group>
             <group>external-http</group>
         </exclude>
     </groups>
@@ -29,4 +32,20 @@
     <php>
         <const name="WP_RUN_CORE_TESTS" value="1" />
     </php>
+	<listeners>
+		<listener class="SpeedTrapListener" file="tests/phpunit/includes/speed-trap-listener.php">
+			<arguments>
+				<array>
+					<element key="slowThreshold">
+						<integer>150</integer>
+					</element>
+				</array>
+			</arguments>
+		</listener>
+	</listeners>
+	<filter>
+		<whitelist processUncoveredFilesFromWhitelist="true">
+			<directory suffix=".php">src</directory>
+		</whitelist>
+	</filter>
 </phpunit>

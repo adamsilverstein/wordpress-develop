@@ -13,7 +13,7 @@ require_once( ABSPATH . 'wp-admin/includes/ajax-actions.php' );
 class Tests_Ajax_QuickEdit extends WP_Ajax_UnitTestCase {
 
 	/**
-	 * @group 26948
+	 * @ticket 26948
 	 */
 	public function test_dont_process_terms_if_taxonomy_does_not_allow_show_on_quick_edit() {
 		register_taxonomy( 'wptests_tax_1', 'post', array(
@@ -25,17 +25,17 @@ class Tests_Ajax_QuickEdit extends WP_Ajax_UnitTestCase {
 			'hierarchical' => true,
 		) );
 
-		$t1 = $this->factory->term->create( array(
+		$t1 = self::factory()->term->create( array(
 			'taxonomy' => 'wptests_tax_1',
 		) );
-		$t2 = $this->factory->term->create( array(
+		$t2 = self::factory()->term->create( array(
 			'taxonomy' => 'wptests_tax_2',
 		) );
 
 		// Become an administrator.
 		$this->_setRole( 'administrator' );
 
-		$post = $this->factory->post->create_and_get( array(
+		$post = self::factory()->post->create_and_get( array(
 			'post_author' => get_current_user_id(),
 		) );
 
@@ -48,6 +48,7 @@ class Tests_Ajax_QuickEdit extends WP_Ajax_UnitTestCase {
 		$_POST['_status'] = $post->post_status;
 		$_POST['post_status'] = $post->post_status;
 		$_POST['screen'] = 'post';
+		$_POST['post_view'] = 'excerpt';
 		$_POST['tax_input'] = array(
 			'wptests_tax_1' => array( $t1 ),
 			'wptests_tax_2' => array( $t2 ),

@@ -16,8 +16,6 @@ class Tests_Multisite_Network extends WP_UnitTestCase {
 		global $wpdb;
 		parent::setUp();
 		$this->suppress = $wpdb->suppress_errors();
-
-		$_SERVER[ 'REMOTE_ADDR' ] = '';
 	}
 
 	function tearDown() {
@@ -39,7 +37,7 @@ class Tests_Multisite_Network extends WP_UnitTestCase {
 	 * as the main network ID.
 	 */
 	function test_get_main_network_id_two_networks() {
-		$this->factory->network->create();
+		self::factory()->network->create();
 
 		$this->assertEquals( 1, get_main_network_id() );
 	}
@@ -51,7 +49,7 @@ class Tests_Multisite_Network extends WP_UnitTestCase {
 	function test_get_main_network_id_after_network_switch() {
 		global $current_site;
 
-		$id = $this->factory->network->create();
+		$id = self::factory()->network->create();
 
 		$current_site->id = (int) $id;
 
@@ -67,12 +65,16 @@ class Tests_Multisite_Network extends WP_UnitTestCase {
 	 */
 	function test_get_main_network_id_after_network_delete() {
 		global $wpdb, $current_site;
-		$id = $this->factory->network->create();
+
+		$id = self::factory()->network->create();
+		$temp_id = $id + 1;
 
 		$current_site->id = (int) $id;
-		$wpdb->query( "UPDATE {$wpdb->site} SET id=100 WHERE id=1" );
-		$this->assertEquals( $id, get_main_network_id() );
-		$wpdb->query( "UPDATE {$wpdb->site} SET id=1 WHERE id=100" );
+		$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->site} SET id=%d WHERE id=1", $temp_id ) );
+		$main_network_id = get_main_network_id();
+		$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->site} SET id=1 WHERE id=%d", $temp_id ) );
+
+		$this->assertEquals( $id, $main_network_id );
 	}
 
 	function test_get_main_network_id_filtered() {
@@ -86,29 +88,74 @@ class Tests_Multisite_Network extends WP_UnitTestCase {
 	}
 
 	/**
+	 * @ticket 37050
+	 */
+	function test_wp_network_object_id_property_is_int() {
+		$id = self::factory()->network->create();
+
+		$network = WP_Network::get_instance( $id );
+
+		$this->assertSame( (int) $id, $network->id );
+	}
+
+	/**
 	 * @ticket 22917
 	 */
-	function test_enable_live_network_site_counts_filter() {
+	public function test_get_blog_count_no_filter_applied() {
+		wp_update_network_counts();
 		$site_count_start = get_blog_count();
-		// false for large networks by default
-		add_filter( 'enable_live_network_counts', '__return_false' );
-		$this->factory->blog->create_many( 4 );
 
-		// count only updated when cron runs, so unchanged
-		$this->assertEquals( $site_count_start, (int) get_blog_count() );
+		$site_ids = self::factory()->blog->create_many( 1 );
+		$actual = (int) get_blog_count(); // count only updated when cron runs, so unchanged
 
-		add_filter( 'enable_live_network_counts', '__return_true' );
-		$site_ids = $this->factory->blog->create_many( 4 );
-
-		$this->assertEquals( $site_count_start + 9, (int) get_blog_count() );
-
-		//clean up
-		remove_filter( 'enable_live_network_counts', '__return_false' );
-		remove_filter( 'enable_live_network_counts', '__return_true' );
 		foreach ( $site_ids as $site_id ) {
 			wpmu_delete_blog( $site_id, true );
 		}
+		wp_update_network_counts();
+
+		$this->assertEquals( $site_count_start + 1, $actual );
 	}
+
+	/**
+	 * @ticket 22917
+	 */
+	public function test_get_blog_count_enable_live_network_counts_false() {
+		wp_update_network_counts();
+		$site_count_start = get_blog_count();
+
+		add_filter( 'enable_live_network_counts', '__return_false' );
+		$site_ids = self::factory()->blog->create_many( 1 );
+		$actual = (int) get_blog_count(); // count only updated when cron runs, so unchanged
+		remove_filter( 'enable_live_network_counts', '__return_false' );
+
+		foreach ( $site_ids as $site_id ) {
+			wpmu_delete_blog( $site_id, true );
+		}
+		wp_update_network_counts();
+
+		$this->assertEquals( $site_count_start, $actual );
+	}
+
+	/**
+	 * @ticket 22917
+	 */
+	public function test_get_blog_count_enabled_live_network_counts_true() {
+		wp_update_network_counts();
+		$site_count_start = get_blog_count();
+
+		add_filter( 'enable_live_network_counts', '__return_true' );
+		$site_ids = self::factory()->blog->create_many( 1 );
+		$actual = get_blog_count();
+		remove_filter( 'enable_live_network_counts', '__return_true' );
+
+		foreach ( $site_ids as $site_id ) {
+			wpmu_delete_blog( $site_id, true );
+		}
+		wp_update_network_counts();
+
+		$this->assertEquals( $site_count_start + 1, $actual );
+	}
+
 	/**
 	 * @ticket 22917
 	 */
@@ -213,7 +260,7 @@ class Tests_Multisite_Network extends WP_UnitTestCase {
 
 		// Only false for large networks as of 3.7
 		add_filter( 'enable_live_network_counts', '__return_false' );
-		$this->factory->user->create( array( 'role' => 'administrator' ) );
+		self::factory()->user->create( array( 'role' => 'administrator' ) );
 
 		$count = get_user_count(); // No change, cache not refreshed
 		$this->assertEquals( $start_count, $count );
@@ -242,8 +289,8 @@ class Tests_Multisite_Network extends WP_UnitTestCase {
 		$dashboard_blog = get_dashboard_blog();
 		$this->assertEquals( 1, $dashboard_blog->blog_id );
 
-		$user_id = $this->factory->user->create( array( 'role' => 'administrator' ) );
-		$blog_id = $this->factory->blog->create( array( 'user_id' => $user_id ) );
+		$user_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$blog_id = self::factory()->blog->create( array( 'user_id' => $user_id ) );
 		$this->assertInternalType( 'int', $blog_id );
 
 		// set the dashboard blog to another one

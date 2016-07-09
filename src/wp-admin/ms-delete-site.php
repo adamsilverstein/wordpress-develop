@@ -13,7 +13,7 @@ if ( !is_multisite() )
 	wp_die( __( 'Multisite support is not enabled.' ) );
 
 if ( ! current_user_can( 'delete_site' ) )
-	wp_die(__( 'You do not have sufficient permissions to delete this site.'));
+	wp_die(__( 'Sorry, you are not allowed to delete this site.'));
 
 if ( isset( $_GET['h'] ) && $_GET['h'] != '' && get_option( 'delete_blog_hash' ) != false ) {
 	if ( get_option( 'delete_blog_hash' ) == $_GET['h'] ) {
@@ -60,7 +60,7 @@ Thanks for using the site,
 Webmaster
 ###SITE_NAME###" );
 	/**
-	 * Filter the email content sent when a site in a Multisite network is deleted.
+	 * Filters the email content sent when a site in a Multisite network is deleted.
 	 *
 	 * @since 3.0.0
 	 *

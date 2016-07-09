@@ -22,7 +22,7 @@ class Test_WP_Customize_Nav_Menus extends WP_UnitTestCase {
 	function setUp() {
 		parent::setUp();
 		require_once ABSPATH . WPINC . '/class-wp-customize-manager.php';
-		wp_set_current_user( $this->factory->user->create( array( 'role' => 'administrator' ) ) );
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
 		global $wp_customize;
 		$this->wp_customize = new WP_Customize_Manager();
 		$wp_customize = $this->wp_customize;
@@ -124,7 +124,7 @@ class Test_WP_Customize_Nav_Menus extends WP_UnitTestCase {
 		);
 
 		// Create pages.
-		$this->factory->post->create_many( 15, array( 'post_type' => 'page' ) );
+		self::factory()->post->create_many( 12, array( 'post_type' => 'page' ) );
 
 		// Home is included in menu items when page is zero.
 		$items = $menus->load_available_items_query( 'post_type', 'page', 0 );
@@ -145,10 +145,10 @@ class Test_WP_Customize_Nav_Menus extends WP_UnitTestCase {
 		$menus = new WP_Customize_Nav_Menus( $this->wp_customize );
 
 		// Create page.
-		$post_id = $this->factory->post->create( array( 'post_title' => 'Post Title' ) );
+		$post_id = self::factory()->post->create( array( 'post_title' => 'Post Title' ) );
 
 		// Create pages.
-		$this->factory->post->create_many( 10 );
+		self::factory()->post->create_many( 10 );
 
 		// Expected menu item array.
 		$expected = array(
@@ -175,7 +175,7 @@ class Test_WP_Customize_Nav_Menus extends WP_UnitTestCase {
 		$menus = new WP_Customize_Nav_Menus( $this->wp_customize );
 
 		// Create page.
-		$page_id = $this->factory->post->create( array( 'post_title' => 'Page Title', 'post_type' => 'page' ) );
+		$page_id = self::factory()->post->create( array( 'post_title' => 'Page Title', 'post_type' => 'page' ) );
 
 		// Expected menu item array.
 		$expected = array(
@@ -201,7 +201,7 @@ class Test_WP_Customize_Nav_Menus extends WP_UnitTestCase {
 		$menus = new WP_Customize_Nav_Menus( $this->wp_customize );
 
 		// Create post.
-		$post_id = $this->factory->post->create( array( 'post_title' => 'Post Title' ) );
+		$post_id = self::factory()->post->create( array( 'post_title' => 'Post Title' ) );
 
 		// Expected menu item array.
 		$expected = array(
@@ -227,7 +227,7 @@ class Test_WP_Customize_Nav_Menus extends WP_UnitTestCase {
 		$menus = new WP_Customize_Nav_Menus( $this->wp_customize );
 
 		// Create term.
-		$term_id = $this->factory->category->create( array( 'name' => 'Term Title' ) );
+		$term_id = self::factory()->category->create( array( 'name' => 'Term Title' ) );
 
 		// Expected menu item array.
 		$expected = array(
@@ -277,22 +277,22 @@ class Test_WP_Customize_Nav_Menus extends WP_UnitTestCase {
 	function test_search_available_items_query() {
 		$menus = new WP_Customize_Nav_Menus( $this->wp_customize );
 
-		// Create posts
+		// Create posts.
 		$post_ids = array();
-		$post_ids[] = $this->factory->post->create( array( 'post_title' => 'Search & Test' ) );
-		$post_ids[] = $this->factory->post->create( array( 'post_title' => 'Some Other Title' ) );
+		$post_ids[] = self::factory()->post->create( array( 'post_title' => 'Search & Test' ) );
+		$post_ids[] = self::factory()->post->create( array( 'post_title' => 'Some Other Title' ) );
 
-		// Create terms
+		// Create terms.
 		$term_ids = array();
-		$term_ids[] = $this->factory->category->create( array( 'name' => 'Dogs Are Cool' ) );
-		$term_ids[] = $this->factory->category->create( array( 'name' => 'Cats Drool' ) );
+		$term_ids[] = self::factory()->category->create( array( 'name' => 'Dogs Are Cool' ) );
+		$term_ids[] = self::factory()->category->create( array( 'name' => 'Cats Drool' ) );
 
-		// Test empty results
+		// Test empty results.
 		$expected = array();
 		$results = $menus->search_available_items_query( array( 'pagenum' => 1, 's' => 'This Does NOT Exist' ) );
 		$this->assertEquals( $expected, $results );
 
-		// Test posts
+		// Test posts.
 		foreach ( $post_ids as $post_id ) {
 			$expected = array(
 				'id'         => 'post-' . $post_id,
@@ -310,7 +310,7 @@ class Test_WP_Customize_Nav_Menus extends WP_UnitTestCase {
 			$this->assertEquals( $expected, $results[0] );
 		}
 
-		// Test terms
+		// Test terms.
 		foreach ( $term_ids as $term_id ) {
 			$term = get_term_by( 'id', $term_id, 'category' );
 			$expected = array(
@@ -326,6 +326,56 @@ class Test_WP_Customize_Nav_Menus extends WP_UnitTestCase {
 			$results = $menus->search_available_items_query( array( 'pagenum' => 1, 's' => $s ) );
 			$this->assertEquals( $expected, $results[0] );
 		}
+
+		// Test filtered results.
+		$results = $menus->search_available_items_query( array( 'pagenum' => 1, 's' => 'cat' ) );
+		$this->assertEquals( 1, count( $results ) );
+		$count = $this->filter_count_customize_nav_menu_searched_items;
+		add_filter( 'customize_nav_menu_searched_items', array( $this, 'filter_search' ), 10, 2 );
+		$results = $menus->search_available_items_query( array( 'pagenum' => 1, 's' => 'cat' ) );
+		$this->assertEquals( $count + 1, $this->filter_count_customize_nav_menu_searched_items );
+		$this->assertInternalType( 'array', $results );
+		$this->assertEquals( 2, count( $results ) );
+		remove_filter( 'customize_nav_menu_searched_items', array( $this, 'filter_search' ), 10 );
+	}
+
+	/**
+	 * Count for number of times customize_nav_menu_searched_items filtered.
+	 *
+	 * @var int
+	 */
+	protected $filter_count_customize_nav_menu_searched_items = 0;
+
+	/**
+	 * Filter to search menu items.
+	 *
+	 * @param array $items Items.
+	 * @param array $args {
+	 *     Search args.
+	 *
+	 *     @type int    $pagenum Page number.
+	 *     @type string $s       Search string.
+	 * }
+	 * @return array Items.
+	 */
+	function filter_search( $items, $args ) {
+		$this->assertInternalType( 'array', $items );
+		$this->assertInternalType( 'array', $args );
+		$this->assertArrayHasKey( 's', $args );
+		$this->assertArrayHasKey( 'pagenum', $args );
+		$this->filter_count_customize_nav_menu_searched_items += 1;
+
+		if ( 'cat' === $args['s'] ) {
+			array_unshift( $items, array(
+				'id'         => 'home',
+				'title'      => 'COOL CAT!',
+				'type'       => 'custom',
+				'type_label' => __( 'Custom Link' ),
+				'object'     => '',
+				'url'        => home_url( '/cool-cat' ),
+			) );
+		}
+		return $items;
 	}
 
 	/**
@@ -338,6 +388,9 @@ class Test_WP_Customize_Nav_Menus extends WP_UnitTestCase {
 		$menus = new WP_Customize_Nav_Menus( $this->wp_customize );
 		$menus->enqueue_scripts();
 		$this->assertTrue( wp_script_is( 'customize-nav-menus' ) );
+
+		wp_dequeue_style( 'customize-nav-menus' );
+		wp_dequeue_script( 'customize-nav-menus' );
 	}
 
 	/**
@@ -350,11 +403,11 @@ class Test_WP_Customize_Nav_Menus extends WP_UnitTestCase {
 
 		$expected = array( 'type' => 'nav_menu_item' );
 		$results = $menus->filter_dynamic_setting_args( $this->wp_customize, 'nav_menu_item[123]' );
-		$this->assertEquals( $expected, $results );
+		$this->assertEquals( $expected['type'], $results['type'] );
 
 		$expected = array( 'type' => 'nav_menu' );
 		$results = $menus->filter_dynamic_setting_args( $this->wp_customize, 'nav_menu[123]' );
-		$this->assertEquals( $expected, $results );
+		$this->assertEquals( $expected['type'], $results['type'] );
 	}
 
 	/**
@@ -383,7 +436,7 @@ class Test_WP_Customize_Nav_Menus extends WP_UnitTestCase {
 	function test_customize_register() {
 		do_action( 'customize_register', $this->wp_customize );
 		$menu_id = wp_create_nav_menu( 'Primary' );
-		$post_id = $this->factory->post->create( array( 'post_title' => 'Hello World' ) );
+		$post_id = self::factory()->post->create( array( 'post_title' => 'Hello World' ) );
 		$item_id = wp_update_nav_menu_item( $menu_id, 0, array(
 			'menu-item-type'      => 'post_type',
 			'menu-item-object'    => 'post',
@@ -426,10 +479,10 @@ class Test_WP_Customize_Nav_Menus extends WP_UnitTestCase {
 		$menus = new WP_Customize_Nav_Menus( $this->wp_customize );
 
 		$expected = array(
-			array( 'title' => 'Post', 'type' => 'post_type', 'object' => 'post' ),
-			array( 'title' => 'Page', 'type' => 'post_type', 'object' => 'page' ),
-			array( 'title' => 'Category', 'type' => 'taxonomy', 'object' => 'category' ),
-			array( 'title' => 'Tag', 'type' => 'taxonomy', 'object' => 'post_tag' ),
+			array( 'title' => 'Posts', 'type' => 'post_type', 'object' => 'post' ),
+			array( 'title' => 'Pages', 'type' => 'post_type', 'object' => 'page' ),
+			array( 'title' => 'Categories', 'type' => 'taxonomy', 'object' => 'category' ),
+			array( 'title' => 'Tags', 'type' => 'taxonomy', 'object' => 'post_tag' ),
 		);
 
 		if ( current_theme_supports( 'post-formats' ) ) {
@@ -497,7 +550,7 @@ class Test_WP_Customize_Nav_Menus extends WP_UnitTestCase {
 		if ( $post_types ) {
 			foreach ( $post_types as $type ) {
 				$this->assertContains( 'available-menu-items-post_type-' . esc_attr( $type->name ), $template );
-				$this->assertRegExp( '#<h4 class="accordion-section-title".*>\s*' . esc_html( $type->labels->singular_name ) . '#', $template );
+				$this->assertRegExp( '#<h4 class="accordion-section-title".*>\s*' . esc_html( $type->labels->name ) . '#', $template );
 				$this->assertContains( 'data-type="post_type"', $template );
 				$this->assertContains( 'data-object="' . esc_attr( $type->name ) . '"', $template );
 			}
@@ -507,7 +560,7 @@ class Test_WP_Customize_Nav_Menus extends WP_UnitTestCase {
 		if ( $taxonomies ) {
 			foreach ( $taxonomies as $tax ) {
 				$this->assertContains( 'available-menu-items-taxonomy-' . esc_attr( $tax->name ), $template );
-				$this->assertRegExp( '#<h4 class="accordion-section-title".*>\s*' . esc_html( $tax->labels->singular_name ) . '#', $template );
+				$this->assertRegExp( '#<h4 class="accordion-section-title".*>\s*' . esc_html( $tax->labels->name ) . '#', $template );
 				$this->assertContains( 'data-type="taxonomy"', $template );
 				$this->assertContains( 'data-object="' . esc_attr( $tax->name ) . '"', $template );
 			}
@@ -520,6 +573,28 @@ class Test_WP_Customize_Nav_Menus extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test WP_Customize_Nav_Menus::customize_dynamic_partial_args().
+	 *
+	 * @see WP_Customize_Nav_Menus::customize_dynamic_partial_args()
+	 */
+	function test_customize_dynamic_partial_args() {
+		do_action( 'customize_register', $this->wp_customize );
+
+		$args = apply_filters( 'customize_dynamic_partial_args', false, 'nav_menu_instance[68b329da9893e34099c7d8ad5cb9c940]' );
+		$this->assertInternalType( 'array', $args );
+		$this->assertEquals( 'nav_menu_instance', $args['type'] );
+		$this->assertEquals( array( $this->wp_customize->nav_menus, 'render_nav_menu_partial' ), $args['render_callback'] );
+		$this->assertTrue( $args['container_inclusive'] );
+
+		$args = apply_filters( 'customize_dynamic_partial_args', array( 'fallback_refresh' => false ), 'nav_menu_instance[4099c7d8ad5cb9c94068b329da9893e3]' );
+		$this->assertInternalType( 'array', $args );
+		$this->assertEquals( 'nav_menu_instance', $args['type'] );
+		$this->assertEquals( array( $this->wp_customize->nav_menus, 'render_nav_menu_partial' ), $args['render_callback'] );
+		$this->assertTrue( $args['container_inclusive'] );
+		$this->assertFalse( $args['fallback_refresh'] );
+	}
+
+	/**
 	 * Test the customize_preview_init method.
 	 *
 	 * @see WP_Customize_Nav_Menus::customize_preview_init()
@@ -529,13 +604,9 @@ class Test_WP_Customize_Nav_Menus extends WP_UnitTestCase {
 		$menus = new WP_Customize_Nav_Menus( $this->wp_customize );
 
 		$menus->customize_preview_init();
-		$this->assertEquals( 10, has_action( 'template_redirect', array( $menus, 'render_menu' ) ) );
 		$this->assertEquals( 10, has_action( 'wp_enqueue_scripts', array( $menus, 'customize_preview_enqueue_deps' ) ) );
-
-		if ( ! isset( $_REQUEST[ WP_Customize_Nav_Menus::RENDER_QUERY_VAR ] ) ) {
-			$this->assertEquals( 1000, has_filter( 'wp_nav_menu_args', array( $menus, 'filter_wp_nav_menu_args' ) ) );
-			$this->assertEquals( 10, has_filter( 'wp_nav_menu', array( $menus, 'filter_wp_nav_menu' ) ) );
-		}
+		$this->assertEquals( 1000, has_filter( 'wp_nav_menu_args', array( $menus, 'filter_wp_nav_menu_args' ) ) );
+		$this->assertEquals( 10, has_filter( 'wp_nav_menu', array( $menus, 'filter_wp_nav_menu' ) ) );
 	}
 
 	/**
@@ -545,37 +616,70 @@ class Test_WP_Customize_Nav_Menus extends WP_UnitTestCase {
 	 */
 	function test_filter_wp_nav_menu_args() {
 		do_action( 'customize_register', $this->wp_customize );
-		$menus = new WP_Customize_Nav_Menus( $this->wp_customize );
+		$menus = $this->wp_customize->nav_menus;
+		$menu_id = wp_create_nav_menu( 'Foo' );
 
 		$results = $menus->filter_wp_nav_menu_args( array(
 			'echo'            => true,
 			'fallback_cb'     => 'wp_page_menu',
 			'walker'          => '',
-			'menu'            => wp_create_nav_menu( 'Foo' ),
+			'menu'            => $menu_id,
+			'items_wrap'      => '<ul id="%1$s" class="%2$s">%3$s</ul>',
 		) );
-		$this->assertEquals( 1, $results['can_partial_refresh'] );
+		$this->assertArrayHasKey( 'customize_preview_nav_menus_args', $results );
+		$this->assertTrue( $results['can_partial_refresh'] );
 
-		$expected = array(
-			'echo',
-			'can_partial_refresh',
-			'fallback_cb',
-			'instance_number',
-			'walker',
-		);
 		$results = $menus->filter_wp_nav_menu_args( array(
 			'echo'            => false,
 			'fallback_cb'     => 'wp_page_menu',
 			'walker'          => new Walker_Nav_Menu(),
+			'items_wrap'      => '<ul id="%1$s" class="%2$s">%3$s</ul>',
 		) );
-		$this->assertEqualSets( $expected, array_keys( $results ) );
+		$this->assertFalse( $results['can_partial_refresh'] );
+		$this->assertArrayHasKey( 'customize_preview_nav_menus_args', $results );
 		$this->assertEquals( 'wp_page_menu', $results['fallback_cb'] );
-		$this->assertEquals( 0, $results['can_partial_refresh'] );
 
-		$this->assertNotEmpty( $menus->preview_nav_menu_instance_args[ $results['instance_number'] ] );
-		$preview_nav_menu_instance_args = $menus->preview_nav_menu_instance_args[ $results['instance_number'] ];
-		$this->assertEquals( '', $preview_nav_menu_instance_args['fallback_cb'] );
-		$this->assertEquals( '', $preview_nav_menu_instance_args['walker'] );
-		$this->assertNotEmpty( $preview_nav_menu_instance_args['args_hash'] );
+		$nav_menu_term = get_term( wp_create_nav_menu( 'Bar' ) );
+		$results = $menus->filter_wp_nav_menu_args( array(
+			'echo'            => true,
+			'fallback_cb'     => 'wp_page_menu',
+			'walker'          => '',
+			'menu'            => $nav_menu_term,
+			'items_wrap'      => '<ul id="%1$s" class="%2$s">%3$s</ul>',
+		) );
+		$this->assertTrue( $results['can_partial_refresh'] );
+		$this->assertArrayHasKey( 'customize_preview_nav_menus_args', $results );
+		$this->assertEquals( $nav_menu_term->term_id, $results['customize_preview_nav_menus_args']['menu'] );
+
+		$results = $menus->filter_wp_nav_menu_args( array(
+			'echo'            => true,
+			'fallback_cb'     => 'wp_page_menu',
+			'walker'          => '',
+			'menu'            => $menu_id,
+			'container'       => 'div',
+			'items_wrap'      => '%3$s',
+		) );
+		$this->assertTrue( $results['can_partial_refresh'] );
+
+		$results = $menus->filter_wp_nav_menu_args( array(
+			'echo'            => true,
+			'fallback_cb'     => 'wp_page_menu',
+			'walker'          => '',
+			'menu'            => $menu_id,
+			'container'       => false,
+			'items_wrap'      => '<ul id="%1$s" class="%2$s">%3$s</ul>',
+		) );
+		$this->assertTrue( $results['can_partial_refresh'] );
+
+		$results = $menus->filter_wp_nav_menu_args( array(
+			'echo'            => true,
+			'fallback_cb'     => 'wp_page_menu',
+			'walker'          => '',
+			'menu'            => $menu_id,
+			'container'       => false,
+			'items_wrap'      => '%3$s',
+		) );
+		$this->assertFalse( $results['can_partial_refresh'] );
 	}
 
 	/**
@@ -592,19 +696,18 @@ class Test_WP_Customize_Nav_Menus extends WP_UnitTestCase {
 			'menu'        => wp_create_nav_menu( 'Foo' ),
 			'fallback_cb' => 'wp_page_menu',
 			'walker'      => '',
+			'items_wrap'  => '<ul id="%1$s" class="%2$s">%3$s</ul>',
 		) );
 
 		ob_start();
 		wp_nav_menu( $args );
 		$nav_menu_content = ob_get_clean();
 
-		$object_args = json_decode( json_encode( $args ), false );
-		$result = $menus->filter_wp_nav_menu( $nav_menu_content, $object_args );
-		$expected = sprintf(
-			'<div class="partial-refreshable-nav-menu partial-refreshable-nav-menu-%1$d menu">',
-			$args['instance_number']
-		);
-		$this->assertStringStartsWith( $expected, $result );
+		$result = $menus->filter_wp_nav_menu( $nav_menu_content, (object) $args );
+
+		$this->assertContains( sprintf( ' data-customize-partial-id="nav_menu_instance[%s]"', $args['customize_preview_nav_menus_args']['args_hmac'] ), $result );
+		$this->assertContains( ' data-customize-partial-type="nav_menu_instance"', $result );
+		$this->assertContains( ' data-customize-partial-placement-context="', $result );
 	}
 
 	/**
@@ -619,37 +722,66 @@ class Test_WP_Customize_Nav_Menus extends WP_UnitTestCase {
 		$menus->customize_preview_enqueue_deps();
 
 		$this->assertTrue( wp_script_is( 'customize-preview-nav-menus' ) );
-		$this->assertEquals( 10, has_action( 'wp_print_footer_scripts', array( $menus, 'export_preview_data' ) ) );
 	}
 
 	/**
-	 * Test the export_preview_data method.
+	 * Test WP_Customize_Nav_Menus::export_preview_data() method.
 	 *
 	 * @see WP_Customize_Nav_Menus::export_preview_data()
 	 */
 	function test_export_preview_data() {
-		do_action( 'customize_register', $this->wp_customize );
-		$menus = new WP_Customize_Nav_Menus( $this->wp_customize );
-
-		$request_uri = $_SERVER['REQUEST_URI'];
-
 		ob_start();
-		$_SERVER['REQUEST_URI'] = '/wp-admin';
-		$menus->export_preview_data();
-		$data = ob_get_clean();
-
-		$_SERVER['REQUEST_URI'] = $request_uri;
-
-		$this->assertContains( '_wpCustomizePreviewNavMenusExports', $data );
-		$this->assertContains( 'renderQueryVar', $data );
-		$this->assertContains( 'renderNonceValue', $data );
-		$this->assertContains( 'renderNoncePostKey', $data );
-		$this->assertContains( 'requestUri', $data );
-		$this->assertContains( 'theme', $data );
-		$this->assertContains( 'previewCustomizeNonce', $data );
-		$this->assertContains( 'navMenuInstanceArgs', $data );
-		$this->assertContains( 'requestUri', $data );
-
+		$this->wp_customize->nav_menus->export_preview_data();
+		$html = ob_get_clean();
+		$this->assertTrue( (bool) preg_match( '/_wpCustomizePreviewNavMenusExports = ({.+})/s', $html, $matches ) );
+		$exported_data = json_decode( $matches[1], true );
+		$this->assertArrayHasKey( 'navMenuInstanceArgs', $exported_data );
 	}
 
+	/**
+	 * Test WP_Customize_Nav_Menus::render_nav_menu_partial() method.
+	 *
+	 * @see WP_Customize_Nav_Menus::render_nav_menu_partial()
+	 */
+	function test_render_nav_menu_partial() {
+		$this->wp_customize->nav_menus->customize_preview_init();
+
+		$menu = wp_create_nav_menu( 'Foo' );
+		wp_update_nav_menu_item( $menu, 0, array(
+			'menu-item-type' => 'custom',
+			'menu-item-title' => 'WordPress.org',
+			'menu-item-url' => 'https://wordpress.org',
+			'menu-item-status' => 'publish',
+		) );
+
+		$nav_menu_args = $this->wp_customize->nav_menus->filter_wp_nav_menu_args( array(
+			'echo'        => true,
+			'menu'        => $menu,
+			'fallback_cb' => 'wp_page_menu',
+			'walker'      => '',
+			'items_wrap'  => '<ul id="%1$s" class="%2$s">%3$s</ul>',
+		) );
+
+		$partial_id = sprintf( 'nav_menu_instance[%s]', $nav_menu_args['customize_preview_nav_menus_args']['args_hmac'] );
+		$partials = $this->wp_customize->selective_refresh->add_dynamic_partials( array( $partial_id ) );
+		$this->assertNotEmpty( $partials );
+		$partial = array_shift( $partials );
+		$this->assertEquals( $partial_id, $partial->id );
+
+		$missing_args_hmac_args = array_merge(
+			$nav_menu_args['customize_preview_nav_menus_args'],
+			array( 'args_hmac' => null )
+		);
+		$this->assertFalse( $partial->render( $missing_args_hmac_args ) );
+
+		$args_hmac_mismatch_args = array_merge(
+			$nav_menu_args['customize_preview_nav_menus_args'],
+			array( 'args_hmac' => strrev( $nav_menu_args['customize_preview_nav_menus_args']['args_hmac'] ) )
+		);
+		$this->assertFalse( $partial->render( $args_hmac_mismatch_args ) );
+
+		$rendered = $partial->render( $nav_menu_args['customize_preview_nav_menus_args'] );
+		$this->assertContains( 'data-customize-partial-type="nav_menu_instance"', $rendered );
+		$this->assertContains( 'WordPress.org', $rendered );
+	}
 }

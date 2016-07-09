@@ -35,7 +35,7 @@ header('Content-Type: text/xml; charset=' . get_option('blog_charset'), true);
 <rsd version="1.0" xmlns="http://archipelago.phrasewise.com/rsd">
   <service>
     <engineName>WordPress</engineName>
-    <engineLink>http://wordpress.org/</engineLink>
+    <engineLink>https://wordpress.org/</engineLink>
     <homePageLink><?php bloginfo_rss('url') ?></homePageLink>
     <apis>
       <api name="WordPress" blogID="1" preferred="true" apiLink="<?php echo site_url('xmlrpc.php', 'rpc') ?>" />
@@ -71,7 +71,7 @@ include_once(ABSPATH . WPINC . '/class-wp-xmlrpc-server.php');
 $post_default_title = "";
 
 /**
- * Filter the class used for handling XML-RPC requests.
+ * Filters the class used for handling XML-RPC requests.
  *
  * @since 3.1.0
  *
@@ -95,7 +95,7 @@ exit;
  * @param string $msg Information describing logging reason.
  */
 function logIO( $io, $msg ) {
-	_deprecated_function( __FUNCTION__, '3.4', 'error_log()' );
+	_deprecated_function( __FUNCTION__, '3.4.0', 'error_log()' );
 	if ( ! empty( $GLOBALS['xmlrpc_logging'] ) )
 		error_log( $io . ' - ' . $msg );
 }
