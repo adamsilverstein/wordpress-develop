@@ -277,6 +277,12 @@
 			}
 		} );
 
+		function debouncedScrollHandler() {
+			return _.debounce( function( event ) {
+				adjust( event.type );
+			}, 100 );
+		}
+
 		// Adjust the toolbars based on the active editor mode.
 		function adjust( event ) {
 			// Make sure we're not in fullscreen mode.
@@ -582,11 +588,6 @@
 			}
 		}
 
-		function afterScroll() {
-			clearTimeout( scrollTimer );
-			scrollTimer = setTimeout( adjust, 100 );
-		}
-
 		function on() {
 			// Scroll to the top when triggering this from JS.
 			// Ensures toolbars are pinned properly.
@@ -597,10 +598,7 @@
 			$wrap.addClass( 'wp-editor-expand' );
 
 			// Adjust when the window is scrolled or resized.
-			$window.on( 'scroll.editor-expand resize.editor-expand', function( event ) {
-				adjust( event.type );
-				afterScroll();
-			} );
+			$window.on( 'scroll.editor-expand resize.editor-expand', debouncedScrollHandler() );
 
 			// Adjust when collapsing the menu, changing the columns, changing the body class.
 			$document.on( 'wp-collapse-menu.editor-expand postboxes-columnchange.editor-expand editor-classchange.editor-expand', adjust )
