@@ -3344,6 +3344,8 @@ function wp_ajax_install_theme() {
 		wp_send_json_error( $status );
 	}
 
+	$status['themeName'] = wp_get_theme( $slug )->get( 'Name' );
+
 	if ( current_user_can( 'switch_themes' ) ) {
 		if ( is_multisite() ) {
 			$status['activateUrl'] = add_query_arg( array(
@@ -3810,6 +3812,7 @@ function wp_ajax_search_plugins() {
 
 	ob_start();
 	$wp_list_table->display();
+	$status['count'] = count( $wp_list_table->items );
 	$status['items'] = ob_get_clean();
 
 	wp_send_json_success( $status );
