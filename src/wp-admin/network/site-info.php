@@ -10,10 +10,6 @@
 /** Load WordPress Administration Bootstrap */
 require_once( dirname( __FILE__ ) . '/admin.php' );
 
-if ( ! is_multisite() ) {
-	wp_die( __( 'Multisite support is not enabled.' ) );
-}
-
 if ( ! current_user_can( 'manage_sites' ) ) {
 	wp_die( __( 'Sorry, you are not allowed to edit this site.' ) );
 }
@@ -131,6 +127,7 @@ if ( isset( $_GET['update'] ) ) {
 	}
 }
 
+/* translators: %s: site name */
 $title = sprintf( __( 'Edit Site: %s' ), esc_html( $details->blogname ) );
 
 $parent_file = 'sites.php';

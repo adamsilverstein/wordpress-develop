@@ -1092,7 +1092,10 @@ function wpmu_create_user( $user_name, $password, $email ) {
  * @return int|WP_Error Returns WP_Error object on failure, int $blog_id on success
  */
 function wpmu_create_blog( $domain, $path, $title, $user_id, $meta = array(), $site_id = 1 ) {
-	$defaults = array( 'public' => 0 );
+	$defaults = array(
+		'public' => 0,
+		'WPLANG' => get_site_option( 'WPLANG' ),
+	);
 	$meta = wp_parse_args( $meta, $defaults );
 
 	$domain = preg_replace( '/\s+/', '', sanitize_user( $domain, true ) );
@@ -1130,7 +1133,6 @@ function wpmu_create_blog( $domain, $path, $title, $user_id, $meta = array(), $s
 			update_option( $key, $value );
 	}
 
-	add_option( 'WPLANG', get_site_option( 'WPLANG' ) );
 	update_option( 'blog_public', (int) $meta['public'] );
 
 	if ( ! is_super_admin( $user_id ) && ! get_user_meta( $user_id, 'primary_blog', true ) )
@@ -1985,15 +1987,12 @@ function maybe_add_existing_user_to_blog() {
  *
  * @since MU
  *
- * @global int $blog_id
- *
  * @param array $details
  * @return true|WP_Error|void
  */
 function add_existing_user_to_blog( $details = false ) {
-	global $blog_id;
-
 	if ( is_array( $details ) ) {
+		$blog_id = get_current_blog_id();
 		$result = add_user_to_blog( $blog_id, $details[ 'user_id' ], $details[ 'role' ] );
 		/**
 		 * Fires immediately after an existing user is added to a site.

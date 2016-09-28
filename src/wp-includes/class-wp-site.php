@@ -15,8 +15,12 @@
  *
  * @since 4.5.0
  *
- * @property int $id
- * @property int $network_id
+ * @property int    $id
+ * @property int    $network_id
+ * @property string $blogname
+ * @property string $siteurl
+ * @property int    $post_count
+ * @property string $home
  */
 final class WP_Site {
 
@@ -310,7 +314,7 @@ final class WP_Site {
 	 *
 	 * @see WP_Site::__get()
 	 *
-	 * @return object A raw site object with all details included.
+	 * @return stdClass A raw site object with all details included.
 	 */
 	private function get_details() {
 		$details = wp_cache_get( $this->blog_id, 'site-details' );
@@ -347,7 +351,7 @@ final class WP_Site {
 		 *
 		 * @since 4.6.0
 		 *
-		 * @param object $details The site details.
+		 * @param stdClass $details The site details.
 		 */
 		$details = apply_filters( 'site_details', $details );
 

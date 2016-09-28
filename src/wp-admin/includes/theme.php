@@ -360,9 +360,9 @@ function get_theme_feature_list( $api = true ) {
  * @param string       $action API action to perform: 'query_themes', 'theme_information',
  *                             'hot_tags' or 'feature_list'.
  * @param array|object $args   {
- *     Optional. Array or object of arguments to serialize for the Plugin Info API.
+ *     Optional. Array or object of arguments to serialize for the Themes API.
  *
- *     @type string  $slug     The plugin slug. Default empty.
+ *     @type string  $slug     The theme slug. Default empty.
  *     @type int     $per_page Number of themes per page. Default 24.
  *     @type int     $page     Number of current page. Default 1.
  *     @type int     $number   Number of tags to be queried.
@@ -459,7 +459,7 @@ function themes_api( $action, $args = array() ) {
 		$request = wp_remote_post( $url, $http_args );
 
 		if ( $ssl && is_wp_error( $request ) ) {
-			if ( ! defined( 'DOING_AJAX' ) || ! DOING_AJAX ) {
+			if ( ! wp_doing_ajax() ) {
 				trigger_error( __( 'An unexpected error occurred. Something may be wrong with WordPress.org or this server&#8217;s configuration. If you continue to have problems, please try the <a href="https://wordpress.org/support/">support forums</a>.' ) . ' ' . __( '(WordPress could not establish a secure connection to WordPress.org. Please contact your server administrator.)' ), headers_sent() || WP_DEBUG ? E_USER_WARNING : E_USER_NOTICE );
 			}
 			$request = wp_remote_post( $http_url, $http_args );

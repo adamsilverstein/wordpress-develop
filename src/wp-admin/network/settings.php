@@ -13,9 +13,6 @@ require_once( dirname( __FILE__ ) . '/admin.php' );
 /** WordPress Translation Install API */
 require_once( ABSPATH . 'wp-admin/includes/translation-install.php' );
 
-if ( ! is_multisite() )
-	wp_die( __( 'Multisite support is not enabled.' ) );
-
 if ( ! current_user_can( 'manage_network_options' ) )
 	wp_die( __( 'Sorry, you are not allowed to access this page.' ), 403 );
 
@@ -309,7 +306,13 @@ if ( isset( $_GET['updated'] ) ) {
 			<tr>
 				<th scope="row"><label for="fileupload_maxk"><?php _e( 'Max upload file size' ) ?></label></th>
 				<td>
-					<?php printf( _x( '%s KB', 'File size in kilobytes' ), '<input name="fileupload_maxk" type="number" min="0" style="width: 100px" id="fileupload_maxk" aria-describedby="fileupload-maxk-desc" value="' . esc_attr( get_site_option( 'fileupload_maxk', 300 ) ) . '" />' ); ?>
+					<?php
+						printf(
+							/* translators: %s: File size in kilobytes */
+							__( '%s KB' ),
+							'<input name="fileupload_maxk" type="number" min="0" style="width: 100px" id="fileupload_maxk" aria-describedby="fileupload-maxk-desc" value="' . esc_attr( get_site_option( 'fileupload_maxk', 300 ) ) . '" />'
+						);
+					?>
 					<p class="screen-reader-text" id="fileupload-maxk-desc">
 						<?php _e( 'Size in kilobytes' ) ?>
 					</p>

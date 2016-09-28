@@ -392,6 +392,11 @@ div.mce-path {
 	cursor: pointer;
 }
 
+.mce-btn .mce-txt {
+	direction: inherit;
+	text-align: inherit;
+}
+
 .mce-toolbar .mce-btn-group .mce-btn,
 .qt-dfw {
 	border: 1px solid transparent;
@@ -1142,7 +1147,7 @@ i.mce-i-wp_code:before {
 }
 
 .js .tmce-active .wp-editor-area {
-	color: white;
+	color: #fff;
 }
 
 .tmce-active .quicktags-toolbar {

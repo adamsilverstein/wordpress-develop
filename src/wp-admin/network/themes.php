@@ -10,9 +10,6 @@
 /** Load WordPress Administration Bootstrap */
 require_once( dirname( __FILE__ ) . '/admin.php' );
 
-if ( ! is_multisite() )
-	wp_die( __( 'Multisite support is not enabled.' ) );
-
 if ( !current_user_can('manage_network_themes') )
 	wp_die( __( 'Sorry, you are not allowed to manage network themes.' ) );
 
@@ -195,7 +192,32 @@ if ( $action ) {
 				's' => $s
 			), network_admin_url( 'themes.php' ) ) );
 			exit;
+		default:
+			$themes = isset( $_POST['checked'] ) ? (array) $_POST['checked'] : array();
+			if ( empty( $themes ) ) {
+				wp_safe_redirect( add_query_arg( 'error', 'none', $referer ) );
+				exit;
+			}
+			check_admin_referer( 'bulk-themes' );
+
+			/**
+			 * Fires when a custom bulk action should be handled.
+			 *
+			 * The redirect link should be modified with success or failure feedback
+			 * from the action to be used to display feedback to the user.
+			 *
+			 * @since 4.7.0
+			 *
+			 * @param string $referer   The redirect URL.
+			 * @param string $action    The action being taken.
+			 * @param array  $themes    The themes to take the action on.
+			 */
+			$referer = apply_filters( 'handle_bulk_actions-' . get_current_screen()->id, $referer, $action, $themes );
+
+			wp_safe_redirect( $referer );
+			exit;
 	}
+
 }
 
 $wp_list_table->prepare_items();

@@ -356,7 +356,33 @@ if ( $action ) {
 				update_site_option( 'recently_activated', array() );
 			}
 			break;
+
+		default:
+			if ( isset( $_POST['checked'] ) ) {
+				check_admin_referer('bulk-plugins');
+				$plugins = isset( $_POST['checked'] ) ? (array) $_POST['checked'] : array();
+				$sendback = wp_get_referer();
+
+				/**
+				 * Fires when a custom bulk action should be handled.
+				 *
+				 * The sendback link should be modified with success or failure feedback
+				 * from the action to be used to display feedback to the user.
+				 *
+				 * @since 4.7.0
+				 *
+				 * @param string $sendback The redirect URL.
+				 * @param string $action   The action being taken.
+				 * @param array  $plugins  The plugins to take the action on.
+				 */
+				$sendback = apply_filters( 'handle_bulk_actions-' . get_current_screen()->id, $sendback, $action, $plugins );
+
+				wp_safe_redirect( $sendback );
+				exit;
+			}
+			break;
 	}
+
 }
 
 $wp_list_table->prepare_items();
@@ -375,7 +401,7 @@ get_current_screen()->add_help_tab( array(
 	'<p>' . sprintf(
 		/* translators: %s: WordPress Plugin Directory URL */
 		__( 'If you would like to see more plugins to choose from, click on the &#8220;Add New&#8221; button and you will be able to browse or search for additional plugins from the <a href="%s" target="_blank">WordPress Plugin Directory</a>. Plugins in the WordPress Plugin Directory are designed and developed by third parties, and are compatible with the license WordPress uses. Oh, and they&#8217;re free!' ),
-		'https://wordpress.org/plugins/'
+		__( 'https://wordpress.org/plugins/' )
 	) . '</p>'
 ) );
 get_current_screen()->add_help_tab( array(
