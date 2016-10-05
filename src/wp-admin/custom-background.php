@@ -97,8 +97,8 @@ class Custom_Background {
 
 		get_current_screen()->set_help_sidebar(
 			'<p><strong>' . __( 'For more information:' ) . '</strong></p>' .
-			'<p>' . __( '<a href="https://codex.wordpress.org/Appearance_Background_Screen" target="_blank">Documentation on Custom Background</a>' ) . '</p>' .
-			'<p>' . __( '<a href="https://wordpress.org/support/" target="_blank">Support Forums</a>' ) . '</p>'
+			'<p>' . __( '<a href="https://codex.wordpress.org/Appearance_Background_Screen">Documentation on Custom Background</a>' ) . '</p>' .
+			'<p>' . __( '<a href="https://wordpress.org/support/">Support Forums</a>' ) . '</p>'
 		);
 
 		wp_enqueue_media();
@@ -242,7 +242,7 @@ class Custom_Background {
 <td>
 <form method="post">
 <?php wp_nonce_field('custom-background-remove', '_wpnonce-custom-background-remove'); ?>
-<?php submit_button( __( 'Remove Background Image' ), 'button', 'remove-background', false ); ?><br/>
+<?php submit_button( __( 'Remove Background Image' ), '', 'remove-background', false ); ?><br/>
 <?php _e('This will remove the background image. You will not be able to restore any customizations.') ?>
 </form>
 </td>
@@ -256,7 +256,7 @@ class Custom_Background {
 <td>
 <form method="post">
 <?php wp_nonce_field('custom-background-reset', '_wpnonce-custom-background-reset'); ?>
-<?php submit_button( __( 'Restore Original Image' ), 'button', 'reset-background', false ); ?><br/>
+<?php submit_button( __( 'Restore Original Image' ), '', 'reset-background', false ); ?><br/>
 <?php _e('This will restore the original background image. You will not be able to restore any customizations.') ?>
 </form>
 </td>
@@ -272,7 +272,7 @@ class Custom_Background {
 		<input type="file" id="upload" name="import" />
 		<input type="hidden" name="action" value="save" />
 		<?php wp_nonce_field( 'custom-background-upload', '_wpnonce-custom-background-upload' ); ?>
-		<?php submit_button( __( 'Upload' ), 'button', 'submit', false ); ?>
+		<?php submit_button( __( 'Upload' ), '', 'submit', false ); ?>
 	</p>
 	<p>
 		<label for="choose-from-library-link"><?php _e( 'Or choose an image from your media library:' ); ?></label><br />

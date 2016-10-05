@@ -109,7 +109,7 @@ function plugins_api( $action, $args = array() ) {
 	}
 
 	if ( ! isset( $args->locale ) ) {
-		$args->locale = get_locale();
+		$args->locale = get_user_locale();
 	}
 
 	/**
@@ -265,7 +265,7 @@ function install_search_form( $deprecated = true ) {
 		<label><span class="screen-reader-text"><?php _e( 'Search Plugins' ); ?></span>
 			<input type="search" name="s" value="<?php echo esc_attr( $term ) ?>" class="wp-filter-search" placeholder="<?php esc_attr_e( 'Search Plugins' ); ?>" />
 		</label>
-		<?php submit_button( __( 'Search Plugins' ), 'button hide-if-js', false, false, array( 'id' => 'search-submit' ) ); ?>
+		<?php submit_button( __( 'Search Plugins' ), 'hide-if-js', false, false, array( 'id' => 'search-submit' ) ); ?>
 	</form><?php
 }
 
@@ -281,7 +281,7 @@ function install_plugins_upload() {
 		<?php wp_nonce_field( 'plugin-upload' ); ?>
 		<label class="screen-reader-text" for="pluginzip"><?php _e( 'Plugin zip file' ); ?></label>
 		<input type="file" id="pluginzip" name="pluginzip" />
-		<?php submit_button( __( 'Install Now' ), 'button', 'install-plugin-submit', false ); ?>
+		<?php submit_button( __( 'Install Now' ), '', 'install-plugin-submit', false ); ?>
 	</form>
 </div>
 <?php
@@ -556,10 +556,12 @@ function install_plugin_information() {
 				</li>
 			<?php } if ( ! empty( $api->tested ) ) { ?>
 				<li><strong><?php _e( 'Compatible up to:' ); ?></strong> <?php echo $api->tested; ?></li>
-			<?php } if ( ! empty( $api->active_installs ) ) { ?>
+			<?php } if ( isset( $api->active_installs ) ) { ?>
 				<li><strong><?php _e( 'Active Installs:' ); ?></strong> <?php
 					if ( $api->active_installs >= 1000000 ) {
 						_ex( '1+ Million', 'Active plugin installs' );
+					} elseif ( 0 == $api->active_installs ) {
+						_ex( 'Less Than 10', 'Active plugin installs' );
 					} else {
 						echo number_format_i18n( $api->active_installs ) . '+';
 					}

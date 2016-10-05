@@ -61,6 +61,12 @@ function create_initial_taxonomies() {
 		'show_ui' => true,
 		'show_admin_column' => true,
 		'_builtin' => true,
+		'capabilities' => array(
+			'manage_terms' => 'manage_categories',
+			'edit_terms'   => 'edit_categories',
+			'delete_terms' => 'delete_categories',
+			'assign_terms' => 'assign_categories',
+		),
 	) );
 
 	register_taxonomy( 'post_tag', 'post', array(
@@ -71,6 +77,12 @@ function create_initial_taxonomies() {
 		'show_ui' => true,
 		'show_admin_column' => true,
 		'_builtin' => true,
+		'capabilities' => array(
+			'manage_terms' => 'manage_post_tags',
+			'edit_terms'   => 'edit_post_tags',
+			'delete_terms' => 'delete_post_tags',
+			'assign_terms' => 'assign_post_tags',
+		),
 	) );
 
 	register_taxonomy( 'nav_menu', 'nav_menu_item', array(
@@ -927,48 +939,54 @@ function get_term( $term, $taxonomy = '', $output = OBJECT, $filter = 'raw' ) {
  *                      or `$term` was not found.
  */
 function get_term_by( $field, $value, $taxonomy = '', $output = OBJECT, $filter = 'raw' ) {
-	global $wpdb;
 
 	// 'term_taxonomy_id' lookups don't require taxonomy checks.
 	if ( 'term_taxonomy_id' !== $field && ! taxonomy_exists( $taxonomy ) ) {
 		return false;
 	}
 
-	$tax_clause = $wpdb->prepare( "AND tt.taxonomy = %s", $taxonomy );
-
-	if ( 'slug' == $field ) {
-		$_field = 't.slug';
-		$value = sanitize_title($value);
-		if ( empty($value) )
-			return false;
-	} elseif ( 'name' == $field ) {
-		// Assume already escaped
-		$value = wp_unslash($value);
-		$_field = 't.name';
-	} elseif ( 'term_taxonomy_id' == $field ) {
-		$value = (int) $value;
-		$_field = 'tt.term_taxonomy_id';
-
-		// No `taxonomy` clause when searching by 'term_taxonomy_id'.
-		$tax_clause = '';
-	} else {
+	if ( 'id' === $field || 'term_id' === $field ) {
 		$term = get_term( (int) $value, $taxonomy, $output, $filter );
-		if ( is_wp_error( $term ) || is_null( $term ) ) {
+		if ( is_wp_error( $term ) || null === $term ) {
 			$term = false;
 		}
 		return $term;
 	}
 
-	$term = $wpdb->get_row( $wpdb->prepare( "SELECT t.*, tt.* FROM $wpdb->terms AS t INNER JOIN $wpdb->term_taxonomy AS tt ON t.term_id = tt.term_id WHERE $_field = %s", $value ) . " $tax_clause LIMIT 1" );
-	if ( ! $term )
+	$args = array(
+		'get'                    => 'all',
+		'number'                 => 1,
+		'taxonomy'               => $taxonomy,
+		'update_term_meta_cache' => false,
+		'orderby'                => 'none',
+	);
+
+	switch ( $field ) {
+		case 'slug' :
+			$args['slug'] = $value;
+			break;
+		case 'name' :
+			$args['name'] = $value;
+			break;
+		case 'term_taxonomy_id' :
+			$args['term_taxonomy_id'] = $value;
+			unset( $args[ 'taxonomy' ] );
+			break;
+		default :
+			return false;
+	}
+
+	$terms = get_terms( $args );
+	if ( is_wp_error( $terms ) || empty( $terms ) ) {
 		return false;
+	}
+
+	$term = array_shift( $terms );
 
 	// In the case of 'term_taxonomy_id', override the provided `$taxonomy` with whatever we find in the db.
 	if ( 'term_taxonomy_id' === $field ) {
 		$taxonomy = $term->taxonomy;
 	}
-
-	wp_cache_add( $term->term_id, $term, 'terms' );
 
 	return get_term( $term, $taxonomy, $output, $filter );
 }
@@ -1379,7 +1397,7 @@ function update_termmeta_cache( $term_ids ) {
  *
  * @global wpdb $wpdb WordPress database abstraction object.
  *
- * @param int|string $term     The term to check
+ * @param int|string $term     The term to check. Accepts term ID, slug, or name.
  * @param string     $taxonomy The taxonomy name to use
  * @param int        $parent   Optional. ID of parent term under which to confine the exists search.
  * @return mixed Returns null if the term does not exist. Returns the term ID

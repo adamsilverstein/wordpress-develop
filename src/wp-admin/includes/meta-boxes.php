@@ -32,7 +32,7 @@ function post_submit_meta_box( $post, $args = array() ) {
 
 <?php // Hidden submit button early on so that the browser chooses the right button when form is submitted with Return key ?>
 <div style="display:none;">
-<?php submit_button( __( 'Save' ), 'button', 'save' ); ?>
+<?php submit_button( __( 'Save' ), '', 'save' ); ?>
 </div>
 
 <div id="minor-publishing-actions">
@@ -74,9 +74,9 @@ do_action( 'post_submitbox_minor_actions', $post );
 
 <div id="misc-publishing-actions">
 
-<div class="misc-pub-section misc-pub-post-status"><label for="post_status"><?php _e('Status:') ?></label>
-<span id="post-status-display">
-<?php
+<div class="misc-pub-section misc-pub-post-status">
+<?php _e( 'Status:' ) ?> <span id="post-status-display"><?php
+
 switch ( $post->post_status ) {
 	case 'private':
 		_e('Privately Published');
@@ -98,11 +98,12 @@ switch ( $post->post_status ) {
 ?>
 </span>
 <?php if ( 'publish' == $post->post_status || 'private' == $post->post_status || $can_publish ) { ?>
-<a href="#post_status" <?php if ( 'private' == $post->post_status ) { ?>style="display:none;" <?php } ?>class="edit-post-status hide-if-no-js"><span aria-hidden="true"><?php _e( 'Edit' ); ?></span> <span class="screen-reader-text"><?php _e( 'Edit status' ); ?></span></a>
+<a href="#post_status" <?php if ( 'private' == $post->post_status ) { ?>style="display:none;" <?php } ?>class="edit-post-status hide-if-no-js" role="button"><span aria-hidden="true"><?php _e( 'Edit' ); ?></span> <span class="screen-reader-text"><?php _e( 'Edit status' ); ?></span></a>
 
 <div id="post-status-select" class="hide-if-js">
 <input type="hidden" name="hidden_post_status" id="hidden_post_status" value="<?php echo esc_attr( ('auto-draft' == $post->post_status ) ? 'draft' : $post->post_status); ?>" />
-<select name='post_status' id='post_status'>
+<label for="post_status" class="screen-reader-text"><?php _e( 'Set status' ) ?></label>
+<select name="post_status" id="post_status">
 <?php if ( 'publish' == $post->post_status ) : ?>
 <option<?php selected( $post->post_status, 'publish' ); ?> value='publish'><?php _e('Published') ?></option>
 <?php elseif ( 'private' == $post->post_status ) : ?>
@@ -144,7 +145,7 @@ if ( 'private' == $post->post_status ) {
 
 echo esc_html( $visibility_trans ); ?></span>
 <?php if ( $can_publish ) { ?>
-<a href="#visibility" class="edit-visibility hide-if-no-js"><span aria-hidden="true"><?php _e( 'Edit' ); ?></span> <span class="screen-reader-text"><?php _e( 'Edit visibility' ); ?></span></a>
+<a href="#visibility" class="edit-visibility hide-if-no-js" role="button"><span aria-hidden="true"><?php _e( 'Edit' ); ?></span> <span class="screen-reader-text"><?php _e( 'Edit visibility' ); ?></span></a>
 
 <div id="post-visibility-select" class="hide-if-js">
 <input type="hidden" name="hidden_post_password" id="hidden-post-password" value="<?php echo esc_attr($post->post_password); ?>" />
@@ -201,7 +202,7 @@ if ( $can_publish ) : // Contributors don't get to choose the date of publish ?>
 <div class="misc-pub-section curtime misc-pub-curtime">
 	<span id="timestamp">
 	<?php printf($stamp, $date); ?></span>
-	<a href="#edit_timestamp" class="edit-timestamp hide-if-no-js"><span aria-hidden="true"><?php _e( 'Edit' ); ?></span> <span class="screen-reader-text"><?php _e( 'Edit date and time' ); ?></span></a>
+	<a href="#edit_timestamp" class="edit-timestamp hide-if-no-js" role="button"><span aria-hidden="true"><?php _e( 'Edit' ); ?></span> <span class="screen-reader-text"><?php _e( 'Edit date and time' ); ?></span></a>
 	<fieldset id="timestampdiv" class="hide-if-js">
 	<legend class="screen-reader-text"><?php _e( 'Date and time' ); ?></legend>
 	<?php touch_time( ( $action === 'edit' ), 1 ); ?>
@@ -290,7 +291,7 @@ function attachment_submit_meta_box( $post ) {
 
 <?php // Hidden submit button early on so that the browser chooses the right button when form is submitted with Return key ?>
 <div style="display:none;">
-<?php submit_button( __( 'Save' ), 'button', 'save' ); ?>
+<?php submit_button( __( 'Save' ), '', 'save' ); ?>
 </div>
 
 
@@ -434,6 +435,8 @@ function post_tags_meta_box( $post, $box ) {
 		<input type="button" class="button tagadd" value="<?php esc_attr_e('Add'); ?>" /></p>
 	</div>
 	<p class="howto" id="new-tag-<?php echo $tax_name; ?>-desc"><?php echo $taxonomy->labels->separate_items_with_commas; ?></p>
+	<?php elseif ( empty( $terms_to_edit ) ): ?>
+		<p><?php echo $taxonomy->labels->no_terms; ?></p>
 	<?php endif; ?>
 	</div>
 	<div class="tagchecklist"></div>
@@ -875,7 +878,7 @@ function link_submit_meta_box($link) {
 
 <?php // Hidden submit button early on so that the browser chooses the right button when form is submitted with Return key ?>
 <div style="display:none;">
-<?php submit_button( __( 'Save' ), 'button', 'save', false ); ?>
+<?php submit_button( __( 'Save' ), '', 'save', false ); ?>
 </div>
 
 <div id="minor-publishing-actions">

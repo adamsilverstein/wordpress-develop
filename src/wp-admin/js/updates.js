@@ -1105,7 +1105,7 @@
 				$message.siblings( '.preview' ).replaceWith( function () {
 					return $( '<a>' )
 						.attr( 'href', response.customizeUrl )
-						.addClass( 'button button-secondary load-customize' )
+						.addClass( 'button load-customize' )
 						.text( wp.updates.l10n.livePreview );
 				} );
 			}
@@ -1876,6 +1876,7 @@
 
 			wp.updates.installPlugin( {
 				slug:    $button.data( 'slug' ),
+				pagenow: pagenow,
 				success: wp.updates.installImporterSuccess,
 				error:   wp.updates.installImporterError
 			} );

@@ -108,7 +108,7 @@ case 'delete':
 	$tag_ID = (int) $_REQUEST['tag_ID'];
 	check_admin_referer( 'delete-tag_' . $tag_ID );
 
-	if ( ! current_user_can( $tax->cap->delete_terms ) ) {
+	if ( ! current_user_can( 'delete_term', $tag_ID ) ) {
 		wp_die(
 			'<h1>' . __( 'Cheatin&#8217; uh?' ) . '</h1>' .
 			'<p>' . __( 'Sorry, you are not allowed to delete this item.' ) . '</p>',
@@ -168,7 +168,7 @@ case 'editedtag':
 	$tag_ID = (int) $_POST['tag_ID'];
 	check_admin_referer( 'update-tag_' . $tag_ID );
 
-	if ( ! current_user_can( $tax->cap->edit_terms ) ) {
+	if ( ! current_user_can( 'edit_term', $tag_ID ) ) {
 		wp_die(
 			'<h1>' . __( 'Cheatin&#8217; uh?' ) . '</h1>' .
 			'<p>' . __( 'Sorry, you are not allowed to edit this item.' ) . '</p>',
@@ -299,13 +299,13 @@ if ( 'category' == $taxonomy || 'link_category' == $taxonomy || 'post_tag' == $t
 	$help = '<p><strong>' . __( 'For more information:' ) . '</strong></p>';
 
 	if ( 'category' == $taxonomy )
-		$help .= '<p>' . __( '<a href="https://codex.wordpress.org/Posts_Categories_Screen" target="_blank">Documentation on Categories</a>' ) . '</p>';
+		$help .= '<p>' . __( '<a href="https://codex.wordpress.org/Posts_Categories_Screen">Documentation on Categories</a>' ) . '</p>';
 	elseif ( 'link_category' == $taxonomy )
-		$help .= '<p>' . __( '<a href="https://codex.wordpress.org/Links_Link_Categories_Screen" target="_blank">Documentation on Link Categories</a>' ) . '</p>';
+		$help .= '<p>' . __( '<a href="https://codex.wordpress.org/Links_Link_Categories_Screen">Documentation on Link Categories</a>' ) . '</p>';
 	else
-		$help .= '<p>' . __( '<a href="https://codex.wordpress.org/Posts_Tags_Screen" target="_blank">Documentation on Tags</a>' ) . '</p>';
+		$help .= '<p>' . __( '<a href="https://codex.wordpress.org/Posts_Tags_Screen">Documentation on Tags</a>' ) . '</p>';
 
-	$help .= '<p>' . __('<a href="https://wordpress.org/support/" target="_blank">Support Forums</a>') . '</p>';
+	$help .= '<p>' . __('<a href="https://wordpress.org/support/">Support Forums</a>') . '</p>';
 
 	get_current_screen()->set_help_sidebar( $help );
 
@@ -313,14 +313,6 @@ if ( 'category' == $taxonomy || 'link_category' == $taxonomy || 'post_tag' == $t
 }
 
 require_once( ABSPATH . 'wp-admin/admin-header.php' );
-
-if ( ! current_user_can( $tax->cap->edit_terms ) ) {
-	wp_die(
-		'<h1>' . __( 'Cheatin&#8217; uh?' ) . '</h1>' .
-		'<p>' . __( 'Sorry, you are not allowed to edit this item.' ) . '</p>',
-		403
-	);
-}
 
 /** Also used by the Edit Tag  form */
 require_once( ABSPATH . 'wp-admin/includes/edit-tag-messages.php' );

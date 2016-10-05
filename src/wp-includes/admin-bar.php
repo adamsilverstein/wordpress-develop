@@ -598,7 +598,8 @@ function wp_admin_bar_edit_menu( $wp_admin_bar ) {
  			&& ( $post_type_object = get_post_type_object( $current_screen->post_type ) )
  			&& ( $post_type_object->public )
  			&& ( $post_type_object->show_in_admin_bar )
- 			&& ( get_post_type_archive_link( $post_type_object->name ) ) )
+ 			&& ( get_post_type_archive_link( $post_type_object->name ) )
+			&& ! ( 'post' === $post_type_object->name && 'posts' === get_option( 'show_on_front' ) ) )
  		{
  			$wp_admin_bar->add_node( array(
  				'id' => 'archive',
@@ -635,7 +636,7 @@ function wp_admin_bar_edit_menu( $wp_admin_bar ) {
 			) );
 		} elseif ( ! empty( $current_object->taxonomy )
 			&& ( $tax = get_taxonomy( $current_object->taxonomy ) )
-			&& current_user_can( $tax->cap->edit_terms )
+			&& current_user_can( 'edit_term', $current_object->term_id )
 			&& $edit_term_link = get_edit_term_link( $current_object->term_id, $current_object->taxonomy ) )
 		{
 			$wp_admin_bar->add_menu( array(
@@ -727,7 +728,7 @@ function wp_admin_bar_comments_menu( $wp_admin_bar ) {
 	$awaiting_text = sprintf( _n( '%s comment awaiting moderation', '%s comments awaiting moderation', $awaiting_mod ), number_format_i18n( $awaiting_mod ) );
 
 	$icon  = '<span class="ab-icon"></span>';
-	$title = '<span id="ab-awaiting-mod" class="ab-label awaiting-mod pending-count count-' . $awaiting_mod . '" aria-hidden="true">' . number_format_i18n( $awaiting_mod ) . '</span>';
+	$title = '<span class="ab-label awaiting-mod pending-count count-' . $awaiting_mod . '" aria-hidden="true">' . number_format_i18n( $awaiting_mod ) . '</span>';
 	$title .= '<span class="screen-reader-text">' . $awaiting_text . '</span>';
 
 	$wp_admin_bar->add_menu( array(
