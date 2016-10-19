@@ -63,23 +63,52 @@ jQuery(document).ready( function($) {
 
 	/* QuickPress */
 	quickPressLoad = function() {
-		var act = $('#quickpost-action'), t;
+		var act = $('#quickpost-action'), t,
+			$quickPress = $( '#dashboard_quick_press' );
 
 		$( '#quick-press .submit input[type="submit"], #quick-press .submit input[type="reset"]' ).prop( 'disabled' , false );
 
 		t = $('#quick-press').submit( function( e ) {
 			e.preventDefault();
-			$('#dashboard_quick_press #publishing-action .spinner').show();
+			var title   = $quickPress.find( '#title' ).val(),
+				content = $quickPress.find( '#content' ).val(),
+				status  = 'draft',
+				data = {
+					title: title,
+					content: content,
+				};
+
+			// Don't send if the fields are blank.
+			if ( '' === title && '' === content ) {
+				return false;
+			}
+
+			$quickPress.find( '.spinner').show();
 			$('#quick-press .submit input[type="submit"], #quick-press .submit input[type="reset"]').prop('disabled', true);
 
-			$.post( t.attr( 'action' ), t.serializeArray(), function( data ) {
-				// Replace the form, and prepend the published post.
-				$('#dashboard_quick_press .inside').html( data );
-				$('#quick-press').removeClass('initial-form');
-				quickPressLoad();
-				highlightLatestPost();
-				$('#title').focus();
-			});
+			$.ajax( {
+				method: "POST",
+				url: wpApi.url + 'wp/v2/posts',
+				data: data,
+				beforeSend: function ( xhr ) {
+					xhr.setRequestHeader( 'X-WP-Nonce', wpApi.nonce );
+				},
+				success: function( response ) {
+					// @todo display a success message.
+				},
+				failure: function( response ) {
+					// @todo display a failure message.
+				},
+				complete: function( response ) {
+
+					// After the form submission, reset everything.
+					$('#quick-press').removeClass('initial-form');
+					quickPressLoad();
+					highlightLatestPost();
+					$('#title').focus();
+					$quickPress.find( '.spinner').hide();
+				}
+			} );
 
 			function highlightLatestPost () {
 				var latestPost = $('.drafts ul li').first();
