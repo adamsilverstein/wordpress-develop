@@ -1,4 +1,4 @@
-/* global pagenow, ajaxurl, postboxes, wpActiveEditor:true */
+/* global wp, quickPress, pagenow, ajaxurl, postboxes, wpActiveEditor:true */
 var ajaxWidgets, ajaxPopulateWidgets, quickPressLoad;
 
 jQuery(document).ready( function($) {
@@ -60,68 +60,6 @@ jQuery(document).ready( function($) {
 	ajaxPopulateWidgets();
 
 	postboxes.add_postbox_toggles(pagenow, { pbshow: ajaxPopulateWidgets } );
-
-	/* QuickPress */
-	quickPressLoad = function() {
-		var act = $('#quickpost-action'), t;
-
-		$( '#quick-press .submit input[type="submit"], #quick-press .submit input[type="reset"]' ).prop( 'disabled' , false );
-
-		t = $('#quick-press').submit( function( e ) {
-			e.preventDefault();
-			$('#dashboard_quick_press #publishing-action .spinner').show();
-			$('#quick-press .submit input[type="submit"], #quick-press .submit input[type="reset"]').prop('disabled', true);
-
-			$.post( t.attr( 'action' ), t.serializeArray(), function( data ) {
-				// Replace the form, and prepend the published post.
-				$('#dashboard_quick_press .inside').html( data );
-				$('#quick-press').removeClass('initial-form');
-				quickPressLoad();
-				highlightLatestPost();
-				$('#title').focus();
-			});
-
-			function highlightLatestPost () {
-				var latestPost = $('.drafts ul li').first();
-				latestPost.css('background', '#fffbe5');
-				setTimeout(function () {
-					latestPost.css('background', 'none');
-				}, 1000);
-			}
-		} );
-
-		$('#publish').click( function() { act.val( 'post-quickpress-publish' ); } );
-
-		$('#title, #tags-input, #content').each( function() {
-			var input = $(this), prompt = $('#' + this.id + '-prompt-text');
-
-			if ( '' === this.value ) {
-				prompt.removeClass('screen-reader-text');
-			}
-
-			prompt.click( function() {
-				$(this).addClass('screen-reader-text');
-				input.focus();
-			});
-
-			input.blur( function() {
-				if ( '' === this.value ) {
-					prompt.removeClass('screen-reader-text');
-				}
-			});
-
-			input.focus( function() {
-				prompt.addClass('screen-reader-text');
-			});
-		});
-
-		$('#quick-press').on( 'click focusin', function() {
-			wpActiveEditor = 'content';
-		});
-
-		autoResizeTextarea();
-	};
-	quickPressLoad();
 
 	$( '.meta-box-sortables' ).sortable( 'option', 'containment', '#wpwrap' );
 
@@ -186,4 +124,190 @@ jQuery(document).ready( function($) {
 		});
 	}
 
+	autoResizeTextarea();
+
+} );
+
+wp.api.loadPromise.done( function() {
+	var $ = jQuery,
+		QuickPress = {},
+		draftsCollection;
+
+	QuickPress.Models = {};
+
+	QuickPress.Models.Draft = wp.api.models.Post.extend({
+		initialize: function( attributes ) {
+			if ( attributes ) {
+				this.set( this.normalizeAttributes( attributes ) );
+			}
+		},
+
+		parse: function( response ) {
+			return this.normalizeAttributes( response );
+		},
+
+		sync: function() {
+			this.set( 'date', ( new Date() ).toISOString() );
+
+			return Backbone.sync.apply( this, arguments );
+		},
+
+		normalizeAttributes: function( attributes ) {
+			if ( ! attributes ) {
+				return attributes;
+			}
+
+			if ( 'object' === typeof attributes.content ) {
+				attributes.content = attributes.content.rendered;
+			}
+
+			if ( 'object' === typeof attributes.title ) {
+				attributes.title = attributes.title.rendered;
+			}
+
+			return attributes;
+		},
+
+		validate: function( attributes ) {
+			if ( ! attributes.title && ! attributes.content ) {
+				return 'no-content';
+			}
+		}
+	});
+
+	QuickPress.Collections = {};
+
+	QuickPress.Collections.Drafts = wp.api.collections.Posts.extend({
+		model: QuickPress.Models.Draft,
+
+		comparator: function( a, b ) {
+			return a.get( 'date' ) < b.get( 'date' );
+		}
+	});
+
+	QuickPress.Views = {};
+
+	QuickPress.Views.Form = wp.Backbone.View.extend({
+		events: {
+			'click #title-wrap,#description-wrap': 'hidePromptAndFocus',
+			'focus #title-wrap,#description-wrap': 'hidePrompt',
+			'blur #title-wrap,#description-wrap': 'showPrompt',
+			click: 'setActiveEditor',
+			focusin: 'setActiveEditor',
+			submit: 'submit'
+		},
+
+		initialize: function() {
+			this.listenTo( this.model, 'invalid', this.render );
+		},
+
+		togglePrompt: function( element, visible ) {
+			var $input = $( ':input', element ),
+				hasContent = $input.val().length > 0;
+
+			$( '.prompt', element ).toggleClass( 'screen-reader-text', ! visible || hasContent );
+		},
+
+		showPrompt: function( event ) {
+			this.togglePrompt( event.currentTarget, true );
+		},
+
+		hidePrompt: function( event ) {
+			this.togglePrompt( event.currentTarget, false );
+		},
+
+		hidePromptAndFocus: function( event ) {
+			this.togglePrompt( event.currentTarget, false );
+			$( ':input', event.target ).focus();
+		},
+
+		setActiveEditor: function() {
+			wpActiveEditor = 'content';
+		},
+
+		submit: function( event ) {
+			var values;
+
+			event.preventDefault();
+
+			values = this.$el.serializeArray().reduce( function( memo, field ) {
+				memo[ field.name ] = field.value;
+				return memo;
+			}, {} );
+
+			this.model.set( values );
+			if ( ! this.model.isValid() ) {
+				return;
+			}
+
+			this.model.save()
+				// TODO: `always` should be `done` to handle success only
+				.always( function() {
+					this.collection.add( this.model );
+				}.bind( this ) );
+				// .fail( function() {
+				// 	// TODO: Handle failure
+				// } );
+
+			// TODO: Clear form model
+		},
+
+		render: function() {
+			var $error = this.$el.find( '.error' );
+
+			$error.toggle( !! this.model.validationError );
+			if ( this.model.validationError ) {
+				$error.html( $( '<p />', {
+					text: quickPress.l10n[ this.model.validationError ]
+				} ) );
+			}
+		}
+	});
+
+	QuickPress.Views.DraftList = wp.Backbone.View.extend({
+		initialize: function() {
+			this.listenTo( this.collection, 'add', this.render );
+		},
+
+		render: function() {
+			var slicedCollection = this.collection.slice( 0, 4 );
+
+			this.$el.toggle( this.collection.length > 0 );
+			this.$el.find( '.view-all' ).toggle( slicedCollection.length > 3 );
+			this.$el.find( '.drafts-list' ).html( slicedCollection.map( function( draft ) {
+				return new QuickPress.Views.DraftListItem({
+					model: draft
+				}).render().el;
+			}) );
+
+			return this;
+		}
+	});
+
+	QuickPress.Views.DraftListItem = wp.Backbone.View.extend({
+		tagName: 'li',
+
+		template: wp.template( 'item-quick-press-draft' ),
+
+		render: function() {
+			// TODO: Render highlight effect to new post
+
+			this.$el.html( this.template( this.model.attributes ) );
+
+			return this;
+		}
+	});
+
+	draftsCollection = new QuickPress.Collections.Drafts( quickPress.data.data );
+
+	new QuickPress.Views.DraftList({
+		el: '#quick-press-drafts',
+		collection: draftsCollection
+	}).render();
+
+	new QuickPress.Views.Form({
+		el: '#quick-press',
+		model: new QuickPress.Models.Draft(),
+		collection: draftsCollection
+	}).render();
 } );

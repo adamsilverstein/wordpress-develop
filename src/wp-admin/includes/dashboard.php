@@ -491,33 +491,26 @@ function wp_dashboard_quick_press( $error_msg = false ) {
 	$post_ID = (int) $post->ID;
 ?>
 
-	<form name="post" action="<?php echo esc_url( admin_url( 'post.php' ) ); ?>" method="post" id="quick-press" class="initial-form hide-if-no-js">
-
-		<?php if ( $error_msg ) : ?>
-		<div class="error"><?php echo $error_msg; ?></div>
-		<?php endif; ?>
+	<form name="post" method="post" id="quick-press" class="initial-form hide-if-no-js">
 
 		<div class="input-text-wrap" id="title-wrap">
-			<label class="screen-reader-text prompt" for="title" id="title-prompt-text">
+			<label class="prompt" for="title" id="title-prompt-text">
 
 				<?php
 				/** This filter is documented in wp-admin/edit-form-advanced.php */
 				echo apply_filters( 'enter_title_here', __( 'Title' ), $post );
 				?>
 			</label>
-			<input type="text" name="post_title" id="title" autocomplete="off" />
+			<input type="text" name="title" id="title" autocomplete="off" />
 		</div>
 
 		<div class="textarea-wrap" id="description-wrap">
-			<label class="screen-reader-text prompt" for="content" id="content-prompt-text"><?php _e( 'What&#8217;s on your mind?' ); ?></label>
+			<label class="prompt" for="content" id="content-prompt-text"><?php _e( 'What&#8217;s on your mind?' ); ?></label>
 			<textarea name="content" id="content" class="mceEditor" rows="3" cols="15" autocomplete="off"></textarea>
 		</div>
 
 		<p class="submit">
-			<input type="hidden" name="action" id="quickpost-action" value="post-quickdraft-save" />
-			<input type="hidden" name="post_ID" value="<?php echo $post_ID; ?>" />
-			<input type="hidden" name="post_type" value="post" />
-			<?php wp_nonce_field( 'add-post' ); ?>
+			<div class="error inline" style="display: none;"><p></p></div>
 			<?php submit_button( __( 'Save Draft' ), 'primary', 'save', false, array( 'id' => 'save-post' ) ); ?>
 			<br class="clear" />
 		</p>
@@ -560,25 +553,16 @@ function wp_dashboard_recent_drafts( $drafts = false ) {
  		}
  	}
 
-	echo '<div class="drafts">';
-	if ( count( $drafts ) > 3 ) {
-		echo '<p class="view-all"><a href="' . esc_url( admin_url( 'edit.php?post_status=draft' ) ) . '" aria-label="' . __( 'View all drafts' ) . '">' . _x( 'View all', 'drafts' ) . "</a></p>\n";
- 	}
-	echo '<h2 class="hide-if-no-js">' . __( 'Drafts' ) . "</h2>\n<ul>";
-
-	$drafts = array_slice( $drafts, 0, 3 );
-	foreach ( $drafts as $draft ) {
-		$url = get_edit_post_link( $draft->ID );
-		$title = _draft_or_post_title( $draft->ID );
-		echo "<li>\n";
-		/* translators: %s: post title */
-		echo '<div class="draft-title"><a href="' . esc_url( $url ) . '" aria-label="' . esc_attr( sprintf( __( 'Edit &#8220;%s&#8221;' ), $title ) ) . '">' . esc_html( $title ) . '</a>';
-		echo '<time datetime="' . get_the_time( 'c', $draft ) . '">' . get_the_time( __( 'F j, Y' ), $draft ) . '</time></div>';
-		if ( $the_content = wp_trim_words( $draft->post_content, 10 ) ) {
-			echo '<p>' . $the_content . '</p>';
- 		}
-		echo "</li>\n";
- 	}
+	echo '<div id="quick-press-drafts" class="drafts">';
+	echo '<p class="view-all" style="display: none;"><a href="' . esc_url( admin_url( 'edit.php?post_status=draft' ) ) . '" aria-label="' . __( 'View all drafts' ) . '">' . _x( 'View all', 'drafts' ) . "</a></p>\n";
+	echo '<h2 class="hide-if-no-js">' . __( 'Drafts' ) . "</h2>\n";
+	echo '<script id="tmpl-item-quick-press-draft" type="text/template">';
+	/* translators: %s: post title */
+	echo '<div class="draft-title"><a href="{{ data.link }}" aria-label="' . esc_attr( __( 'Edit Post' ) ) . '">{{ data.title }}</a>';
+	echo '<time datetime="{{ data.date }}">{{ data.date }}</time></div>';
+	echo '{{{ data.content }}}';
+	echo '</script>';
+	echo '<ul class="drafts-list">';
 	echo "</ul>\n</div>";
 }
 

@@ -716,7 +716,23 @@ function wp_default_scripts( &$scripts ) {
 			'current' => __( 'Current Color' ),
 		) );
 
-		$scripts->add( 'dashboard', "/wp-admin/js/dashboard$suffix.js", array( 'jquery', 'admin-comments', 'postbox' ), false, 1 );
+		$scripts->add( 'dashboard', "/wp-admin/js/dashboard$suffix.js", array( 'jquery', 'admin-comments', 'postbox', 'wp-api', 'wp-backbone' ), false, 1 );
+		if ( did_action( 'init' ) ) {
+			$dashboard_data_request = new WP_REST_Request( 'GET', '/wp/v2/posts' );
+			$dashboard_data_request->set_query_params( array(
+				'filter[post_type]' => 'post',
+				'status'            => 'draft',
+				'author'            => get_current_user_id(),
+				'per_page'          => 4
+			) );
+			$scripts->localize( 'dashboard', 'quickPress', array(
+				'data' => rest_do_request( $dashboard_data_request ),
+				'l10n' => array(
+					'no-content' => __( 'Post content cannot be empty.' ),
+					'error' => __( 'An error has occurred. Please reload the page and try again.' )
+				)
+			) );
+		}
 
 		$scripts->add( 'list-revisions', "/wp-includes/js/wp-list-revisions$suffix.js" );
 
