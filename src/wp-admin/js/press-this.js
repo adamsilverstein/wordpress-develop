@@ -262,7 +262,7 @@
 		 * @param action string publish|draft
 		 */
 		function submitPost( action ) {
-			var data;
+			var data, toSend, headerParams;
 
 			saveAlert = false;
 			showSpinner();
@@ -272,34 +272,30 @@
 			}
 
 			prepareFormData();
-			data = $( '#pressthis-form' ).serialize();
+
+			$( '#_wpnonce' ).val( wpApi.nonce );
+			data = $( '#pressthis-form' ).serializeArray();
+
+			toSend = {
+				'title':    $( '#post_title' ).val(),
+				'content':  $( '#post_content' ).val(),
+				'excerpt':  $( '#post_excerpt' ).val(),
+				'_wpnonce': $( '#_wpnonce' ).val(),
+			}
+
 
 			$.ajax( {
-				type: 'post',
-				url: window.ajaxurl,
-				data: data
+				type: 'POST',
+				url: wpApi.url + 'posts',
+				data: toSend,
+				dataType: 'json',
+				headers: headerParams
 			}).always( function() {
 				hideSpinner();
 				clearNotices();
 				$( '.publish-button' ).removeClass( 'is-saving' );
 			}).done( function( response ) {
-				if ( ! response.success ) {
-					renderError( response.data.errorMessage );
-				} else if ( response.data.redirect ) {
-					if ( window.opener && ( settings.redirInParent || response.data.force ) ) {
-						try {
-							window.opener.location.href = response.data.redirect;
 
-							window.setTimeout( function() {
-								window.self.close();
-							}, 200 );
-						} catch( er ) {
-							window.location.href = response.data.redirect;
-						}
-					} else {
-						window.location.href = response.data.redirect;
-					}
-				}
 			}).fail( function() {
 				renderError( __( 'serverError' ) );
 			});

@@ -1272,6 +1272,12 @@ class WP_Press_This {
 		wp_enqueue_script( 'json2' );
 		wp_enqueue_script( 'editor' );
 
+		// Localize API plugin settings and schema.
+		$api_settings = array(
+			'url'          => esc_url_raw( get_rest_url() . 'wp/v2/' ),
+			'nonce'        => wp_create_nonce( 'wp_rest' ),
+		);
+		wp_localize_script( 'press-this', 'wpApi', $api_settings );
 		$supports_formats = false;
 		$post_format      = 0;
 
