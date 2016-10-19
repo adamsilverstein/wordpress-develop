@@ -91,13 +91,7 @@ function date_i18n( $dateformatstring, $unixtimestamp = false, $gmt = false ) {
 	$i = $unixtimestamp;
 
 	if ( false === $i ) {
-		if ( ! $gmt )
-			$i = current_time( 'timestamp' );
-		else
-			$i = time();
-		// we should not let date() interfere with our
-		// specially computed timestamp
-		$gmt = true;
+		$i = current_time( 'timestamp', $gmt );
 	}
 
 	/*
@@ -106,15 +100,13 @@ function date_i18n( $dateformatstring, $unixtimestamp = false, $gmt = false ) {
 	 */
 	$req_format = $dateformatstring;
 
-	$datefunc = $gmt? 'gmdate' : 'date';
-
 	if ( ( !empty( $wp_locale->month ) ) && ( !empty( $wp_locale->weekday ) ) ) {
-		$datemonth = $wp_locale->get_month( $datefunc( 'm', $i ) );
+		$datemonth = $wp_locale->get_month( date( 'm', $i ) );
 		$datemonth_abbrev = $wp_locale->get_month_abbrev( $datemonth );
-		$dateweekday = $wp_locale->get_weekday( $datefunc( 'w', $i ) );
+		$dateweekday = $wp_locale->get_weekday( date( 'w', $i ) );
 		$dateweekday_abbrev = $wp_locale->get_weekday_abbrev( $dateweekday );
-		$datemeridiem = $wp_locale->get_meridiem( $datefunc( 'a', $i ) );
-		$datemeridiem_capital = $wp_locale->get_meridiem( $datefunc( 'A', $i ) );
+		$datemeridiem = $wp_locale->get_meridiem( date( 'a', $i ) );
+		$datemeridiem_capital = $wp_locale->get_meridiem( date( 'A', $i ) );
 		$dateformatstring = ' '.$dateformatstring;
 		$dateformatstring = preg_replace( "/([^\\\])D/", "\\1" . backslashit( $dateweekday_abbrev ), $dateformatstring );
 		$dateformatstring = preg_replace( "/([^\\\])F/", "\\1" . backslashit( $datemonth ), $dateformatstring );
@@ -142,7 +134,7 @@ function date_i18n( $dateformatstring, $unixtimestamp = false, $gmt = false ) {
 			}
 		}
 	}
-	$j = @$datefunc( $dateformatstring, $i );
+	$j = @date( $dateformatstring, $i );
 
 	/**
 	 * Filters the date formatted based on the locale.
@@ -563,7 +555,7 @@ function do_enclose( $content, $post_ID ) {
 	global $wpdb;
 
 	//TODO: Tidy this ghetto code up and make the debug code optional
-	include_once( ABSPATH . WPINC . '/class-IXR.php' ); 
+	include_once( ABSPATH . WPINC . '/class-IXR.php' );
 
 	$post_links = array();
 
@@ -5258,13 +5250,15 @@ function get_tag_regex( $tag ) {
  * @return string The canonical form of the charset.
  */
 function _canonical_charset( $charset ) {
-	if ( 'UTF-8' === $charset || 'utf-8' === $charset || 'utf8' === $charset ||
-		'UTF8' === $charset )
-		return 'UTF-8';
+	if ( 'utf-8' === strtolower( $charset ) || 'utf8' === strtolower( $charset) ) {
 
-	if ( 'ISO-8859-1' === $charset || 'iso-8859-1' === $charset ||
-		'iso8859-1' === $charset || 'ISO8859-1' === $charset )
+		return 'UTF-8';
+	}
+
+	if ( 'iso-8859-1' === strtolower( $charset ) || 'iso8859-1' === strtolower( $charset ) ) {
+
 		return 'ISO-8859-1';
+	}
 
 	return $charset;
 }
@@ -5528,4 +5522,21 @@ function wp_raise_memory_limit( $context = 'admin' ) {
 	}
 
 	return false;
+}
+
+/**
+ * Generate a random UUID (version 4).
+ *
+ * @since 4.7.0
+ *
+ * @return string UUID.
+ */
+function wp_generate_uuid4() {
+	return sprintf( '%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
+		mt_rand( 0, 0xffff ), mt_rand( 0, 0xffff ),
+		mt_rand( 0, 0xffff ),
+		mt_rand( 0, 0x0fff ) | 0x4000,
+		mt_rand( 0, 0x3fff ) | 0x8000,
+		mt_rand( 0, 0xffff ), mt_rand( 0, 0xffff ), mt_rand( 0, 0xffff )
+	);
 }

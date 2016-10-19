@@ -61,11 +61,14 @@ get_current_screen()->set_screen_reader_content( array(
 
 $location = false;
 $referer = wp_get_referer();
+if ( ! $referer ) { // For POST requests.
+	$referer = wp_unslash( $_SERVER['REQUEST_URI'] );
+}
+$referer = remove_query_arg( array( '_wp_http_referer', '_wpnonce', 'error', 'message', 'paged' ), $referer );
 
 switch ( $wp_list_table->current_action() ) {
 
 case 'add-tag':
-
 	check_admin_referer( 'add-tag', '_wpnonce_add-tag' );
 
 	if ( ! current_user_can( $tax->cap->edit_terms ) ) {
@@ -77,30 +80,14 @@ case 'add-tag':
 	}
 
 	$ret = wp_insert_term( $_POST['tag-name'], $taxonomy, $_POST );
-	$location = 'edit-tags.php?taxonomy=' . $taxonomy;
-	if ( 'post' != $post_type )
-		$location .= '&post_type=' . $post_type;
-
-	if ( $referer && false !== strpos( $referer, 'edit-tags.php' ) ) {
-		$location = $referer;
-	}
-
 	if ( $ret && !is_wp_error( $ret ) )
 		$location = add_query_arg( 'message', 1, $location );
 	else
-		$location = add_query_arg( array( 'error' => true, 'message' => 4 ), $location );
+		$location = add_query_arg( array( 'error' => true, 'message' => 4 ), $referer );
 
 	break;
 
 case 'delete':
-	$location = 'edit-tags.php?taxonomy=' . $taxonomy;
-	if ( 'post' != $post_type )
-		$location .= '&post_type=' . $post_type;
-
-	if ( $referer && false !== strpos( $referer, 'edit-tags.php' ) ) {
-		$location = $referer;
-	}
-
 	if ( ! isset( $_REQUEST['tag_ID'] ) ) {
 		break;
 	}
@@ -118,7 +105,7 @@ case 'delete':
 
 	wp_delete_term( $tag_ID, $taxonomy );
 
-	$location = add_query_arg( 'message', 2, $location );
+	$location = add_query_arg( 'message', 2, $referer );
 
 	break;
 
@@ -138,14 +125,7 @@ case 'bulk-delete':
 		wp_delete_term( $tag_ID, $taxonomy );
 	}
 
-	$location = 'edit-tags.php?taxonomy=' . $taxonomy;
-	if ( 'post' != $post_type )
-		$location .= '&post_type=' . $post_type;
-	if ( $referer && false !== strpos( $referer, 'edit-tags.php' ) ) {
-		$location = $referer;
-	}
-
-	$location = add_query_arg( 'message', 6, $location );
+	$location = add_query_arg( 'message', 6, $referer );
 
 	break;
 
@@ -182,18 +162,11 @@ case 'editedtag':
 
 	$ret = wp_update_term( $tag_ID, $taxonomy, $_POST );
 
-	$location = 'edit-tags.php?taxonomy=' . $taxonomy;
-	if ( 'post' != $post_type )
-		$location .= '&post_type=' . $post_type;
-
-	if ( $referer && false !== strpos( $referer, 'edit-tags.php' ) ) {
-		$location = $referer;
+	if ( $ret && ! is_wp_error( $ret ) ) {
+		$location = add_query_arg( 'message', 3, $referer );
+	} else {
+		$location = add_query_arg( array( 'error' => true, 'message' => 5 ), $referer );
 	}
-
-	if ( $ret && !is_wp_error( $ret ) )
-		$location = add_query_arg( 'message', 3, $location );
-	else
-		$location = add_query_arg( array( 'error' => true, 'message' => 5 ), $location );
 	break;
 default:
 	if ( ! $wp_list_table->current_action() || ! isset( $_REQUEST['delete_tags'] ) ) {
@@ -218,12 +191,12 @@ default:
 }
 
 if ( ! $location && ! empty( $_REQUEST['_wp_http_referer'] ) ) {
-	$location = remove_query_arg( array('_wp_http_referer', '_wpnonce'), wp_unslash($_SERVER['REQUEST_URI']) );
+	$location = remove_query_arg( array( '_wp_http_referer', '_wpnonce' ), wp_unslash( $_SERVER['REQUEST_URI'] ) );
 }
 
 if ( $location ) {
-	if ( ! empty( $_REQUEST['paged'] ) ) {
-		$location = add_query_arg( 'paged', (int) $_REQUEST['paged'], $location );
+	if ( $pagenum > 1 ) {
+		$location = add_query_arg( 'paged', $pagenum, $location ); // $pagenum takes care of $total_pages.
 	}
 
 	/**
@@ -551,26 +524,7 @@ if ( 'category' == $taxonomy ) {
 do_action( "{$taxonomy}_add_form", $taxonomy );
 ?>
 </form></div>
-<?php }
-
-if ( ! is_null( $tax->labels->popular_items ) ) {
-	if ( current_user_can( $tax->cap->edit_terms ) ) {
-		$tag_cloud = wp_tag_cloud( array( 'taxonomy' => $taxonomy, 'post_type' => $post_type, 'echo' => false, 'link' => 'edit' ) );
-	} else {
-		$tag_cloud = wp_tag_cloud( array( 'taxonomy' => $taxonomy, 'echo' => false ) );
-	}
-
-	if ( $tag_cloud ) :
-	?>
-<div class="tagcloud">
-<h2><?php echo $tax->labels->popular_items; ?></h2>
-<?php echo $tag_cloud; unset( $tag_cloud ); ?>
-</div>
-<?php
-	endif;
-}
-
-?>
+<?php } ?>
 
 </div>
 </div><!-- /col-left -->

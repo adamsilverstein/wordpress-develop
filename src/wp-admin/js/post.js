@@ -105,7 +105,7 @@ window.wp = window.wp || {};
 	 * Overwrite the content of the Featured Image postbox
 	 *
 	 * @param {string} html New HTML to be displayed in the content area of the postbox.
-	 * 
+	 *
 	 * @global
 	 */
 	WPSetThumbnailHTML = function(html){
@@ -499,21 +499,28 @@ jQuery(document).ready( function($) {
 			return;
 		}
 
+		var postID = $('#post_ID').val();
+		var postLock = $('#active_post_lock').val();
+
+		if ( ! postID || ! postLock ) {
+			return;
+		}
+
 		var data = {
 			action: 'wp-remove-post-lock',
 			_wpnonce: $('#_wpnonce').val(),
-			post_ID: $('#post_ID').val(),
-			active_post_lock: $('#active_post_lock').val()
+			post_ID: postID,
+			active_post_lock: postLock
 		};
 
-		if (window.FormData && window.navigator.sendBeacon) {
+		if ( window.FormData && window.navigator.sendBeacon ) {
 			var formData = new window.FormData();
 
-			$.each(data, function(key, value) {
-				formData.append(key, value);
+			$.each( data, function( key, value ) {
+				formData.append( key, value );
 			});
 
-			if (window.navigator.sendBeacon(ajaxurl, formData)) {
+			if ( window.navigator.sendBeacon( ajaxurl, formData ) ) {
 				return;
 			}
 		}
@@ -1160,6 +1167,23 @@ jQuery(document).ready( function($) {
 				$( document ).trigger( 'editor-classchange' );
 			}
 		});
+
+		// When changing page template, change the editor body class
+		$( '#page_template' ).on( 'change.set-editor-class', function() {
+			var editor, body, pageTemplate = $( this ).val() || '';
+
+			pageTemplate = pageTemplate.substr( pageTemplate.lastIndexOf( '/' ) + 1, pageTemplate.length )
+				.replace( /\.php$/, '' )
+				.replace( /\./g, '-' );
+
+			if ( pageTemplate && ( editor = tinymce.get( 'content' ) ) ) {
+				body = editor.getBody();
+				body.className = body.className.replace( /\bpage-template-[^ ]+/, '' );
+				editor.dom.addClass( body, 'page-template-' + pageTemplate );
+				$( document ).trigger( 'editor-classchange' );
+			}
+		});
+
 	}
 
 	// Save on pressing [ctrl]/[command] + [s] in the Text editor.

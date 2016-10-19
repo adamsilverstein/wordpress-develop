@@ -20,10 +20,12 @@ class Tests_REST_API extends WP_UnitTestCase {
 	}
 
 	/**
-	 * The plugin should be installed and activated.
+	 * Checks that the main classes are loaded.
 	 */
-	function test_rest_api_activated() {
+	function test_rest_api_active() {
 		$this->assertTrue( class_exists( 'WP_REST_Server' ) );
+		$this->assertTrue( class_exists( 'WP_REST_Request' ) );
+		$this->assertTrue( class_exists( 'WP_REST_Response' ) );
 	}
 
 	/**
@@ -273,11 +275,15 @@ class Tests_REST_API extends WP_UnitTestCase {
 	 */
 	public function test_rest_url_generation() {
 		// In pretty permalinks case, we expect a path of wp-json/ with no query.
-		update_option( 'permalink_structure', '/%year%/%monthnum%/%day%/%postname%/' );
+		$this->set_permalink_structure( '/%year%/%monthnum%/%day%/%postname%/' );
 		$this->assertEquals( 'http://' . WP_TESTS_DOMAIN . '/wp-json/', get_rest_url() );
 
-		update_option( 'permalink_structure', '' );
+		// In index permalinks case, we expect a path of index.php/wp-json/ with no query.
+		$this->set_permalink_structure( '/index.php/%year%/%monthnum%/%day%/%postname%/' );
+		$this->assertEquals( 'http://' . WP_TESTS_DOMAIN . '/index.php/wp-json/', get_rest_url() );
+
 		// In non-pretty case, we get a query string to invoke the rest router.
+		$this->set_permalink_structure( '' );
 		$this->assertEquals( 'http://' . WP_TESTS_DOMAIN . '/?rest_route=/', get_rest_url() );
 
 	}

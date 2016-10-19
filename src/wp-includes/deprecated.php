@@ -3758,3 +3758,43 @@ function wp_embed_handler_googlevideo( $matches, $attr, $url, $rawattr ) {
 
 	return '';
 }
+
+/**
+ * Retrieve path of paged template in current or parent template.
+ *
+ * @since 1.5.0
+ * @deprecated 4.7.0 The paged.php template is no longer part of the theme template heirarchy.
+ *
+ * @return string Full path to paged template file.
+ */
+function get_paged_template() {
+	_deprecated_function( __FUNCTION__, '4.7.0' );
+
+	return get_query_template( 'paged' );
+}
+
+/**
+ * Removes the HTML JavaScript entities found in early versions of Netscape 4.
+ *
+ * Previously, this function was pulled in from the original
+ * import of kses and removed a specific vulnerability only
+ * existent in early version of Netscape 4. However, this
+ * vulnerability never affected any other browsers and can
+ * be considered safe for the modern web.
+ *
+ * The regular expression which sanitized this vulnerability
+ * has been removed in consideration of the performance and
+ * energy demands it placed, now merely passing through its
+ * input to the return.
+ *
+ * @since 1.0.0
+ * @deprecated deprecated since 4.7
+ *
+ * @param string $string
+ * @return string
+ */
+function wp_kses_js_entities( $string ) {
+	_deprecated_function( __FUNCTION__, '4.7.0' );
+
+	return preg_replace( '%&\s*\{[^}]*(\}\s*;?|$)%', '', $string );
+}

@@ -93,16 +93,18 @@ final class WP_Customize_Widgets {
 	public function __construct( $manager ) {
 		$this->manager = $manager;
 
-		// Skip useless hooks when the user can't manage widgets anyway.
+		// See https://github.com/xwp/wp-customize-snapshots/blob/962586659688a5b1fd9ae93618b7ce2d4e7a421c/php/class-customize-snapshot-manager.php#L420-L449
+		add_filter( 'customize_dynamic_setting_args',          array( $this, 'filter_customize_dynamic_setting_args' ), 10, 2 );
+		add_action( 'widgets_init',                            array( $this, 'register_settings' ), 95 );
+		add_action( 'customize_register',                      array( $this, 'schedule_customize_register' ), 1 );
+
+		// Skip remaining hooks when the user can't manage widgets anyway.
 		if ( ! current_user_can( 'edit_theme_options' ) ) {
 			return;
 		}
 
-		add_filter( 'customize_dynamic_setting_args',          array( $this, 'filter_customize_dynamic_setting_args' ), 10, 2 );
-		add_action( 'widgets_init',                            array( $this, 'register_settings' ), 95 );
 		add_action( 'wp_loaded',                               array( $this, 'override_sidebars_widgets_for_theme_switch' ) );
 		add_action( 'customize_controls_init',                 array( $this, 'customize_controls_init' ) );
-		add_action( 'customize_register',                      array( $this, 'schedule_customize_register' ), 1 );
 		add_action( 'customize_controls_enqueue_scripts',      array( $this, 'enqueue_scripts' ) );
 		add_action( 'customize_controls_print_styles',         array( $this, 'print_styles' ) );
 		add_action( 'customize_controls_print_scripts',        array( $this, 'print_scripts' ) );
@@ -276,6 +278,7 @@ final class WP_Customize_Widgets {
 
 		$this->old_sidebars_widgets = wp_get_sidebars_widgets();
 		add_filter( 'customize_value_old_sidebars_widgets_data', array( $this, 'filter_customize_value_old_sidebars_widgets_data' ) );
+		$this->manager->set_post_value( 'old_sidebars_widgets_data', $this->old_sidebars_widgets ); // Override any value cached in changeset.
 
 		// retrieve_widgets() looks at the global $sidebars_widgets
 		$sidebars_widgets = $this->old_sidebars_widgets;
@@ -729,7 +732,7 @@ final class WP_Customize_Widgets {
 				'error'            => __( 'An error has occurred. Please reload the page and try again.' ),
 				'widgetMovedUp'    => __( 'Widget moved up' ),
 				'widgetMovedDown'  => __( 'Widget moved down' ),
-				'noAreasRendered'  => __( 'There are no widget areas currently rendered in the preview. Navigate in the preview to a template that makes use of a widget area in order to access its widgets here.' ),
+				'noAreasRendered'  => __( 'There are no widget areas on the page shown, however other pages in this theme do have them.' ),
 				'reorderModeOn'    => __( 'Reorder mode enabled' ),
 				'reorderModeOff'   => __( 'Reorder mode closed' ),
 				'reorderLabelOn'   => esc_attr__( 'Reorder widgets' ),
