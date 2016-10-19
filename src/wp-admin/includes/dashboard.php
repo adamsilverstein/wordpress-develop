@@ -518,6 +518,7 @@ function wp_dashboard_quick_press( $error_msg = false ) {
 			<input type="hidden" name="post_ID" value="<?php echo $post_ID; ?>" />
 			<input type="hidden" name="post_type" value="post" />
 			<?php wp_nonce_field( 'add-post' ); ?>
+			<span class="spinner"></span>
 			<?php submit_button( __( 'Save Draft' ), 'primary', 'save', false, array( 'id' => 'save-post' ) ); ?>
 			<br class="clear" />
 		</p>
