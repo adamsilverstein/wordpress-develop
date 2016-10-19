@@ -71,12 +71,17 @@ $admin_body_class = preg_replace('/[^a-z0-9_-]+/i', '-', $hook_suffix);
 <script type="text/javascript">
 addLoadEvent = function(func){if(typeof jQuery!="undefined")jQuery(document).ready(func);else if(typeof wpOnload!='function'){wpOnload=func;}else{var oldonload=wpOnload;wpOnload=function(){oldonload();func();}}};
 var ajaxurl = '<?php echo admin_url( 'admin-ajax.php', 'relative' ); ?>',
+	wpApi   = wpApi || {};
 	pagenow = '<?php echo $current_screen->id; ?>',
 	typenow = '<?php echo $current_screen->post_type; ?>',
 	adminpage = '<?php echo $admin_body_class; ?>',
 	thousandsSeparator = '<?php echo addslashes( $wp_locale->number_format['thousands_sep'] ); ?>',
 	decimalPoint = '<?php echo addslashes( $wp_locale->number_format['decimal_point'] ); ?>',
 	isRtl = <?php echo (int) is_rtl(); ?>;
+	wpApi.url     = '<?php echo esc_url_raw( get_rest_url() ); ?>',
+	wpApi.nonce   = '<?php echo esc_attr( wp_create_nonce( 'wp_rest' ) ); ?>',
+	wpApi.success = '<?php echo __( 'Success' ); ?>'
+	wpApi.failure = '<?php echo __( 'Error' ); ?>'
 </script>
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <?php
