@@ -242,14 +242,17 @@ wp.api.loadPromise.done( function() {
 			this.model.save()
 				// TODO: `always` should be `done` to handle success only
 				.always( function() {
-					$( '#quick-press .spinner' ).css( 'visibility', 'inherit' );
+					console.log( 'always' );
+					$( '#quick-press .spinner' ).css( 'visibility', 'hidden' );
 				} )
 				.success( function(){
+					console.log( 'success' );
 					this.collection.add( this.model );
 					// @todo Refresh the nonce (client should handle this).
 					// @todo Clear the form.
 				}.bind( this ) )
 				.error( function() {
+					console.log( 'error' );
 				// 	// TODO: Handle failure
 				} );
 
