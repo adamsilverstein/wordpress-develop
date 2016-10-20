@@ -159,8 +159,6 @@ wp.api.loadPromise.done( function() {
 				attributes.title = attributes.title.rendered;
 			}
 
-			attributes.formattedDate = new Date( attributes.date );
-
 			return attributes;
 		},
 
