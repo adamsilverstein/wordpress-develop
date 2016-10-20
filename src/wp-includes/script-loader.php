@@ -333,6 +333,15 @@ function wp_default_scripts( &$scripts ) {
 		'ajax' => array(
 			'url' => admin_url( 'admin-ajax.php', 'relative' ),
 		),
+		'formatting' => array(
+			'trimWordsMore'  => __( '&hellip;' ),
+			/*
+			 * translators: If your word count is based on single characters (e.g. East Asian characters),
+			 * enter 'characters_excluding_spaces' or 'characters_including_spaces'. Otherwise, enter 'words'.
+			 * Do not translate into your own language.
+			 */
+			'trimWordsByCharacter' => strpos( _x( 'words', 'Word count type. Do not translate!' ), 'characters' ) === 0 && preg_match( '/^utf\-?8$/i', get_option( 'blog_charset' ) ),
+		),
 	) );
 
 	$scripts->add( 'wp-backbone', "/wp-includes/js/wp-backbone$suffix.js", array('backbone', 'wp-util'), false, 1 );
@@ -1201,7 +1210,6 @@ function wp_dashboard_filter_api() {
 		}
 
 		$response->data['formattedDate']         = get_the_time( __( 'F j, Y' ), $post );
-		$response->data['formattedShortContent'] = wp_trim_words( $post->post_content, 10 );
 		return $response;
 	}
 
