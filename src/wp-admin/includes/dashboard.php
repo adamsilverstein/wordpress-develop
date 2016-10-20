@@ -547,15 +547,25 @@ function wp_dashboard_recent_drafts( $drafts = false ) {
 		 */
 		$query_args = apply_filters( 'dashboard_recent_drafts_query_args', $query_args );
 
-		$drafts = get_posts( $query_args );
+		$dashboard_data_request = new WP_REST_Request( 'GET', '/wp/v2/posts' );
+		$dashboard_data_request->set_query_params( array(
+			'filter[post_type]' => 'post',
+			'status'            => 'draft',
+			'author'            => get_current_user_id(),
+			'per_page'          => 4
+		) );
+		$drafts = rest_do_request( $dashboard_data_request );
+
 		if ( ! $drafts ) {
 			return;
  		}
+
  	}
 
 	echo '<div id="quick-press-drafts" class="drafts">';
 	echo '<p class="view-all" style="display: none;"><a href="' . esc_url( admin_url( 'edit.php?post_status=draft' ) ) . '" aria-label="' . __( 'View all drafts' ) . '">' . _x( 'View all', 'drafts' ) . "</a></p>\n";
 	echo '<h2 class="hide-if-no-js">' . __( 'Drafts' ) . "</h2>\n";
+	echo '<script type="text/javascript">var quickPress = {}; quickPress.data =  ' . json_encode( $drafts ) . ';</script>';
 	echo '<script id="tmpl-item-quick-press-draft" type="text/template">';
 	/* translators: %s: post title */
 	echo '<div class="draft-title"><a href="{{ data.link }}" aria-label="' . esc_attr( __( 'Edit Post' ) ) . '">{{ data.title }}</a>';
