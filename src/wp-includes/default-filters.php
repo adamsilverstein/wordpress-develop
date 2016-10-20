@@ -494,5 +494,6 @@ add_filter( 'the_excerpt_embed',      'wp_embed_excerpt_attachment'           );
 add_filter( 'oembed_dataparse',       'wp_filter_oembed_result',        10, 3 );
 add_filter( 'oembed_response_data',   'get_oembed_response_data_rich',  10, 4 );
 add_filter( 'pre_oembed_result',      'wp_filter_pre_oembed_result',    10, 3 );
+add_action( 'rest_api_init',          'wp_dashboard_filter_api'              );
 
 unset( $filter, $action );
