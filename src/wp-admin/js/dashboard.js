@@ -1,9 +1,9 @@
 /* global wp, quickPress, pagenow, ajaxurl, postboxes, wpActiveEditor:true */
 var ajaxWidgets, ajaxPopulateWidgets, quickPressLoad;
 
-jQuery(document).ready( function($) {
+jQuery( document ).ready( function( $ ) {
 	var welcomePanel = $( '#welcome-panel' ),
-		welcomePanelHide = $('#wp_welcome_panel-hide'),
+		welcomePanelHide = $( '#wp_welcome_panel-hide' ),
 		updateWelcomePanel;
 
 	updateWelcomePanel = function( visible ) {
@@ -11,39 +11,39 @@ jQuery(document).ready( function($) {
 			action: 'update-welcome-panel',
 			visible: visible,
 			welcomepanelnonce: $( '#welcomepanelnonce' ).val()
-		});
+		} );
 	};
 
-	if ( welcomePanel.hasClass('hidden') && welcomePanelHide.prop('checked') ) {
-		welcomePanel.removeClass('hidden');
+	if ( welcomePanel.hasClass( 'hidden' ) && welcomePanelHide.prop( 'checked' ) ) {
+		welcomePanel.removeClass( 'hidden' );
 	}
 
-	$('.welcome-panel-close, .welcome-panel-dismiss a', welcomePanel).click( function(e) {
+	$( '.welcome-panel-close, .welcome-panel-dismiss a', welcomePanel).click( function(e) {
 		e.preventDefault();
-		welcomePanel.addClass('hidden');
+		welcomePanel.addClass( 'hidden' );
 		updateWelcomePanel( 0 );
-		$('#wp_welcome_panel-hide').prop('checked', false);
-	});
+		$( '#wp_welcome_panel-hide' ).prop( 'checked', false);
+	} );
 
 	welcomePanelHide.click( function() {
-		welcomePanel.toggleClass('hidden', ! this.checked );
+		welcomePanel.toggleClass( 'hidden', ! this.checked );
 		updateWelcomePanel( this.checked ? 1 : 0 );
-	});
+	} );
 
 	// These widgets are sometimes populated via ajax
 	ajaxWidgets = ['dashboard_primary'];
 
 	ajaxPopulateWidgets = function(el) {
 		function show(i, id) {
-			var p, e = $('#' + id + ' div.inside:visible').find('.widget-loading');
+			var p, e = $( '#' + id + ' div.inside:visible' ).find( '.widget-loading' );
 			if ( e.length ) {
 				p = e.parent();
 				setTimeout( function(){
 					p.load( ajaxurl + '?action=dashboard-widgets&widget=' + id + '&pagenow=' + pagenow, '', function() {
-						p.hide().slideDown('normal', function(){
-							$(this).css('display', '');
-						});
-					});
+						p.hide().slideDown( 'normal', function(){
+							$(this).css( 'display', '' );
+						} );
+					} );
 				}, i * 500 );
 			}
 		}
@@ -69,10 +69,10 @@ jQuery(document).ready( function($) {
 		}
 
 		// Add a hidden div. We'll copy over the text from the textarea to measure its height.
-		$('body').append( '<div class="quick-draft-textarea-clone" style="display: none;"></div>' );
+		$( 'body' ).append( '<div class="quick-draft-textarea-clone" style="display: none;"></div>' );
 
-		var clone = $('.quick-draft-textarea-clone'),
-			editor = $('#content'),
+		var clone = $( '.quick-draft-textarea-clone' ),
+			editor = $( '#content' ),
 			editorHeight = editor.height(),
 			// 100px roughly accounts for browser chrome and allows the
 			// save draft button to show on-screen at the same time.
@@ -80,29 +80,29 @@ jQuery(document).ready( function($) {
 
 		// Match up textarea and clone div as much as possible.
 		// Padding cannot be reliably retrieved using shorthand in all browsers.
-		clone.css({
-			'font-family': editor.css('font-family'),
-			'font-size':   editor.css('font-size'),
-			'line-height': editor.css('line-height'),
-			'padding-bottom': editor.css('paddingBottom'),
-			'padding-left': editor.css('paddingLeft'),
-			'padding-right': editor.css('paddingRight'),
-			'padding-top': editor.css('paddingTop'),
+		clone.css( {
+			'font-family': editor.css( 'font-family' ),
+			'font-size':   editor.css( 'font-size' ),
+			'line-height': editor.css( 'line-height' ),
+			'padding-bottom': editor.css( 'paddingBottom' ),
+			'padding-left': editor.css( 'paddingLeft' ),
+			'padding-right': editor.css( 'paddingRight' ),
+			'padding-top': editor.css( 'paddingTop' ),
 			'white-space': 'pre-wrap',
 			'word-wrap': 'break-word',
 			'display': 'none'
-		});
+		} );
 
 		// propertychange is for IE < 9
-		editor.on('focus input propertychange', function() {
+		editor.on( 'focus input propertychange', function() {
 			var $this = $(this),
 				// &nbsp; is to ensure that the height of a final trailing newline is included.
 				textareaContent = $this.val() + '&nbsp;',
 				// 2px is for border-top & border-bottom
-				cloneHeight = clone.css('width', $this.css('width')).text(textareaContent).outerHeight() + 2;
+				cloneHeight = clone.css( 'width', $this.css( 'width' )).text(textareaContent).outerHeight() + 2;
 
 			// Default to having scrollbars
-			editor.css('overflow-y', 'auto');
+			editor.css( 'overflow-y', 'auto' );
 
 			// Only change the height if it has indeed changed and both heights are below the max.
 			if ( cloneHeight === editorHeight || ( cloneHeight >= editorMaxHeight && editorHeight >= editorMaxHeight ) ) {
@@ -118,10 +118,10 @@ jQuery(document).ready( function($) {
 			}
 
 			// No scrollbars as we change height, not for IE < 9
-			editor.css('overflow', 'hidden');
+			editor.css( 'overflow', 'hidden' );
 
-			$this.css('height', editorHeight + 'px');
-		});
+			$this.css( 'height', editorHeight + 'px' );
+		} );
 	}
 
 	autoResizeTextarea();
@@ -135,7 +135,7 @@ wp.api.loadPromise.done( function() {
 
 	QuickPress.Models = {};
 
-	QuickPress.Models.Draft = wp.api.models.Post.extend({
+	QuickPress.Models.Draft = wp.api.models.Post.extend( {
 		initialize: function( attributes ) {
 			if ( attributes ) {
 				this.set( this.normalizeAttributes( attributes ) );
@@ -169,21 +169,21 @@ wp.api.loadPromise.done( function() {
 				return 'no-content';
 			}
 		}
-	});
+	} );
 
 	QuickPress.Collections = {};
 
-	QuickPress.Collections.Drafts = wp.api.collections.Posts.extend({
+	QuickPress.Collections.Drafts = wp.api.collections.Posts.extend( {
 		model: QuickPress.Models.Draft,
 
 		comparator: function( a, b ) {
 			return a.get( 'date' ) < b.get( 'date' );
 		}
-	});
+	} );
 
 	QuickPress.Views = {};
 
-	QuickPress.Views.Form = wp.Backbone.View.extend({
+	QuickPress.Views.Form = wp.Backbone.View.extend( {
 		events: {
 			'click #title-wrap,#description-wrap': 'hidePromptAndFocus',
 			'focus #title-wrap,#description-wrap': 'hidePrompt',
@@ -237,12 +237,12 @@ wp.api.loadPromise.done( function() {
 			}
 
 			// Show a spinner during the callback.
-			$('#quick-press .spinner').css( 'visibility', 'inherit' );
+			$( '#quick-press .spinner' ).css( 'visibility', 'inherit' );
 
 			this.model.save()
 				// TODO: `always` should be `done` to handle success only
 				.always( function() {
-					$('#quick-press .spinner').css( 'visibility', 'inherit' );
+					$( '#quick-press .spinner' ).css( 'visibility', 'inherit' );
 				} )
 				.success( function(){
 					this.collection.add( this.model );
@@ -266,9 +266,9 @@ wp.api.loadPromise.done( function() {
 				} ) );
 			}
 		}
-	});
+	} );
 
-	QuickPress.Views.DraftList = wp.Backbone.View.extend({
+	QuickPress.Views.DraftList = wp.Backbone.View.extend( {
 		initialize: function() {
 			this.listenTo( this.collection, 'add', this.render );
 		},
@@ -279,16 +279,16 @@ wp.api.loadPromise.done( function() {
 			this.$el.toggle( this.collection.length > 0 );
 			this.$el.find( '.view-all' ).toggle( slicedCollection.length > 3 );
 			this.$el.find( '.drafts-list' ).html( slicedCollection.map( function( draft ) {
-				return new QuickPress.Views.DraftListItem({
+				return new QuickPress.Views.DraftListItem( {
 					model: draft
 				}).render().el;
 			}) );
 
 			return this;
 		}
-	});
+	} );
 
-	QuickPress.Views.DraftListItem = wp.Backbone.View.extend({
+	QuickPress.Views.DraftListItem = wp.Backbone.View.extend( {
 		tagName: 'li',
 
 		template: wp.template( 'item-quick-press-draft' ),
@@ -300,16 +300,16 @@ wp.api.loadPromise.done( function() {
 
 			return this;
 		}
-	});
+	} );
 
 	draftsCollection = new QuickPress.Collections.Drafts( quickPress.data.data );
 
-	new QuickPress.Views.DraftList({
+	new QuickPress.Views.DraftList( {
 		el: '#quick-press-drafts',
 		collection: draftsCollection
 	}).render();
 
-	new QuickPress.Views.Form({
+	new QuickPress.Views.Form( {
 		el: '#quick-press',
 		model: new QuickPress.Models.Draft(),
 		collection: draftsCollection
