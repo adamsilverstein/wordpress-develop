@@ -510,7 +510,7 @@ function wp_dashboard_quick_press( $error_msg = false ) {
 		</div>
 		<p class="submit">
 			<div class="error inline" style="display: none;"><p></p></div>
-			<div class="spinner"></div>
+			<div class="spinner no-float"></div>
 			<?php submit_button( __( 'Save Draft' ), 'primary', 'save', false, array( 'id' => 'save-post' ) ); ?>
 			<br class="clear" />
 		</p>
