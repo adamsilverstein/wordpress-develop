@@ -135,7 +135,7 @@ wp.api.loadPromise.done( function() {
 
 	QuickPress.Models = {};
 
-	QuickPress.Models.Draft = wp.api.models.Post.extend( {
+	QuickPress.Models.Draft = wp.api.models.Post.extend({
 		initialize: function( attributes ) {
 			if ( attributes ) {
 				this.set( this.normalizeAttributes( attributes ) );
@@ -159,6 +159,8 @@ wp.api.loadPromise.done( function() {
 				attributes.title = attributes.title.rendered;
 			}
 
+			attributes.formattedDate = new Date( attributes.date );
+
 			return attributes;
 		},
 
@@ -167,7 +169,7 @@ wp.api.loadPromise.done( function() {
 				return 'no-content';
 			}
 		}
-	} );
+	});
 
 	QuickPress.Collections = {};
 
