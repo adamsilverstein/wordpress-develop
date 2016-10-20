@@ -559,7 +559,7 @@ function wp_dashboard_recent_drafts( $drafts = false ) {
 	echo '<script id="tmpl-item-quick-press-draft" type="text/template">';
 	/* translators: %s: post title */
 	echo '<div class="draft-title"><a href="{{ data.link }}" aria-label="' . esc_attr( __( 'Edit Post' ) ) . '">{{ data.title }}</a>';
-	echo '<time datetime="{{ data.date }}">{{ data.date }}</time></div>';
+	echo '<time datetime="{{ data.date }}">{{ data.formattedDate }}</time></div>';
 	echo '{{{ data.content }}}';
 	echo '</script>';
 	echo '<ul class="drafts-list">';
