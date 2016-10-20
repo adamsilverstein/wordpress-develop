@@ -147,6 +147,8 @@ wp.api.loadPromise.done( function() {
 		},
 
 		normalizeAttributes: function( attributes ) {
+			var date;
+
 			if ( ! attributes ) {
 				return attributes;
 			}
@@ -160,6 +162,19 @@ wp.api.loadPromise.done( function() {
 			}
 
 			attributes.content = wp.formatting.trimWords( attributes.content, 10 );
+
+			date = new Date( attributes.modified_gmt );
+
+			if ( 'undefined' !== typeof Intl && Intl.DateTimeFormat ) {
+				attributes.formattedDate = new Intl.DateTimeFormat( undefined, {
+					timeZone: 'UTC',
+					month: 'long',
+					day: 'numeric',
+					year: 'numeric'
+				}).format( date );
+			} else {
+				attributes.formattedDate = date.toLocaleDateString();
+			}
 
 			return attributes;
 		},
