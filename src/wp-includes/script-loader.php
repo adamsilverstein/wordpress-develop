@@ -1186,6 +1186,30 @@ function _wp_footer_scripts() {
 }
 
 /**
+ * Set up a filter for the dashboard API requests.
+ */
+function wp_dashboard_filter_api() {
+
+	/**
+	 * Filter the WP API response for the recent drafts widget in the dashboard, adding a formatted date
+	 * which is difficult to construct correctly in JavaScript.
+	 */
+	function wp_dashboard_filter_api_post( $response, $post, $request ) {
+
+		if ( 'draft' !== $post->post_status ) {
+			return;
+		}
+
+		$response->data['formattedDate']         = get_the_time( __( 'F j, Y' ), $post );
+		$response->data['formattedShortContent'] = wp_trim_words( $post->post_content, 10 );
+		return $response;
+	}
+
+	add_filter( "rest_prepare_post", 'wp_dashboard_filter_api_post', 10, 3 );
+
+}
+
+/**
  * Hooks to print the scripts and styles in the footer.
  *
  * @since 2.8.0
