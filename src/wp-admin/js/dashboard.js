@@ -179,6 +179,12 @@ wp.api.loadPromise.done( function() {
 			return attributes;
 		},
 
+		sync: function() {
+			this.set( 'date_gmt', ( new Date() ).toISOString() );
+
+			return wp.api.models.Post.prototype.sync.apply( this, arguments );
+		},
+
 		validate: function( attributes ) {
 			if ( ! attributes.title && ! attributes.content ) {
 				return 'no-content';
