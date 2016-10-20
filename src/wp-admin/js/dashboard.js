@@ -240,14 +240,22 @@ wp.api.loadPromise.done( function() {
 				return;
 			}
 
+			// Show a spinner during the callback.
+			$('#quick-press .spinner').css( 'visibility', 'inherit' );
+
 			this.model.save()
 				// TODO: `always` should be `done` to handle success only
 				.always( function() {
+					$('#quick-press .spinner').css( 'visibility', 'inherit' );
+				} )
+				.success( function(){
 					this.collection.add( this.model );
-				}.bind( this ) );
-				// .fail( function() {
+					// @todo Refresh the nonce (client should handle this).
+					// @todo Clear the form.
+				}.bind( this ) )
+				.error( function() {
 				// 	// TODO: Handle failure
-				// } );
+				} );
 
 			// TODO: Clear form model
 		},
