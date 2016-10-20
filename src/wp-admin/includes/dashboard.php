@@ -508,9 +508,9 @@ function wp_dashboard_quick_press( $error_msg = false ) {
 			<label class="prompt" for="content" id="content-prompt-text"><?php _e( 'What&#8217;s on your mind?' ); ?></label>
 			<textarea name="content" id="content" class="mceEditor" rows="3" cols="15" autocomplete="off"></textarea>
 		</div>
-
 		<p class="submit">
 			<div class="error inline" style="display: none;"><p></p></div>
+			<div class="spinner"></div>
 			<?php submit_button( __( 'Save Draft' ), 'primary', 'save', false, array( 'id' => 'save-post' ) ); ?>
 			<br class="clear" />
 		</p>
