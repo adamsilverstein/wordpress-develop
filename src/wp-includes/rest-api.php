@@ -179,10 +179,6 @@ function rest_api_default_filters() {
 * @param WP_REST_Request   $request    Request used to generate the response.
 */
 function wp_prepare_press_this_response( $response, $post, $request ) {
-	error_log('wp_prepare_press_this_response');
-	//error_log(json_encode($response ));
-	//error_log(json_encode( $post ));
-	error_log(json_encode( $request->params ));
 
 	// Only modify Quick Press responses.
 	if ( ! isset( $request->data['press-this-post-save'] ) ) {
@@ -231,9 +227,7 @@ function wp_prepare_press_this_response( $response, $post, $request ) {
  * @param WP_REST_Request $request       Request object.
  */
 function wp_pre_insert_press_this_post( $prepared_post, $request ) {
-	error_log('wp_pre_insert_press_this_post');
-	error_log(json_encode($prepared_post ));
-	error_log(json_encode( $request ));
+
 	// Only modify Quick Press posts.
 	if ( ! isset( $request->data['press-this-post-save'] ) ) {
 		return $prepared_post;
