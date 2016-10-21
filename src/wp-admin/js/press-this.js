@@ -298,19 +298,19 @@
 			}).done( function( response ) {
 
 				// We successfully saved the post.
-				 if ( response.data.redirect ) {
-					if ( window.opener && ( settings.redirInParent || response.data.force ) ) {
+				 if ( response.redirect ) {
+					if ( window.opener && ( settings.redirInParent || response.force ) ) {
 						try {
-							window.opener.location.href = response.data.redirect;
+							window.opener.location.href = response.redirect;
 
 							window.setTimeout( function() {
 								window.self.close();
 							}, 200 );
 						} catch( er ) {
-							window.location.href = response.data.redirect;
+							window.location.href = response.redirect;
 						}
 					} else {
-						window.location.href = response.data.redirect;
+						window.location.href = response.redirect;
 					}
 				}
 
