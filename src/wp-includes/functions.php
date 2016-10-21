@@ -3430,6 +3430,26 @@ function wp_parse_id_list( $list ) {
 }
 
 /**
+ * Clean up an array, comma- or space-separated list of slugs.
+ *
+ * @since 4.7.0
+ *
+ * @param  array|string $list List of slugs.
+ * @return array Sanitized array of slugs.
+ */
+function wp_parse_slug_list( $list ) {
+	if ( ! is_array( $list ) ) {
+		$list = preg_split( '/[\s,]+/', $list );
+	}
+
+	foreach ( $list as $key => $value ) {
+		$list[ $key ] = sanitize_title( $value );
+	}
+
+	return array_unique( $list );
+}
+
+/**
  * Extract a slice of an array, given a list of keys.
  *
  * @since 3.1.0
@@ -5532,4 +5552,24 @@ function wp_generate_uuid4() {
 		mt_rand( 0, 0x3fff ) | 0x8000,
 		mt_rand( 0, 0xffff ), mt_rand( 0, 0xffff ), mt_rand( 0, 0xffff )
 	);
+}
+
+/**
+ * Get last changed date for the specified cache group.
+ *
+ * @since 4.7.0
+ *
+ * @param $group Where the cache contents are grouped.
+ *
+ * @return string $last_changed UNIX timestamp with microseconds representing when the group was last changed.
+ */
+function wp_cache_get_last_changed( $group ) {
+	$last_changed = wp_cache_get( 'last_changed', $group );
+
+	if ( ! $last_changed ) {
+		$last_changed = microtime();
+		wp_cache_set( 'last_changed', $last_changed, $group );
+	}
+
+	return $last_changed;
 }
