@@ -277,10 +277,11 @@
 			data = $( '#pressthis-form' ).serializeArray();
 
 			toSend = {
-				'title':    $( '#post_title' ).val(),
-				'content':  $( '#post_content' ).val(),
-				'excerpt':  $( '#post_excerpt' ).val(),
-				'_wpnonce': $( '#_wpnonce' ).val(),
+				'title':               $( '#post_title' ).val(),
+				'content':             $( '#post_content' ).val(),
+				'excerpt':             $( '#post_excerpt' ).val(),
+				'_wpnonce':            $( '#_wpnonce' ).val(),
+				'press-this-post-save': true
 			}
 
 
