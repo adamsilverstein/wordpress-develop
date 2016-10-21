@@ -119,3 +119,92 @@ add_action( 'upgrader_process_complete', array( 'Language_Pack_Upgrader', 'async
 add_action( 'upgrader_process_complete', 'wp_version_check', 10, 0 );
 add_action( 'upgrader_process_complete', 'wp_update_plugins', 10, 0 );
 add_action( 'upgrader_process_complete', 'wp_update_themes', 10, 0 );
+
+/**
+* Filter Press This posts before returning from the API.
+*
+*
+* @param WP_REST_Response  $response   The response object.
+* @param WP_Post           $post       The original post.
+* @param WP_REST_Request   $request    Request used to generate the response.
+*/
+function wp_prepare_press_this_response( $response, $post, $request ) {
+
+	// Only modify Quick Press responses.
+	if ( ! isset( $request->data['press-this-post-save'] ) ) {
+		return $response;
+	}
+
+	// Match the existing ajax handler logic.
+	$forceRedirect = false;
+
+	if ( 'publish' === get_post_status( $post->ID ) ) {
+		$redirect = get_post_permalink( $post->ID );
+	} elseif ( isset( $_POST['pt-force-redirect'] ) && $_POST['pt-force-redirect'] === 'true' ) {
+		$forceRedirect = true;
+		$redirect = get_edit_post_link( $post->ID, 'js' );
+	} else {
+		$redirect = false;
+	}
+
+	/**
+	 * Filters the URL to redirect to when Press This saves.
+	 *
+	 * @since 4.2.0
+	 *
+	 * @param string $url     Redirect URL. If `$status` is 'publish', this will be the post permalink.
+	 *                        Otherwise, the default is false resulting in no redirect.
+	 * @param int    $post_id Post ID.
+	 * @param string $status  Post status.
+	 */
+	$redirect = apply_filters( 'press_this_save_redirect', $redirect, $post_id, $post_data['post_status'] );
+
+	if ( $redirect ) {
+		$response->data['redirect'] = $redirect;
+		$response->data['force'] = $forceRedirect;
+	} else {
+		$response->data['postSaved'] = true;
+	}
+
+	return $response;
+}
+add_filter( 'rest_prepare_post', 'wp_prepare_press_this_response', 10, 3 );
+
+/**
+ * Filter Press This posts before they are inserted into the database.
+ *
+ * @param stdClass        $prepared_post An object representing a single post prepared
+ *                                       for inserting or updating the database.
+ * @param WP_REST_Request $request       Request object.
+ */
+function wp_pre_insert_press_this_post( $prepared_post, $request ) {
+
+	// Only modify Quick Press posts.
+	if ( ! isset( $request->data['press-this-post-save'] ) ) {
+		return $prepared_post;
+	}
+
+	// @todo category ?
+
+	$post_data = $prepared_post->to_array();
+	include( ABSPATH . 'wp-admin/includes/class-wp-press-this.php' );
+	$wp_press_this = new WP_Press_This();
+
+	// Side load images for this post.
+	$post_data['post_content'] = $wp_press_this->side_load_images( $post_id, $post_data['post_content'] );
+
+	/**
+	 * Filters the post data of a Press This post before saving/updating.
+	 *
+	 * The {@see 'side_load_images'} action has already run at this point.
+	 *
+	 * @since 4.5.0
+	 *
+	 * @param array $post_data The post data.
+	 */
+	$post_data = apply_filters( 'press_this_save_post', $post_data );
+
+	return $post_data;
+}
+
+apply_filters( 'rest_pre_insert_post', 'wp_pre_insert_press_this_post', 10, 2 );
