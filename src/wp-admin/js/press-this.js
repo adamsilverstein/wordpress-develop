@@ -296,6 +296,23 @@
 				$( '.publish-button' ).removeClass( 'is-saving' );
 			}).done( function( response ) {
 
+				// We successfully saved the post.
+				 if ( response.data.redirect ) {
+					if ( window.opener && ( settings.redirInParent || response.data.force ) ) {
+						try {
+							window.opener.location.href = response.data.redirect;
+
+							window.setTimeout( function() {
+								window.self.close();
+							}, 200 );
+						} catch( er ) {
+							window.location.href = response.data.redirect;
+						}
+					} else {
+						window.location.href = response.data.redirect;
+					}
+				}
+
 			}).fail( function() {
 				renderError( __( 'serverError' ) );
 			});
