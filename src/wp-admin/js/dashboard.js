@@ -284,7 +284,6 @@ wp.api.loadPromise.done( function() {
 					this.collection.add( this.model );
 					this.model = new QuickPress.Models.Draft();
 					this.el.reset();
-					// @todo Refresh the nonce (client should handle this).
 				}.bind( this ) );
 		},
 
