@@ -161,7 +161,7 @@ wp.api.loadPromise.done( function() {
 				attributes.title = attributes.title.rendered;
 			}
 
-			attributes.content = wp.formatting.trimWords( attributes.content, 10 );
+			attributes.formattedContent = wp.formatting.trimWords( attributes.content, 10 );
 
 			date = new Date( attributes.modified_gmt );
 

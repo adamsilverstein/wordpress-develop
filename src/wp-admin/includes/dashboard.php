@@ -533,7 +533,7 @@ function wp_dashboard_recent_drafts() {
 	/* translators: %s: post title */
 	echo '<div class="draft-title"><a href="{{ data.link }}" aria-label="' . esc_attr( __( 'Edit Post' ) ) . '">{{ data.title }}</a>';
 	echo '<time datetime="{{ data.date }}">{{ data.formattedDate }}</time></div>';
-	echo '{{{ data.content }}}';
+	echo '{{{ data.formattedContent }}}';
 	echo '</script>';
 	echo '<ul class="drafts-list">';
 	echo "</ul>\n</div>";
