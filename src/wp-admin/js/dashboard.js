@@ -216,6 +216,8 @@ wp.api.loadPromise.done( function() {
 		},
 
 		initialize: function() {
+			this.showAllPrompts();
+
 			this.listenTo( this.model, 'invalid', this.render );
 			this.listenTo( this.model, 'error', this.showSyncError );
 		},
