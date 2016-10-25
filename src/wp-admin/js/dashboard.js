@@ -230,9 +230,9 @@ wp.api.loadPromise.done( function() {
 		},
 
 		showAllPrompts: function() {
-			this.$el.find( ':input' ).each( function( i, input ) {
-				_.defer( this.togglePrompt.bind( this, input, true ) );
-			}.bind( this ) );
+			this.$el.find( ':input' ).each( _.bind( function( i, input ) {
+				_.defer( _.bind( this.togglePrompt, this, input, true ) );
+			}, this ) );
 		},
 
 		showPrompt: function( event ) {
@@ -280,11 +280,11 @@ wp.api.loadPromise.done( function() {
 				.always( function() {
 					$( '#quick-press .spinner' ).css( 'visibility', 'hidden' );
 				} )
-				.success( function() {
+				.success( _.bind( function() {
 					this.collection.add( this.model );
 					this.model = new QuickPress.Models.Draft();
 					this.el.reset();
-				}.bind( this ) );
+				}, this ) );
 		},
 
 		render: function() {
