@@ -1,4 +1,4 @@
-/* global wp, quickPress, pagenow, ajaxurl, postboxes, wpActiveEditor:true */
+/* global _, wp, quickPress, pagenow, ajaxurl, postboxes, wpActiveEditor:true */
 var ajaxWidgets, ajaxPopulateWidgets;
 
 jQuery( document ).ready( function( $ ) {
@@ -206,9 +206,10 @@ wp.api.loadPromise.done( function() {
 
 	QuickPress.Views.Form = wp.Backbone.View.extend( {
 		events: {
-			'click #title-wrap,#description-wrap': 'hidePromptAndFocus',
-			'focus #title-wrap,#description-wrap': 'hidePrompt',
-			'blur #title-wrap,#description-wrap': 'showPrompt',
+			'click :input': 'hidePromptAndFocus',
+			'focus :input': 'hidePrompt',
+			'blur :input': 'showPrompt',
+			reset: 'showAllPrompts',
 			click: 'setActiveEditor',
 			focusin: 'setActiveEditor',
 			submit: 'submit'
@@ -219,22 +220,28 @@ wp.api.loadPromise.done( function() {
 		},
 
 		togglePrompt: function( element, visible ) {
-			var $input = $( ':input', element ),
+			var $input = $( element ),
 				hasContent = $input.val().length > 0;
 
-			$( '.prompt', element ).toggleClass( 'screen-reader-text', ! visible || hasContent );
+			$( element ).siblings( '.prompt' ).toggleClass( 'screen-reader-text', ! visible || hasContent );
+		},
+
+		showAllPrompts: function() {
+			this.$el.find( ':input' ).each( function( i, input ) {
+				_.defer( this.togglePrompt.bind( this, input, true ) );
+			}.bind( this ) );
 		},
 
 		showPrompt: function( event ) {
-			this.togglePrompt( event.currentTarget, true );
+			this.togglePrompt( event.target, true );
 		},
 
 		hidePrompt: function( event ) {
-			this.togglePrompt( event.currentTarget, false );
+			this.togglePrompt( event.target, false );
 		},
 
 		hidePromptAndFocus: function( event ) {
-			this.togglePrompt( event.currentTarget, false );
+			this.togglePrompt( event.target, false );
 			$( ':input', event.target ).focus();
 		},
 
@@ -269,15 +276,14 @@ wp.api.loadPromise.done( function() {
 				.success( function() {
 					console.log( 'success' );
 					this.collection.add( this.model );
+					this.model = new QuickPress.Models.Draft();
+					this.el.reset();
 					// @todo Refresh the nonce (client should handle this).
-					// @todo Clear the form.
 				}.bind( this ) )
 				.error( function() {
 					console.log( 'error' );
 				// 	// TODO: Handle failure
 				} );
-
-			// TODO: Clear form model
 		},
 
 		render: function() {
