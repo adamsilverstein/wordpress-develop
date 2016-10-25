@@ -1,5 +1,5 @@
 /* global wp, quickPress, pagenow, ajaxurl, postboxes, wpActiveEditor:true */
-var ajaxWidgets, ajaxPopulateWidgets, quickPressLoad;
+var ajaxWidgets, ajaxPopulateWidgets;
 
 jQuery( document ).ready( function( $ ) {
 	var welcomePanel = $( '#welcome-panel' ),
