@@ -171,7 +171,7 @@ wp.api.loadPromise.done( function() {
 					month: 'long',
 					day: 'numeric',
 					year: 'numeric'
-				}).format( date );
+				} ).format( date );
 			} else {
 				attributes.formattedDate = date.toLocaleDateString();
 			}
@@ -266,7 +266,7 @@ wp.api.loadPromise.done( function() {
 					console.log( 'always' );
 					$( '#quick-press .spinner' ).css( 'visibility', 'hidden' );
 				} )
-				.success( function(){
+				.success( function() {
 					console.log( 'success' );
 					this.collection.add( this.model );
 					// @todo Refresh the nonce (client should handle this).
@@ -305,8 +305,8 @@ wp.api.loadPromise.done( function() {
 			this.$el.find( '.drafts-list' ).html( slicedCollection.map( function( draft ) {
 				return new QuickPress.Views.DraftListItem( {
 					model: draft
-				}).render().el;
-			}) );
+				} ).render().el;
+			} ) );
 
 			return this;
 		}
@@ -331,11 +331,11 @@ wp.api.loadPromise.done( function() {
 	new QuickPress.Views.DraftList( {
 		el: '#quick-press-drafts',
 		collection: draftsCollection
-	}).render();
+	} ).render();
 
 	new QuickPress.Views.Form( {
 		el: '#quick-press',
 		model: new QuickPress.Models.Draft(),
 		collection: draftsCollection
-	}).render();
+	} ).render();
 } );
