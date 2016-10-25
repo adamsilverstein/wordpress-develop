@@ -53,9 +53,9 @@ function get_active_blog_for_user( $user_id ) {
 	if ( false !== $primary_blog ) {
 		if ( ! isset( $blogs[ $primary_blog ] ) ) {
 			update_user_meta( $user_id, 'primary_blog', $first_blog->userblog_id );
-			$primary = get_blog_details( $first_blog->userblog_id );
+			$primary = get_site( $first_blog->userblog_id );
 		} else {
-			$primary = get_blog_details( $primary_blog );
+			$primary = get_site( $primary_blog );
 		}
 	} else {
 		//TODO Review this call to add_user_to_blog too - to get here the user must have a role on this blog?
@@ -71,7 +71,7 @@ function get_active_blog_for_user( $user_id ) {
 			foreach ( (array) $blogs as $blog_id => $blog ) {
 				if ( $blog->site_id != $wpdb->siteid )
 					continue;
-				$details = get_blog_details( $blog_id );
+				$details = get_site( $blog_id );
 				if ( is_object( $details ) && $details->archived == 0 && $details->spam == 0 && $details->deleted == 0 ) {
 					$ret = $blog;
 					if ( get_user_meta( $user_id , 'primary_blog', true ) != $blog_id )
@@ -161,8 +161,8 @@ function add_user_to_blog( $blog_id, $user_id, $role ) {
 
 	if ( !get_user_meta($user_id, 'primary_blog', true) ) {
 		update_user_meta($user_id, 'primary_blog', $blog_id);
-		$details = get_blog_details($blog_id);
-		update_user_meta($user_id, 'source_domain', $details->domain);
+		$site = get_site( $blog_id );
+		update_user_meta( $user_id, 'source_domain', $site->domain );
 	}
 
 	$user->set_role($role);

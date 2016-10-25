@@ -906,6 +906,10 @@
 		attachEvents: function () {
 			var meta, content, section = this;
 
+			if ( section.container.hasClass( 'cannot-expand' ) ) {
+				return;
+			}
+
 			// Expand/Collapse accordion sections on click.
 			section.container.find( '.accordion-section-title, .customize-section-back' ).on( 'click keydown', function( event ) {
 				if ( api.utils.isKeydownButNotEnterEvent( event ) ) {
@@ -1186,7 +1190,7 @@
 
 			// Preview installed themes.
 			section.container.on( 'click', '.theme-actions .preview-theme', function() {
-				var themeId = $( this ).data( 'themeId' );
+				var themeId = $( this ).data( 'slug' );
 
 				$( '.wp-full-overlay' ).addClass( 'customize-loading' );
 				api.panel( 'themes' ).loadThemePreview( themeId ).fail( function() {
@@ -1735,7 +1739,7 @@
 		 * @param {Object}   theme
 		 */
 		showDetails: function ( theme, callback ) {
-			var section = this, link;
+			var section = this;
 			callback = callback || function(){};
 			section.currentTheme = theme.id;
 			section.overlay.html( section.template( theme ) )
@@ -1745,21 +1749,6 @@
 			section.containFocus( section.overlay );
 			section.updateLimits();
 			wp.a11y.speak( api.settings.l10n.announceThemeDetails.replace( '%s', theme.name ) );
-
-			link = section.overlay.find( '.inactive-theme > a' );
-			link.on( 'click', function( event ) {
-				event.preventDefault();
-
-				// Short-circuit if request is currently being made.
-				if ( link.hasClass( 'disabled' ) ) {
-					return;
-				}
-				link.addClass( 'disabled' );
-
-				api.panel( 'themes' ).loadThemePreview( theme.id ).fail( function() {
-					link.removeClass( 'disabled' );
-				} );
-			} );
 			callback();
 		},
 
@@ -2527,9 +2516,28 @@
 		/**
 		 * Triggered when the control's markup has been injected into the DOM.
 		 *
-		 * @abstract
+		 * @returns {void}
 		 */
-		ready: function() {},
+		ready: function() {
+			var control = this, newItem;
+			if ( 'dropdown-pages' === control.params.type && control.params.allow_addition ) {
+				newItem = control.container.find( '.new-content-item' );
+				newItem.hide(); // Hide in JS to preserve flex display when showing.
+				control.container.on( 'click', '.add-new-toggle', function( e ) {
+					$( e.currentTarget ).slideUp( 180 );
+					newItem.slideDown( 180 );
+					newItem.find( '.create-item-input' ).focus();
+				});
+				control.container.on( 'click', '.add-content', function() {
+					control.addNewPage();
+				});
+				control.container.on( 'keyup', '.create-item-input', function( e ) {
+					if ( 13 === e.which ) { // Enter
+						control.addNewPage();
+					}
+				});
+			}
+		},
 
 		/**
 		 * Get the element inside of a control's container that contains the validation error message.
@@ -2747,6 +2755,73 @@
 					control.container.html( template( control.params ) );
 				}
 			}
+		},
+
+		/**
+		 * Add a new page to a dropdown-pages control reusing menus code for this.
+		 *
+		 * @since 4.7.0
+		 * @access private
+		 * @returns {void}
+		 */
+		addNewPage: function () {
+			var control = this, promise, toggle, container, input, title, select;
+
+			if ( 'dropdown-pages' !== control.params.type || ! control.params.allow_addition || ! api.Menus ) {
+				return;
+			}
+
+			toggle = control.container.find( '.add-new-toggle' );
+			container = control.container.find( '.new-content-item' );
+			input = control.container.find( '.create-item-input' );
+			title = input.val();
+			select = control.container.find( 'select' );
+
+			if ( ! title ) {
+				input.addClass( 'invalid' );
+				return;
+			}
+
+			input.removeClass( 'invalid' );
+			input.attr( 'disabled', 'disabled' );
+
+			// The menus functions add the page, publish when appropriate, and also add the new page to the dropdown-pages controls.
+			promise = api.Menus.insertAutoDraftPost( {
+				post_title: title,
+				post_type: 'page'
+			} );
+			promise.done( function( data ) {
+				var availableItem, $content, itemTemplate;
+
+				// Prepare the new page as an available menu item.
+				// See api.Menus.submitNew().
+				availableItem = new api.Menus.AvailableItemModel( {
+					'id': 'post-' + data.post_id, // Used for available menu item Backbone models.
+					'title': title,
+					'type': 'page',
+					'type_label': api.Menus.data.l10n.page_label,
+					'object': 'post_type',
+					'object_id': data.post_id,
+					'url': data.url
+				} );
+
+				// Add the new item to the list of available menu items.
+				api.Menus.availableMenuItemsPanel.collection.add( availableItem );
+				$content = $( '#available-menu-items-post_type-page' ).find( '.available-menu-items-list' );
+				itemTemplate = wp.template( 'available-menu-item' );
+				$content.prepend( itemTemplate( availableItem.attributes ) );
+
+				// Focus the select control.
+				select.focus();
+				control.setting.set( String( data.post_id ) ); // Triggers a preview refresh and updates the setting.
+
+				// Reset the create page form.
+				container.slideUp( 180 );
+				toggle.slideDown( 180 );
+			} )
+			.always( function() {
+				input.val( '' ).removeAttr( 'disabled' );
+			} );
 		}
 	});
 
@@ -3344,7 +3419,7 @@
 		 * @param {object} attachment
 		 */
 		setImageFromAttachment: function( attachment ) {
-			var sizes = [ 'site_icon-32', 'thumbnail', 'full' ],
+			var sizes = [ 'site_icon-32', 'thumbnail', 'full' ], link,
 				icon;
 
 			_.each( sizes, function( size ) {
@@ -3358,8 +3433,13 @@
 			// Set the Customizer setting; the callback takes care of rendering.
 			this.setting( attachment.id );
 
+			if ( ! icon ) {
+				return;
+			}
+
 			// Update the icon in-browser.
-			$( 'link[sizes="32x32"]' ).attr( 'href', icon.url );
+			link = $( 'link[rel="icon"][sizes="32x32"]' );
+			link.attr( 'href', icon.url );
 		},
 
 		/**
@@ -3376,7 +3456,7 @@
 			this.params.attachment = {};
 			this.setting( '' );
 			this.renderContent(); // Not bound to setting change when emptying.
-			$( 'link[rel="icon"]' ).attr( 'href', '' );
+			$( 'link[rel="icon"][sizes="32x32"]' ).attr( 'href', '/favicon.ico' ); // Set to default.
 		}
 	});
 
@@ -4055,7 +4135,7 @@
 			// ssl certs.
 
 			previewer.add( 'previewUrl', params.previewUrl ).setter( function( to ) {
-				var result, urlParser, newPreviewUrl, schemeMatchingPreviewUrl, queryParams;
+				var result = null, urlParser, queryParams, parsedAllowedUrl, parsedCandidateUrls = [];
 				urlParser = document.createElement( 'a' );
 				urlParser.href = to;
 
@@ -4077,31 +4157,30 @@
 					}
 				}
 
-				newPreviewUrl = urlParser.href;
-				urlParser.protocol = previewer.scheme.get() + ':';
-				schemeMatchingPreviewUrl = urlParser.href;
+				parsedCandidateUrls.push( urlParser );
+
+				// Prepend list with URL that matches the scheme/protocol of the iframe.
+				if ( previewer.scheme.get() + ':' !== urlParser.protocol ) {
+					urlParser = document.createElement( 'a' );
+					urlParser.href = parsedCandidateUrls[0].href;
+					urlParser.protocol = previewer.scheme.get() + ':';
+					parsedCandidateUrls.unshift( urlParser );
+				}
 
 				// Attempt to match the URL to the control frame's scheme
 				// and check if it's allowed. If not, try the original URL.
-				$.each( [ schemeMatchingPreviewUrl, newPreviewUrl ], function( i, url ) {
-					$.each( previewer.allowedUrls, function( i, allowed ) {
-						var path;
-
-						allowed = allowed.replace( /\/+$/, '' );
-						path = url.replace( allowed, '' );
-
-						if ( 0 === url.indexOf( allowed ) && /^([/#?]|$)/.test( path ) ) {
-							result = url;
-							return false;
+				parsedAllowedUrl = document.createElement( 'a' );
+				_.find( parsedCandidateUrls, function( parsedCandidateUrl ) {
+					return ! _.isUndefined( _.find( previewer.allowedUrls, function( allowedUrl ) {
+						parsedAllowedUrl.href = allowedUrl;
+						if ( urlParser.protocol === parsedAllowedUrl.protocol && urlParser.host === parsedAllowedUrl.host && 0 === parsedAllowedUrl.pathname.indexOf( urlParser.pathname ) ) {
+							result = parsedCandidateUrl.href;
+							return true;
 						}
-					});
-					if ( result ) {
-						return false;
-					}
-				});
+					} ) );
+				} );
 
-				// If we found a matching result, return it. If not, bail.
-				return result ? result : null;
+				return result;
 			});
 
 			previewer.bind( 'ready', previewer.ready );

@@ -276,7 +276,9 @@ body {
 	box-sizing: border-box;
 	-webkit-transition: 0.18s -webkit-transform cubic-bezier(0.645, 0.045, 0.355, 1);
 	transition: 0.18s -webkit-transform cubic-bezier(0.645, 0.045, 0.355, 1);
+	-webkit-transition: 0.18s transform cubic-bezier(0.645, 0.045, 0.355, 1);
 	transition: 0.18s transform cubic-bezier(0.645, 0.045, 0.355, 1);
+	-webkit-transition: 0.18s transform cubic-bezier(0.645, 0.045, 0.355, 1), 0.18s -webkit-transform cubic-bezier(0.645, 0.045, 0.355, 1);
 	transition: 0.18s transform cubic-bezier(0.645, 0.045, 0.355, 1), 0.18s -webkit-transform cubic-bezier(0.645, 0.045, 0.355, 1); /* easeInOutCubic */
 }
 
@@ -461,14 +463,16 @@ h3.customize-section-title {
 	display: block;
 }
 
-.panel-meta.customize-info .accordion-section-title {
+#customize-controls .panel-meta.customize-info .accordion-section-title {
 	margin-left: 48px;
+	border-left: none;
 }
 
-#customize-controls .panel-meta.customize-info .accordion-section-title:hover {
+#customize-controls .panel-meta.customize-info .accordion-section-title:hover,
+#customize-controls .cannot-expand:hover .accordion-section-title {
 	background: #fff;
 	color: #555;
-	border-left: none;
+	border-left-color: #fff;
 }
 
 .customize-controls-close:focus,
@@ -561,8 +565,8 @@ p.customize-section-description {
 }
 
 .customize-control select {
-	min-width: 50%;
-	max-width: 100%;
+	width: 100%;
+	max-width: 300px;
 	height: 28px;
 	line-height: 28px;
 }
@@ -583,6 +587,7 @@ p.customize-section-description {
 	display: block;
 	font-style: italic;
 	line-height: 18px;
+	margin-top: 0;
 	margin-bottom: 5px;
 }
 
@@ -668,6 +673,54 @@ p.customize-section-description {
 	max-height: 64px;
 	margin: 10px;
 	float: left;
+}
+
+#available-menu-items .accordion-section-content .new-content-item,
+.customize-control-dropdown-pages .new-content-item {
+	width: -webkit-calc(100% - 30px);
+	width: calc(100% - 30px);
+	padding: 8px 15px;
+	position: absolute;
+	bottom: 0;
+	z-index: 10;
+	background: #eee;
+	display: -webkit-box;
+	display: -moz-box;
+	display: -ms-flexbox;
+	display: -webkit-flex;
+	display: flex;
+}
+
+.customize-control-dropdown-pages .new-content-item {
+	width: 100%;
+	max-width: 300px;
+	padding: 5px 0 5px 1px;
+	position: relative;
+}
+
+#available-menu-items .new-content-item .create-item-input,
+.customize-control-dropdown-pages .new-content-item .create-item-input {
+	-webkit-box-flex: 10;
+	-webkit-flex-grow: 10;
+	-moz-box-flex: 10;
+	-ms-flex-positive: 10;
+	-ms-flex: 10;
+	flex-grow: 10;
+}
+
+#available-menu-items .new-content-item .add-content,
+.customize-control-dropdown-pages .new-content-item .add-content {
+	margin: 2px 0 2px 6px;
+	-webkit-box-flex: 10;
+	-webkit-flex-grow: 10;
+	-moz-box-flex: 10;
+	-ms-flex-positive: 10;
+	-ms-flex: 10;
+	flex-grow: 1;
+}
+
+.customize-control-dropdown-pages .new-content-item .create-item-input.invalid {
+	border: 1px solid #f00;
 }
 
 #customize-preview iframe {
@@ -915,6 +968,11 @@ p.customize-section-description {
 .customize-control-header .header-view:after {
 	border: 0;
 }
+
+.customize-control-header .header-view.selected .choice:focus {
+	outline: none;
+}
+
 .customize-control-header .header-view.selected:after {
 	content: '';
 	position: absolute;
@@ -924,6 +982,7 @@ p.customize-section-description {
 	-webkit-border-radius: 2px;
 	border-radius: 2px;
 }
+
 .customize-control-header .header-view.button.selected {
 	border: 0;
 }
@@ -937,7 +996,7 @@ p.customize-section-description {
 	background: rgba(0, 0, 0, 0.5);
 	position: absolute;
 	top: 10px;
-	right: -999px;
+	left: -999px;
 	z-index: 1;
 	width: 26px;
 	height: 26px;
@@ -946,7 +1005,12 @@ p.customize-section-description {
 
 .customize-control-header .header-view:hover .close,
 .customize-control-header .header-view .close:focus {
+	left: auto;
 	right: 10px;
+}
+
+.customize-control-header .header-view .close:focus {
+	outline: 1px solid #5b9dd9;
 }
 
 /* Header control: randomiz(s)er */
@@ -993,6 +1057,16 @@ p.customize-section-description {
 	position: relative;
 	display: block;
 	margin-bottom: 9px;
+}
+
+.customize-control-header .choice:focus {
+	outline: none;
+	-webkit-box-shadow:
+		0 0 0 1px #5b9dd9,
+		0 0 3px 1px rgba(30, 140, 190, .8);
+	box-shadow:
+		0 0 0 1px #5b9dd9,
+		0 0 3px 1px rgba(30, 140, 190, .8);
 }
 
 .customize-control-header .uploaded div:last-child > .choice {
