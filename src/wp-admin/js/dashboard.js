@@ -339,8 +339,6 @@ wp.api.loadPromise.done( function() {
 		template: wp.template( 'item-quick-press-draft' ),
 
 		render: function() {
-			// TODO: Render highlight effect to new post
-
 			this.$el.html( this.template( this.model.attributes ) );
 
 			return this;
