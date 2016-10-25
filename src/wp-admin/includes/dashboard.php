@@ -535,7 +535,10 @@ function wp_dashboard_recent_drafts() {
 	echo '<time datetime="{{ data.date }}">{{ data.formattedDate }}</time></div>';
 	echo '{{{ data.formattedContent }}}';
 	echo '</script>';
-	echo '<ul class="drafts-list">';
+	echo '<ul class="drafts-list is-placeholder">';
+	for ( $i = 0; $i < 4; $i++ ) {
+		echo '<li><span class="screen-reader-text">' . esc_html( __( 'Loading…' ) ) . '</span></li>';
+	}
 	echo "</ul>\n</div>";
 }
 

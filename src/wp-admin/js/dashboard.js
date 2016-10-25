@@ -315,11 +315,13 @@ wp.api.loadPromise.done( function() {
 
 			this.$el.toggle( this.collection.length > 0 );
 			this.$el.find( '.view-all' ).toggle( slicedCollection.length > 3 );
-			this.$el.find( '.drafts-list' ).html( slicedCollection.map( function( draft ) {
-				return new QuickPress.Views.DraftListItem( {
-					model: draft
-				} ).render().el;
-			} ) );
+			this.$el.find( '.drafts-list' )
+				.removeClass( 'is-placeholder' )
+				.html( slicedCollection.map( function( draft ) {
+					return new QuickPress.Views.DraftListItem( {
+						model: draft
+					} ).render().el;
+				} ) );
 
 			return this;
 		}
