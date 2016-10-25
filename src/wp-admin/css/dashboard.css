@@ -573,6 +573,11 @@ form.initial-form.quickpress-open input#title {
 #dashboard_quick_press .drafts li {
 	margin-bottom: 1em;
 }
+
+#dashboard_quick_press .drafts li.is-new {
+	background-color: #fffbe5;
+}
+
 #dashboard_quick_press .drafts li time {
 	color: #72777c;
 }

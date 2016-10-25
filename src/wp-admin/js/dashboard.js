@@ -307,7 +307,14 @@ wp.api.loadPromise.done( function() {
 
 	QuickPress.Views.DraftList = wp.Backbone.View.extend( {
 		initialize: function() {
-			this.listenTo( this.collection, 'add', this.render );
+			this.listenTo( this.collection, 'add', this.renderNew );
+		},
+
+		renderNew: function() {
+			var $newEl = this.render().$el.find( 'li:first' ).addClass( 'is-new' );
+			setTimeout( function() {
+				$newEl.removeClass( 'is-new' );
+			}, 1000 );
 		},
 
 		render: function() {
