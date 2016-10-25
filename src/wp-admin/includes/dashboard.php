@@ -531,7 +531,7 @@ function wp_dashboard_recent_drafts() {
 	echo '<h2 class="hide-if-no-js">' . __( 'Drafts' ) . "</h2>\n";
 	echo '<script id="tmpl-item-quick-press-draft" type="text/template">';
 	/* translators: %s: post title */
-	echo '<div class="draft-title"><a href="{{ data.link }}" aria-label="' . esc_attr( __( 'Edit Post' ) ) . '">{{ data.title }}</a>';
+	echo '<div class="draft-title"><a href="post.php?post={{ data.id }}&action=edit" aria-label="' . esc_attr( __( 'Edit Post' ) ) . '">{{ data.title }}</a>';
 	echo '<time datetime="{{ data.date }}">{{ data.formattedDate }}</time></div>';
 	echo '{{{ data.formattedContent }}}';
 	echo '</script>';
