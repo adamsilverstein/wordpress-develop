@@ -738,7 +738,8 @@ function wp_default_scripts( &$scripts ) {
 			$scripts->localize( 'dashboard', 'quickPress', array(
 				'data' => rest_do_request( $dashboard_data_request ),
 				'l10n' => array(
-					'no-content' => __( 'Post content cannot be empty.' )
+					'no-content' => __( 'Post content cannot be empty.' ),
+					'error'      => __( 'An error has occurred. Please reload the page and try again.' )
 				)
 			) );
 		}

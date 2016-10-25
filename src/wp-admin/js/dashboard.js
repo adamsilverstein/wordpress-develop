@@ -217,6 +217,7 @@ wp.api.loadPromise.done( function() {
 
 		initialize: function() {
 			this.listenTo( this.model, 'invalid', this.render );
+			this.listenTo( this.model, 'error', this.showSyncError );
 		},
 
 		togglePrompt: function( element, visible ) {
@@ -249,9 +250,15 @@ wp.api.loadPromise.done( function() {
 			wpActiveEditor = 'content';
 		},
 
+		showSyncError: function() {
+			this.syncError = true;
+			this.render();
+		},
+
 		submit: function( event ) {
 			var values;
 
+			delete this.syncError;
 			event.preventDefault();
 
 			values = this.$el.serializeArray().reduce( function( memo, field ) {
@@ -268,32 +275,30 @@ wp.api.loadPromise.done( function() {
 			$( '#quick-press .spinner' ).css( 'visibility', 'inherit' );
 
 			this.model.save()
-				// TODO: `always` should be `done` to handle success only
 				.always( function() {
-					console.log( 'always' );
 					$( '#quick-press .spinner' ).css( 'visibility', 'hidden' );
 				} )
 				.success( function() {
-					console.log( 'success' );
 					this.collection.add( this.model );
 					this.model = new QuickPress.Models.Draft();
 					this.el.reset();
 					// @todo Refresh the nonce (client should handle this).
-				}.bind( this ) )
-				.error( function() {
-					console.log( 'error' );
-				// 	// TODO: Handle failure
-				} );
+				}.bind( this ) );
 		},
 
 		render: function() {
-			var $error = this.$el.find( '.error' );
+			var $error = this.$el.find( '.error' ),
+				errorText;
 
-			$error.toggle( !! this.model.validationError );
 			if ( this.model.validationError ) {
-				$error.html( $( '<p />', {
-					text: quickPress.l10n[ this.model.validationError ]
-				} ) );
+				errorText = quickPress.l10n[ this.model.validationError ];
+			} else if ( this.syncError ) {
+				errorText = quickPress.l10n.error;
+			}
+
+			$error.toggle( !! errorText );
+			if ( errorText ) {
+				$error.html( $( '<p />', { text: errorText } ) );
 			}
 		}
 	} );
