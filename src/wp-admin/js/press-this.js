@@ -268,7 +268,7 @@
 			showSpinner();
 
 			if ( 'publish' === action ) {
-				$( '#post_status' ).val( 'publish' );
+				$( '#post_status' ).val( action );
 			}
 
 			prepareFormData();
@@ -277,17 +277,17 @@
 			data = $( '#pressthis-form' ).serializeArray();
 
 			toSend = {
-				'title':               $( '#post_title' ).val(),
-				'content':             $( '#post_content' ).val(),
-				'excerpt':             $( '#post_excerpt' ).val(),
-				'_wpnonce':            $( '#_wpnonce' ).val(),
-				'press-this-post-save': true
+				'title':     $( '#post_title' ).val(),
+				'content':   $( '#post_content' ).val(),
+				'excerpt':   $( '#post_excerpt' ).val(),
+				'post_status': action,
+				'_wpnonce':  $( '#_wpnonce' ).val()
 			}
 
 
 			$.ajax( {
 				type: 'POST',
-				url: wpApi.url + 'posts',
+				url: wpApi.url + 'posts?press-this-post-save=true&pt-force-redirect=' + $( '#pt-force-redirect' ).val(),
 				data: toSend,
 				dataType: 'json',
 				headers: headerParams
