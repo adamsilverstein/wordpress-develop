@@ -17,6 +17,15 @@ function twentyseventeen_customize_register( $wp_customize ) {
 	$wp_customize->get_setting( 'blogdescription' )->transport  = 'postMessage';
 	$wp_customize->get_setting( 'header_textcolor' )->transport = 'postMessage';
 
+	$wp_customize->selective_refresh->add_partial( 'blogname', array(
+		'selector' => '.site-title a',
+		'render_callback' => 'twentyseventeen_customize_partial_blogname',
+	) );
+	$wp_customize->selective_refresh->add_partial( 'blogdescription', array(
+		'selector' => '.site-description',
+		'render_callback' => 'twentyseventeen_customize_partial_blogdescription',
+	) );
+
 	/**
 	 * Custom colors.
 	 */
@@ -44,20 +53,11 @@ function twentyseventeen_customize_register( $wp_customize ) {
 		'priority' => 5,
 	) );
 
-	$wp_customize->add_control( 'colorscheme_hue', array(
-		'type'    => 'range',
-		'input_attrs' => array(
-			'min' => 0,
-			'max' => 359,
-			'step' => 1,
-		),
+	$wp_customize->add_control( new WP_Customize_Color_Control( $wp_customize, 'colorscheme_hue', array(
+		'mode' => 'hue',
 		'section'  => 'colors',
 		'priority' => 6,
-		'description' => 'Temporary hue slider will be replaced with a visual hue picker that is only shown when a custom scheme is selected', // temporary, intentionally untranslated.
-		// @todo change this to a visual hue picker control, ideally extending the color control and leveraging iris by adding a `hue` mode in core.
-		// See https://core.trac.wordpress.org/ticket/38263
-		// @todo only show this control when the colorscheme is custom.
-	) );
+	) ) );
 
 	/**
 	 * Add the Theme Options section.
@@ -196,6 +196,30 @@ function twentyseventeen_sanitize_colorscheme( $input ) {
 	}
 
 	return 'light';
+}
+
+/**
+ * Render the site title for the selective refresh partial.
+ *
+ * @since Twenty Seventeen 1.0
+ * @see twentyseventeen_customize_register()
+ *
+ * @return void
+ */
+function twentyseventeen_customize_partial_blogname() {
+	bloginfo( 'name' );
+}
+
+/**
+ * Render the site tagline for the selective refresh partial.
+ *
+ * @since Twenty Seventeen 1.0
+ * @see twentyseventeen_customize_register()
+ *
+ * @return void
+ */
+function twentyseventeen_customize_partial_blogdescription() {
+	bloginfo( 'description' );
 }
 
 /**

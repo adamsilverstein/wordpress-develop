@@ -532,7 +532,7 @@ class WP_Customize_Control {
 					if ( ! empty( $this->description ) ) : ?>
 						<span class="description customize-control-description"><?php echo $this->description; ?></span>
 					<?php endif; ?>
-					<textarea rows="5" <?php $this->link(); ?>><?php echo esc_textarea( $this->value() ); ?></textarea>
+					<textarea rows="5" <?php $this->input_attrs(); ?> <?php $this->link(); ?>><?php echo esc_textarea( $this->value() ); ?></textarea>
 				</label>
 				<?php
 				break;
@@ -659,6 +659,9 @@ require_once( ABSPATH . WPINC . '/customize/class-wp-customize-image-control.php
 
 /** WP_Customize_Background_Image_Control class */
 require_once( ABSPATH . WPINC . '/customize/class-wp-customize-background-image-control.php' );
+
+/** WP_Customize_Background_Position_Control class */
+require_once( ABSPATH . WPINC . '/customize/class-wp-customize-background-position-control.php' );
 
 /** WP_Customize_Cropped_Image_Control class */
 require_once( ABSPATH . WPINC . '/customize/class-wp-customize-cropped-image-control.php' );
