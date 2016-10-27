@@ -173,10 +173,10 @@ wp.api.loadPromise.done( function() {
 
 			// We can format dates using newer browser i18n features, but also
 			// provide a fallback to the not-as-nice Date#toLocaleDateString
-			date = new Date( attributes.modified_gmt );
+			date = new Date( wp.api.utils.parseISO8601( attributes.date ) );
+			date.setTime( date.getTime() + ( date.getTimezoneOffset() * 60 * 1000 ) );
 			if ( 'undefined' !== typeof Intl && Intl.DateTimeFormat ) {
 				attributes.formattedDate = new Intl.DateTimeFormat( undefined, {
-					timeZone: 'UTC',
 					month: 'long',
 					day: 'numeric',
 					year: 'numeric'
@@ -186,16 +186,6 @@ wp.api.loadPromise.done( function() {
 			}
 
 			return attributes;
-		},
-
-		sync: function() {
-			// We explicitly set a date to the model before saving because the
-			// field is used for the formatte date display. The core behavior
-			// of saving drafts is such that a gmt date is not assigned until
-			// published. Without this, `modified_gmt` in the response is null
-			this.set( 'date_gmt', ( new Date() ).toISOString() );
-
-			return wp.api.models.Post.prototype.sync.apply( this, arguments );
 		},
 
 		validate: function( attributes ) {
