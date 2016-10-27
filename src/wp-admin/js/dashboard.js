@@ -323,7 +323,7 @@ wp.api.loadPromise.done( function() {
 			this.$el.find( '.view-all' ).toggle( slicedCollection.length > 3 );
 			this.$el.find( '.drafts-list' )
 				.removeClass( 'is-placeholder' )
-				.html( slicedCollection.map( function( draft ) {
+				.html( _.map( slicedCollection, function( draft ) {
 					return new QuickPress.Views.DraftListItem( {
 						model: draft
 					} ).render().el;
