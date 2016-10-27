@@ -290,7 +290,7 @@ wp.api.loadPromise.done( function() {
 
 			// jQuery's serializeArray returns an array of field tuples, which
 			// we need to transform into an object before sending to API
-			values = this.$el.serializeArray().reduce( function( memo, field ) {
+			values = _.reduce( this.$el.serializeArray(), function( memo, field ) {
 				memo[ field.name ] = field.value;
 				return memo;
 			}, {} );
