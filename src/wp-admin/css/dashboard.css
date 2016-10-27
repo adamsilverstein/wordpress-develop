@@ -518,6 +518,10 @@ form.initial-form.quickpress-open input#title {
 	resize: none;
 }
 
+#quick-press.is-saving .spinner {
+	visibility: inherit;
+}
+
 /* Dashboard Quick Draft - Drafts list */
 
 .js #dashboard_quick_press .drafts {

@@ -303,12 +303,12 @@ wp.api.loadPromise.done( function() {
 			}
 
 			// Show a spinner during the callback.
-			$( '#quick-press .spinner' ).css( 'visibility', 'inherit' );
+			this.$el.addClass( 'is-saving' );
 
 			this.model.save()
-				.always( function() {
-					$( '#quick-press .spinner' ).css( 'visibility', 'hidden' );
-				} )
+				.always( _.bind( function() {
+					this.$el.removeClass( 'is-saving' );
+				}, this ) )
 				.success( _.bind( function() {
 					this.collection.add( this.model );
 					this.model = new QuickPress.Models.Draft();
