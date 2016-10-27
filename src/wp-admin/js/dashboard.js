@@ -133,6 +133,10 @@ wp.api.loadPromise.done( function() {
 		QuickPress = {},
 		draftsCollection;
 
+	/**
+	 * Models
+	 */
+
 	QuickPress.Models = {};
 
 	QuickPress.Models.Draft = wp.api.models.Post.extend( {
@@ -153,6 +157,10 @@ wp.api.loadPromise.done( function() {
 				return attributes;
 			}
 
+			// Post entities from the REST API include the content and title in
+			// nested objects, but our new form model will assign as a string,
+			// so we normalize to simplify display logic
+
 			if ( 'object' === typeof attributes.content ) {
 				attributes.content = attributes.content.rendered;
 			}
@@ -163,8 +171,9 @@ wp.api.loadPromise.done( function() {
 
 			attributes.formattedContent = wp.formatting.trimWords( attributes.content, 10 );
 
+			// We can format dates using newer browser i18n features, but also
+			// provide a fallback to the not-as-nice Date#toLocaleDateString
 			date = new Date( attributes.modified_gmt );
-
 			if ( 'undefined' !== typeof Intl && Intl.DateTimeFormat ) {
 				attributes.formattedDate = new Intl.DateTimeFormat( undefined, {
 					timeZone: 'UTC',
@@ -180,6 +189,10 @@ wp.api.loadPromise.done( function() {
 		},
 
 		sync: function() {
+			// We explicitly set a date to the model before saving because the
+			// field is used for the formatte date display. The core behavior
+			// of saving drafts is such that a gmt date is not assigned until
+			// published. Without this, `modified_gmt` in the response is null
 			this.set( 'date_gmt', ( new Date() ).toISOString() );
 
 			return wp.api.models.Post.prototype.sync.apply( this, arguments );
@@ -192,15 +205,25 @@ wp.api.loadPromise.done( function() {
 		}
 	} );
 
+	/**
+	 * Collections
+	 */
+
 	QuickPress.Collections = {};
 
 	QuickPress.Collections.Drafts = wp.api.collections.Posts.extend( {
 		model: QuickPress.Models.Draft,
 
 		comparator: function( a, b ) {
+			// Sort by date descending, date is an ISO8601 string and can be
+			// compared lexicographically
 			return a.get( 'date' ) < b.get( 'date' );
 		}
 	} );
+
+	/**
+	 * Collections
+	 */
 
 	QuickPress.Views = {};
 
@@ -231,6 +254,8 @@ wp.api.loadPromise.done( function() {
 
 		showAllPrompts: function() {
 			this.$el.find( ':input' ).each( _.bind( function( i, input ) {
+				// Prompt toggling must be deferred because the reset event is
+				// fired before the input values have been cleared
 				_.defer( _.bind( this.togglePrompt, this, input, true ) );
 			}, this ) );
 		},
@@ -263,11 +288,15 @@ wp.api.loadPromise.done( function() {
 			delete this.syncError;
 			event.preventDefault();
 
+			// jQuery's serializeArray returns an array of field tuples, which
+			// we need to transform into an object before sending to API
 			values = this.$el.serializeArray().reduce( function( memo, field ) {
 				memo[ field.name ] = field.value;
 				return memo;
 			}, {} );
 
+			// Ensure that by setting these fields on model that it is valid
+			// before proceeding with save
 			this.model.set( values );
 			if ( ! this.model.isValid() ) {
 				return;
@@ -292,11 +321,14 @@ wp.api.loadPromise.done( function() {
 				errorText;
 
 			if ( this.model.validationError ) {
+				// Error via submission validation
 				errorText = quickPress.l10n[ this.model.validationError ];
 			} else if ( this.syncError ) {
+				// Error via API save failure
 				errorText = quickPress.l10n.error;
 			}
 
+			// Error notice is only visible if error text determined
 			$error.toggle( !! errorText );
 			if ( errorText ) {
 				$error.html( $( '<p />', { text: errorText } ) );
@@ -315,6 +347,7 @@ wp.api.loadPromise.done( function() {
 		},
 
 		renderNew: function() {
+			// Display highlight effect to first (added) item for one second
 			var $newEl = this.render().$el.find( 'li:first' ).addClass( 'is-new' );
 			setTimeout( function() {
 				$newEl.removeClass( 'is-new' );
@@ -322,10 +355,19 @@ wp.api.loadPromise.done( function() {
 		},
 
 		render: function() {
+			// Though we request only four drafts initially, since more will be
+			// added through the form, render only the first four sorted
 			var slicedCollection = this.collection.slice( 0, 4 );
 
+			// Hide drafts list if no drafts exist
 			this.$el.toggle( this.collection.length > 0 );
+
+			// "View All" link is visible if 4 or more drafts, since we only
+			// show a maximum of 4 drafts in the list
 			this.$el.find( '.view-all' ).toggle( slicedCollection.length > 3 );
+
+			// If after drafts load, this could be the first render, so remove
+			// placeholder effect and render the first four drafts
 			this.$el.find( '.drafts-list' )
 				.removeClass( 'is-placeholder' )
 				.html( _.map( slicedCollection, function( draft ) {
@@ -350,6 +392,11 @@ wp.api.loadPromise.done( function() {
 		}
 	} );
 
+	/**
+	 * Initialize
+	 */
+
+	// Fetch drafts
 	draftsCollection = new QuickPress.Collections.Drafts();
 	draftsCollection.fetch( {
 		data: {
@@ -359,6 +406,7 @@ wp.api.loadPromise.done( function() {
 		}
 	} );
 
+	// Drafts list is initialized but not rendered until drafts load
 	new QuickPress.Views.DraftList( {
 		el: '#quick-press-drafts',
 		collection: draftsCollection
