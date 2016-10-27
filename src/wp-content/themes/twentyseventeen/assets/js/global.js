@@ -10,7 +10,7 @@
 			$navWrap = $navigation.find( '.wrap' ),
 			$navMenuItem = $navigation.find( '.menu-item' ),
 			$menuToggle = $navigation.find( '.menu-toggle' ),
-			$menuScrollDown = $navigation.find( '.menu-scroll-down' ),
+			$menuScrollDown = $body.find( '.menu-scroll-down' ),
 			$sidebar = $body.find( '#secondary' ),
 			$entryContent = $body.find( '.entry-content' ),
 			$formatQuote = $body.find( '.format-quote blockquote' ),
@@ -23,7 +23,7 @@
 			idealNavHeight,
 			navIsNotTooTall,
 			headerOffset,
-			menuTop,
+			menuTop = 0,
 			resizeTimer;
 
 	/**
@@ -143,13 +143,15 @@
 	$( document ).ready( function() {
 
 		// Let's fire some JavaScript!
-		if ( 'true' === twentyseventeenScreenReaderText.has_navigation ) {
+		setNavProps();
+
+		if ( $menuScrollDown.length ) {
 
 			/**
 			 * 'Scroll Down' arrow in menu area
 			 */
 			if ( $( 'body' ).hasClass( 'admin-bar' ) ) {
-				menuTop = -32;
+				menuTop -= 32;
 			}
 			if ( $( 'body' ).hasClass( 'blog' ) ) {
 				menuTop -= 30; // The div for latest posts has no space above content, add some to account for this
@@ -162,7 +164,6 @@
 				} );
 			} );
 
-			setNavProps();
 			adjustScrollClass();
 		}
 

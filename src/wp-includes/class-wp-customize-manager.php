@@ -279,6 +279,7 @@ final class WP_Customize_Manager {
 		require_once( ABSPATH . WPINC . '/customize/class-wp-customize-upload-control.php' );
 		require_once( ABSPATH . WPINC . '/customize/class-wp-customize-image-control.php' );
 		require_once( ABSPATH . WPINC . '/customize/class-wp-customize-background-image-control.php' );
+		require_once( ABSPATH . WPINC . '/customize/class-wp-customize-background-position-control.php' );
 		require_once( ABSPATH . WPINC . '/customize/class-wp-customize-cropped-image-control.php' );
 		require_once( ABSPATH . WPINC . '/customize/class-wp-customize-site-icon-control.php' );
 		require_once( ABSPATH . WPINC . '/customize/class-wp-customize-header-image-control.php' );
@@ -2505,12 +2506,15 @@ final class WP_Customize_Manager {
 	 * Helper function to compare two objects by priority, ensuring sort stability via instance_number.
 	 *
 	 * @since 3.4.0
+	 * @deprecated 4.7.0 Use wp_list_sort()
 	 *
 	 * @param WP_Customize_Panel|WP_Customize_Section|WP_Customize_Control $a Object A.
 	 * @param WP_Customize_Panel|WP_Customize_Section|WP_Customize_Control $b Object B.
 	 * @return int
 	 */
 	protected function _cmp_priority( $a, $b ) {
+		_deprecated_function( __METHOD__, '4.7.0', 'wp_list_sort' );
+
 		if ( $a->priority === $b->priority ) {
 			return $a->instance_number - $b->instance_number;
 		} else {
@@ -2530,7 +2534,10 @@ final class WP_Customize_Manager {
 	public function prepare_controls() {
 
 		$controls = array();
-		uasort( $this->controls, array( $this, '_cmp_priority' ) );
+		$this->controls = wp_list_sort( $this->controls, array(
+			'priority'        => 'ASC',
+			'instance_number' => 'ASC',
+		), 'ASC', true );
 
 		foreach ( $this->controls as $id => $control ) {
 			if ( ! isset( $this->sections[ $control->section ] ) || ! $control->check_capabilities() ) {
@@ -2543,7 +2550,10 @@ final class WP_Customize_Manager {
 		$this->controls = $controls;
 
 		// Prepare sections.
-		uasort( $this->sections, array( $this, '_cmp_priority' ) );
+		$this->sections = wp_list_sort( $this->sections, array(
+			'priority'        => 'ASC',
+			'instance_number' => 'ASC',
+		), 'ASC', true );
 		$sections = array();
 
 		foreach ( $this->sections as $section ) {
@@ -2551,7 +2561,11 @@ final class WP_Customize_Manager {
 				continue;
 			}
 
-			usort( $section->controls, array( $this, '_cmp_priority' ) );
+
+			$section->controls = wp_list_sort( $section->controls, array(
+				'priority'        => 'ASC',
+				'instance_number' => 'ASC',
+			) );
 
 			if ( ! $section->panel ) {
 				// Top-level section.
@@ -2566,7 +2580,10 @@ final class WP_Customize_Manager {
 		$this->sections = $sections;
 
 		// Prepare panels.
-		uasort( $this->panels, array( $this, '_cmp_priority' ) );
+		$this->panels = wp_list_sort( $this->panels, array(
+			'priority'        => 'ASC',
+			'instance_number' => 'ASC',
+		), 'ASC', true );
 		$panels = array();
 
 		foreach ( $this->panels as $panel ) {
@@ -2574,14 +2591,20 @@ final class WP_Customize_Manager {
 				continue;
 			}
 
-			uasort( $panel->sections, array( $this, '_cmp_priority' ) );
+			$panel->sections = wp_list_sort( $panel->sections, array(
+				'priority'        => 'ASC',
+				'instance_number' => 'ASC',
+			), 'ASC', true );
 			$panels[ $panel->id ] = $panel;
 		}
 		$this->panels = $panels;
 
 		// Sort panels and top-level sections together.
 		$this->containers = array_merge( $this->panels, $this->sections );
-		uasort( $this->containers, array( $this, '_cmp_priority' ) );
+		$this->containers = wp_list_sort( $this->containers, array(
+			'priority'        => 'ASC',
+			'instance_number' => 'ASC',
+		), 'ASC', true );
 	}
 
 	/**
@@ -3004,6 +3027,7 @@ final class WP_Customize_Manager {
 		$this->register_control_type( 'WP_Customize_Upload_Control' );
 		$this->register_control_type( 'WP_Customize_Image_Control' );
 		$this->register_control_type( 'WP_Customize_Background_Image_Control' );
+		$this->register_control_type( 'WP_Customize_Background_Position_Control' );
 		$this->register_control_type( 'WP_Customize_Cropped_Image_Control' );
 		$this->register_control_type( 'WP_Customize_Site_Icon_Control' );
 		$this->register_control_type( 'WP_Customize_Theme_Control' );
@@ -3026,54 +3050,56 @@ final class WP_Customize_Manager {
 			'priority'    => 0,
 		) ) );
 
-		$this->add_section( new WP_Customize_Themes_Section( $this, 'search_themes', array(
-			'title'       => __( 'Search themes&hellip;' ),
-			'text_before' => __( 'Browse all WordPress.org themes' ),
-			'action'      => 'search',
-			'capability'  => 'install_themes',
-			'panel'       => 'themes',
-			'priority'    => 5,
-		) ) );
+		if ( ! is_multisite() ) {
+			$this->add_section( new WP_Customize_Themes_Section( $this, 'search_themes', array(
+				'title'       => __( 'Search themes&hellip;' ),
+				'text_before' => __( 'Browse all WordPress.org themes' ),
+				'action'      => 'search',
+				'capability'  => 'install_themes',
+				'panel'       => 'themes',
+				'priority'    => 5,
+			) ) );
 
-		$this->add_section( new WP_Customize_Themes_Section( $this, 'featured_themes', array(
-			'title'      => __( 'Featured' ),
-			'action'     => 'featured',
-			'capability' => 'install_themes',
-			'panel'      => 'themes',
-			'priority'   => 10,
-		) ) );
+			$this->add_section( new WP_Customize_Themes_Section( $this, 'featured_themes', array(
+				'title'      => __( 'Featured' ),
+				'action'     => 'featured',
+				'capability' => 'install_themes',
+				'panel'      => 'themes',
+				'priority'   => 10,
+			) ) );
 
-		$this->add_section( new WP_Customize_Themes_Section( $this, 'popular_themes', array(
-			'title'      => __( 'Popular' ),
-			'action'     => 'popular',
-			'capability' => 'install_themes',
-			'panel'      => 'themes',
-			'priority'   => 15,
-		) ) );
+			$this->add_section( new WP_Customize_Themes_Section( $this, 'popular_themes', array(
+				'title'      => __( 'Popular' ),
+				'action'     => 'popular',
+				'capability' => 'install_themes',
+				'panel'      => 'themes',
+				'priority'   => 15,
+			) ) );
 
-		$this->add_section( new WP_Customize_Themes_Section( $this, 'latest_themes', array(
-			'title'      => __( 'Latest' ),
-			'action'     => 'latest',
-			'capability' => 'install_themes',
-			'panel'      => 'themes',
-			'priority'   => 20,
-		) ) );
+			$this->add_section( new WP_Customize_Themes_Section( $this, 'latest_themes', array(
+				'title'      => __( 'Latest' ),
+				'action'     => 'latest',
+				'capability' => 'install_themes',
+				'panel'      => 'themes',
+				'priority'   => 20,
+			) ) );
 
-		$this->add_section( new WP_Customize_Themes_Section( $this, 'feature_filter_themes', array(
-			'title'      => __( 'Feature Filter' ),
-			'action'     => 'feature_filter',
-			'capability' => 'install_themes',
-			'panel'      => 'themes',
-			'priority'   => 25,
-		) ) );
+			$this->add_section( new WP_Customize_Themes_Section( $this, 'feature_filter_themes', array(
+				'title'      => __( 'Feature Filter' ),
+				'action'     => 'feature_filter',
+				'capability' => 'install_themes',
+				'panel'      => 'themes',
+				'priority'   => 25,
+			) ) );
 
-		$this->add_section( new WP_Customize_Themes_Section( $this, 'favorites_themes', array(
-			'title'      => __( 'Favorites' ),
-			'action'     => 'favorites',
-			'capability' => 'install_themes',
-			'panel'      => 'themes',
-			'priority'   => 30,
-		) ) );
+			$this->add_section( new WP_Customize_Themes_Section( $this, 'favorites_themes', array(
+				'title'      => __( 'Favorites' ),
+				'action'     => 'favorites',
+				'capability' => 'install_themes',
+				'panel'      => 'themes',
+				'priority'   => 30,
+			) ) );
+		}
 
 		// Themes Setting (unused - the theme is considerably more fundamental to the Customizer experience).
 		$this->add_setting( new WP_Customize_Filter_Setting( $this, 'active_theme', array(
@@ -3252,66 +3278,102 @@ final class WP_Customize_Manager {
 		$this->add_setting( 'background_image', array(
 			'default'        => get_theme_support( 'custom-background', 'default-image' ),
 			'theme_supports' => 'custom-background',
+			'sanitize_callback' => array( $this, '_sanitize_background_setting' ),
 		) );
 
 		$this->add_setting( new WP_Customize_Background_Image_Setting( $this, 'background_image_thumb', array(
 			'theme_supports' => 'custom-background',
+			'sanitize_callback' => array( $this, '_sanitize_background_setting' ),
 		) ) );
 
 		$this->add_control( new WP_Customize_Background_Image_Control( $this ) );
 
-		$this->add_setting( 'background_repeat', array(
-			'default'        => get_theme_support( 'custom-background', 'default-repeat' ),
+		$this->add_setting( 'background_preset', array(
+			'default'        => get_theme_support( 'custom-background', 'default-preset' ),
 			'theme_supports' => 'custom-background',
+			'sanitize_callback' => array( $this, '_sanitize_background_setting' ),
 		) );
 
-		$this->add_control( 'background_repeat', array(
-			'label'      => __( 'Background Repeat' ),
+		$this->add_control( 'background_preset', array(
+			'label'      => _x( 'Preset', 'Background Preset' ),
 			'section'    => 'background_image',
-			'type'       => 'radio',
+			'type'       => 'select',
 			'choices'    => array(
-				'no-repeat'  => __('No Repeat'),
-				'repeat'     => __('Tile'),
-				'repeat-x'   => __('Tile Horizontally'),
-				'repeat-y'   => __('Tile Vertically'),
+				'default' => _x( 'Default', 'Default Preset' ),
+				'fill'    => __( 'Fill Screen' ),
+				'fit'     => __( 'Fit to Screen' ),
+				'repeat'  => _x( 'Repeat', 'Repeat Image' ),
+				'custom'  => _x( 'Custom', 'Custom Preset' ),
 			),
 		) );
 
 		$this->add_setting( 'background_position_x', array(
 			'default'        => get_theme_support( 'custom-background', 'default-position-x' ),
 			'theme_supports' => 'custom-background',
+			'sanitize_callback' => array( $this, '_sanitize_background_setting' ),
 		) );
 
-		$this->add_control( 'background_position_x', array(
-			'label'      => __( 'Background Position' ),
-			'section'    => 'background_image',
-			'type'       => 'radio',
-			'choices'    => array(
-				'left'       => __('Left'),
-				'center'     => __('Center'),
-				'right'      => __('Right'),
+		$this->add_setting( 'background_position_y', array(
+			'default'        => get_theme_support( 'custom-background', 'default-position-y' ),
+			'theme_supports' => 'custom-background',
+			'sanitize_callback' => array( $this, '_sanitize_background_setting' ),
+		) );
+
+		$this->add_control( new WP_Customize_Background_Position_Control( $this, 'background_position', array(
+			'label'    => __( 'Image Position' ),
+			'section'  => 'background_image',
+			'settings' => array(
+				'x' => 'background_position_x',
+				'y' => 'background_position_y',
 			),
+		) ) );
+
+		$this->add_setting( 'background_size', array(
+			'default'        => get_theme_support( 'custom-background', 'default-size' ),
+			'theme_supports' => 'custom-background',
+			'sanitize_callback' => array( $this, '_sanitize_background_setting' ),
+		) );
+
+		$this->add_control( 'background_size', array(
+			'label'      => __( 'Image Size' ),
+			'section'    => 'background_image',
+			'type'       => 'select',
+			'choices'    => array(
+				'auto'    => __( 'Original' ),
+				'contain' => __( 'Fit to Screen' ),
+				'cover'   => __( 'Fill Screen' ),
+			),
+		) );
+
+		$this->add_setting( 'background_repeat', array(
+			'default'           => get_theme_support( 'custom-background', 'default-repeat' ),
+			'sanitize_callback' => array( $this, '_sanitize_background_setting' ),
+			'theme_supports'    => 'custom-background',
+		) );
+
+		$this->add_control( 'background_repeat', array(
+			'label'    => __( 'Repeat Background Image' ),
+			'section'  => 'background_image',
+			'type'     => 'checkbox',
 		) );
 
 		$this->add_setting( 'background_attachment', array(
-			'default'        => get_theme_support( 'custom-background', 'default-attachment' ),
-			'theme_supports' => 'custom-background',
+			'default'           => get_theme_support( 'custom-background', 'default-attachment' ),
+			'sanitize_callback' => array( $this, '_sanitize_background_setting' ),
+			'theme_supports'    => 'custom-background',
 		) );
 
 		$this->add_control( 'background_attachment', array(
-			'label'      => __( 'Background Attachment' ),
-			'section'    => 'background_image',
-			'type'       => 'radio',
-			'choices'    => array(
-				'scroll'     => __('Scroll'),
-				'fixed'      => __('Fixed'),
-			),
+			'label'    => __( 'Scroll with Page' ),
+			'section'  => 'background_image',
+			'type'     => 'checkbox',
 		) );
+
 
 		// If the theme is using the default background callback, we can update
 		// the background CSS using postMessage.
 		if ( get_theme_support( 'custom-background', 'wp-head-callback' ) === '_custom_background_cb' ) {
-			foreach ( array( 'color', 'image', 'position_x', 'repeat', 'attachment' ) as $prop ) {
+			foreach ( array( 'color', 'image', 'preset', 'position_x', 'position_y', 'size', 'repeat', 'attachment' ) as $prop ) {
 				$this->get_setting( 'background_' . $prop )->transport = 'postMessage';
 			}
 		}
@@ -3354,6 +3416,7 @@ final class WP_Customize_Manager {
 			'label' => __( 'Front page' ),
 			'section' => 'static_front_page',
 			'type' => 'dropdown-pages',
+			'allow_addition' => true,
 		) );
 
 		$this->add_setting( 'page_for_posts', array(
@@ -3365,6 +3428,7 @@ final class WP_Customize_Manager {
 			'label' => __( 'Posts page' ),
 			'section' => 'static_front_page',
 			'type' => 'dropdown-pages',
+			'allow_addition' => true,
 		) );
 
 		/* Custom CSS */
@@ -3389,6 +3453,9 @@ final class WP_Customize_Manager {
 			'type'     => 'textarea',
 			'section'  => 'custom_css',
 			'settings' => array( 'default' => $custom_css_setting->id ),
+			'input_attrs' => array(
+				'placeholder' => __( "/*\nYou can add your own CSS here.\n\nClick the help icon above to learn more.\n*/" ),
+			)
 		) );
 	}
 
@@ -3592,6 +3659,49 @@ final class WP_Customize_Manager {
 			$color = get_theme_support( 'custom-header', 'default-text-color' );
 
 		return $color;
+	}
+
+	/**
+	 * Callback for validating a background setting value.
+	 *
+	 * @since 4.7.0
+	 * @access private
+	 *
+	 * @param string $value Repeat value.
+	 * @param WP_Customize_Setting $setting Setting.
+	 * @return string|WP_Error Background value or validation error.
+	 */
+	public function _sanitize_background_setting( $value, $setting ) {
+		if ( 'background_repeat' === $setting->id ) {
+			if ( ! in_array( $value, array( 'repeat-x', 'repeat-y', 'repeat', 'no-repeat' ) ) ) {
+				return new WP_Error( 'invalid_value', __( 'Invalid value for background repeat.' ) );
+			}
+		} else if ( 'background_attachment' === $setting->id ) {
+			if ( ! in_array( $value, array( 'fixed', 'scroll' ) ) ) {
+				return new WP_Error( 'invalid_value', __( 'Invalid value for background attachment.' ) );
+			}
+		} else if ( 'background_position_x' === $setting->id ) {
+			if ( ! in_array( $value, array( 'left', 'center', 'right' ), true ) ) {
+				return new WP_Error( 'invalid_value', __( 'Invalid value for background position X.' ) );
+			}
+		} else if ( 'background_position_y' === $setting->id ) {
+			if ( ! in_array( $value, array( 'top', 'center', 'bottom' ), true ) ) {
+				return new WP_Error( 'invalid_value', __( 'Invalid value for background position Y.' ) );
+			}
+		} else if ( 'background_size' === $setting->id ) {
+			if ( ! in_array( $value, array( 'auto', 'contain', 'cover' ), true ) ) {
+				return new WP_Error( 'invalid_value', __( 'Invalid value for background size.' ) );
+			}
+		} else if ( 'background_preset' === $setting->id ) {
+			if ( ! in_array( $value, array( 'default', 'fill', 'fit', 'repeat', 'custom' ), true ) ) {
+				return new WP_Error( 'invalid_value', __( 'Invalid value for background size.' ) );
+			}
+		} else if ( 'background_image' === $setting->id || 'background_image_thumb' === $setting->id ) {
+			$value = empty( $value ) ? '' : esc_url_raw( $value );
+		} else {
+			return new WP_Error( 'unrecognized_setting', __( 'Unrecognized background setting.' ) );
+		}
+		return $value;
 	}
 
 	/**

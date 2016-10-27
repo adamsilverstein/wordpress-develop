@@ -1,6 +1,6 @@
 <?php
 /**
- * Template part for displaying pages on front page
+ * Displays content for front page
  *
  * @package WordPress
  * @subpackage Twenty_Seventeen
@@ -8,15 +8,8 @@
  * @version 1.0
  */
 
-global $twentyseventeencounter;
-
 ?>
-
 <article id="post-<?php the_ID(); ?>" <?php post_class( 'twentyseventeen-panel ' ); ?> >
-
-	<span class="panel twentyseventeen-panel<?php echo esc_attr( $twentyseventeencounter ); ?>" id="panel<?php echo esc_attr( $twentyseventeencounter ); ?>">
-		<span class="twentyseventeen-panel-title"><?php printf( __( 'Panel %1$s', 'twentyseventeen' ), esc_attr( $twentyseventeencounter ) ); ?></span>
-	</span>
 
 	<?php if ( has_post_thumbnail() ) :
 		$thumbnail = wp_get_attachment_image_src( get_post_thumbnail_id( $post->ID ), 'twentyseventeen-featured-image' );
@@ -53,33 +46,6 @@ global $twentyseventeencounter;
 					) );
 				?>
 			</div><!-- .entry-content -->
-
-			<?php
-			// Show recent blog posts if is blog posts page (Note that get_option returns a string, so we're casting the result as an int).
-			if ( get_the_ID() === (int) get_option( 'page_for_posts' )  ) : ?>
-
-				<?php // Show four most recent posts.
-				$recent_posts = new WP_Query( array(
-					'posts_per_page'      => 3,
-					'post_status'         => 'publish',
-					'ignore_sticky_posts' => true,
-					'no_found_rows'       => true,
-				) );
-				?>
-
-		 		<?php if ( $recent_posts->have_posts() ) : ?>
-
-					<div class="recent-posts">
-
-						<?php
-						while ( $recent_posts->have_posts() ) : $recent_posts->the_post();
-							get_template_part( 'components/post/content', 'excerpt' );
-						endwhile;
-						wp_reset_postdata();
-						?>
-					</div><!-- .pique-recent-posts -->
-				<?php endif; ?>
-			<?php endif; ?>
 
 		</div><!-- .wrap -->
 	</div><!-- .panel-content -->
