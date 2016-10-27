@@ -729,10 +729,9 @@ function wp_default_scripts( &$scripts ) {
 		if ( did_action( 'init' ) ) {
 			$dashboard_data_request = new WP_REST_Request( 'GET', '/wp/v2/posts' );
 			$dashboard_data_request->set_query_params( array(
-				'filter[post_type]' => 'post',
-				'status'            => 'draft',
-				'author'            => get_current_user_id(),
-				'per_page'          => 4
+				'status'   => 'draft',
+				'author'   => get_current_user_id(),
+				'per_page' => 4
 			) );
 
 			$scripts->localize( 'dashboard', 'quickPress', array(
