@@ -306,7 +306,12 @@ wp.api.loadPromise.done( function() {
 
 	QuickPress.Views.DraftList = wp.Backbone.View.extend( {
 		initialize: function() {
+			this.listenTo( this.collection, 'sync', this.onDraftsLoaded );
+		},
+
+		onDraftsLoaded: function() {
 			this.listenTo( this.collection, 'add', this.renderNew );
+			this.render();
 		},
 
 		renderNew: function() {
@@ -345,12 +350,19 @@ wp.api.loadPromise.done( function() {
 		}
 	} );
 
-	draftsCollection = new QuickPress.Collections.Drafts( quickPress.data.data );
+	draftsCollection = new QuickPress.Collections.Drafts();
+	draftsCollection.fetch( {
+		data: {
+			status: 'draft',
+			author: quickPress.currentUserId,
+			per_page: 4
+		}
+	} );
 
 	new QuickPress.Views.DraftList( {
 		el: '#quick-press-drafts',
 		collection: draftsCollection
-	} ).render();
+	} );
 
 	new QuickPress.Views.Form( {
 		el: '#quick-press',
