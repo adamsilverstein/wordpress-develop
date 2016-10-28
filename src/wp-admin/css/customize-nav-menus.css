@@ -65,6 +65,10 @@
 	text-align: right;
 }
 
+.wp-customizer .menu-item-handle:hover {
+	z-index: 8;
+}
+
 .customize-control-nav_menu_item.has-notifications .menu-item-handle {
 	border-left: 4px solid #00a0d2;
 }
@@ -72,6 +76,7 @@
 .wp-customizer .menu-item-settings {
 	max-width: 100%;
 	overflow: hidden;
+	z-index: 8;
 	padding: 10px;
 	background: #eee;
 	border: 1px solid #999;
@@ -565,41 +570,6 @@
 
 #new-custom-menu-item .accordion-section-content {
 	padding: 0 15px 15px 15px;
-}
-
-#available-menu-items .accordion-section-content .new-content-item {
-	width: -webkit-calc(100% - 30px);
-	width: calc(100% - 30px);
-	padding: 8px 15px;
-	position: absolute;
-	bottom: 0;
-	z-index: 10;
-	background: #eee;
-	display: -webkit-box;
-	display: -moz-box;
-	display: -ms-flexbox;
-	display: -webkit-flex;
-	display: flex;
-}
-
-#available-menu-items .new-content-item .create-item-input {
-	-webkit-box-flex: 10;
-	-webkit-flex-grow: 10;
-	-moz-box-flex: 10;
-	-ms-flex-positive: 10;
-	-ms-flex: 10;
-	flex-grow: 10;
-	margin-left: 5px;
-	padding: 4.5px;
-}
-#available-menu-items .new-content-item .add-content {
-	padding-left: 6px;
-	-webkit-box-flex: 10;
-	-webkit-flex-grow: 10;
-	-moz-box-flex: 10;
-	-ms-flex-positive: 10;
-	-ms-flex: 10;
-	flex-grow: 1;
 }
 
 #available-menu-items .menu-item-tpl {

@@ -55,10 +55,16 @@ CAP;
 		$result = img_caption_shortcode(
 			array( 'width' => 20, 'caption' => $this->caption )
 		);
+
 		$this->assertEquals( 2, preg_match_all( '/wp-caption/', $result, $_r ) );
 		$this->assertEquals( 1, preg_match_all( '/alignnone/', $result, $_r ) );
 		$this->assertEquals( 1, preg_match_all( "/{$this->caption}/", $result, $_r ) );
-		$this->assertEquals( 1, preg_match_all( "/width: 30/", $result, $_r ) );
+
+		if ( current_theme_supports( 'html5', 'caption' ) ) {
+			$this->assertEquals( 1, preg_match_all( "/width: 20/", $result, $_r ) );
+		} else {
+			$this->assertEquals( 1, preg_match_all( "/width: 30/", $result, $_r ) );
+		}
 	}
 
 	function test_img_caption_shortcode_with_old_format_id_and_align() {

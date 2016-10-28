@@ -56,6 +56,9 @@ function get_option( $option, $default = false ) {
 	if ( defined( 'WP_SETUP_CONFIG' ) )
 		return false;
 
+	// Distinguish between `false` as a default, and not passing one.
+	$passed_default = func_num_args() > 1;
+
 	if ( ! wp_installing() ) {
 		// prevent non-existent options from triggering multiple queries
 		$notoptions = wp_cache_get( 'notoptions', 'options' );
@@ -67,12 +70,14 @@ function get_option( $option, $default = false ) {
 			 *
 			 * @since 3.4.0
 			 * @since 4.4.0 The `$option` parameter was added.
+			 * @since 4.7.0 The `$passed_default` parameter was added to distinguish between a `false` value and the default parameter value.
 			 *
 			 * @param mixed  $default The default value to return if the option does not exist
 			 *                        in the database.
 			 * @param string $option  Option name.
+			 * @param bool   $passed_default Was `get_option()` passed a default value?
 			 */
-			return apply_filters( "default_option_{$option}", $default, $option );
+			return apply_filters( "default_option_{$option}", $default, $option, $passed_default );
 		}
 
 		$alloptions = wp_load_alloptions();
@@ -97,7 +102,7 @@ function get_option( $option, $default = false ) {
 					wp_cache_set( 'notoptions', $notoptions, 'options' );
 
 					/** This filter is documented in wp-includes/option.php */
-					return apply_filters( 'default_option_' . $option, $default, $option );
+					return apply_filters( 'default_option_' . $option, $default, $option, $passed_default );
 				}
 			}
 		}
@@ -109,7 +114,7 @@ function get_option( $option, $default = false ) {
 			$value = $row->option_value;
 		} else {
 			/** This filter is documented in wp-includes/option.php */
-			return apply_filters( 'default_option_' . $option, $default, $option );
+			return apply_filters( 'default_option_' . $option, $default, $option, $passed_default );
 		}
 	}
 
@@ -295,7 +300,7 @@ function update_option( $option, $value, $autoload = null ) {
 		return false;
 
 	/** This filter is documented in wp-includes/option.php */
-	if ( apply_filters( 'default_option_' . $option, false, $option ) === $old_value ) {
+	if ( apply_filters( 'default_option_' . $option, false, $option, false ) === $old_value ) {
 		// Default setting for new options is 'yes'.
 		if ( null === $autoload ) {
 			$autoload = 'yes';
@@ -1708,6 +1713,136 @@ function set_site_transient( $transient, $value, $expiration = 0 ) {
 }
 
 /**
+ * Register default settings available in WordPress.
+ *
+ * The settings registered here are primarily useful for the REST API, so this
+ * does not encompass all settings available in WordPress.
+ *
+ * @since 4.7.0
+ */
+function register_initial_settings() {
+	register_setting( 'general', 'blogname', array(
+		'show_in_rest' => array(
+			'name' => 'title',
+		),
+		'type'         => 'string',
+		'description'  => __( 'Site title.' ),
+	) );
+
+	register_setting( 'general', 'blogdescription', array(
+		'show_in_rest' => array(
+			'name' => 'description',
+		),
+		'type'         => 'string',
+		'description'  => __( 'Site description.' ),
+	) );
+
+	register_setting( 'general', 'siteurl', array(
+		'show_in_rest' => array(
+			'name'    => 'url',
+			'schema'  => array(
+				'format' => 'uri',
+			),
+		),
+		'type'         => 'string',
+		'description'  => __( 'Site URL.' ),
+	) );
+
+	register_setting( 'general', 'admin_email', array(
+		'show_in_rest' => array(
+			'name'    => 'email',
+			'schema'  => array(
+				'format' => 'email',
+			),
+		),
+		'type'         => 'string',
+		'description'  => __( 'This address is used for admin purposes. If you change this we will send you an email at your new address to confirm it. The new address will not become active until confirmed.' ),
+	) );
+
+	register_setting( 'general', 'timezone_string', array(
+		'show_in_rest' => array(
+			'name' => 'timezone',
+		),
+		'type'         => 'string',
+		'description'  => __( 'A city in the same timezone as you.' ),
+	) );
+
+	register_setting( 'general', 'date_format', array(
+		'show_in_rest' => true,
+		'type'         => 'string',
+		'description'  => __( 'A date format for all date strings.' ),
+	) );
+
+	register_setting( 'general', 'time_format', array(
+		'show_in_rest' => true,
+		'type'         => 'string',
+		'description'  => __( 'A time format for all time strings.' ),
+	) );
+
+	register_setting( 'general', 'start_of_week', array(
+		'show_in_rest' => true,
+		'type'         => 'number',
+		'description'  => __( 'A day number of the week that the week should start on.' ),
+	) );
+
+	register_setting( 'general', 'WPLANG', array(
+		'show_in_rest' => array(
+			'name' => 'language',
+		),
+		'type'         => 'string',
+		'description'  => __( 'WordPress locale code.' ),
+		'default'      => 'en_US',
+	) );
+
+	register_setting( 'writing', 'use_smilies', array(
+		'show_in_rest' => true,
+		'type'         => 'boolean',
+		'description'  => __( 'Convert emoticons like :-) and :-P to graphics on display.' ),
+		'default'      => true,
+	) );
+
+	register_setting( 'writing', 'default_category', array(
+		'show_in_rest' => true,
+		'type'         => 'number',
+		'description'  => __( 'Default category.' ),
+	) );
+
+	register_setting( 'writing', 'default_post_format', array(
+		'show_in_rest' => true,
+		'type'         => 'string',
+		'description'  => __( 'Default post format.' ),
+	) );
+
+	register_setting( 'reading', 'posts_per_page', array(
+		'show_in_rest' => true,
+		'type'         => 'number',
+		'description'  => __( 'Blog pages show at most.' ),
+		'default'      => 10,
+	) );
+
+	register_setting( 'discussion', 'default_ping_status', array(
+		'show_in_rest' => array(
+			'schema'   => array(
+				'enum' => array( 'open', 'closed' ),
+			),
+		),
+		'type'         => 'string',
+		'description'  => __( 'Allow link notifications from other blogs (pingbacks and trackbacks) on new articles.' ),
+	) );
+
+	register_setting( 'discussion', 'default_comment_status', array(
+		'show_in_rest' => array(
+			'schema'   => array(
+				'enum' => array( 'open', 'closed' ),
+			),
+		),
+		'type'         => 'string',
+		'description'  => __( 'Allow people to post comments on new articles.' ),
+	) );
+
+}
+
+/**
  * Register a setting and its data.
  *
  * @since 2.7.0
@@ -1726,6 +1861,7 @@ function set_site_transient( $transient, $value, $expiration = 0 ) {
  *     @type string   $description       A description of the data attached to this setting.
  *     @type callable $sanitize_callback A callback function that sanitizes the option's value.
  *     @type bool     $show_in_rest      Whether data associated with this setting should be included in the REST API.
+ *     @type mixed    $default           Default value when calling `get_option()`.
  * }
  */
 function register_setting( $option_group, $option_name, $args = array() ) {
@@ -1776,6 +1912,9 @@ function register_setting( $option_group, $option_name, $args = array() ) {
 	$new_whitelist_options[ $option_group ][] = $option_name;
 	if ( ! empty( $args['sanitize_callback'] ) ) {
 		add_filter( "sanitize_option_{$option_name}", $args['sanitize_callback'] );
+	}
+	if ( array_key_exists( 'default', $args ) ) {
+		add_filter( "default_option_{$option_name}", 'filter_default_option', 10, 3 );
 	}
 
 	$wp_registered_settings[ $option_name ] = $args;
@@ -1840,4 +1979,30 @@ function get_registered_settings() {
 	}
 
 	return $wp_registered_settings;
+}
+
+/**
+ * Filter the default value for the option.
+ *
+ * For settings which register a default setting in `register_setting()`, this
+ * function is added as a filter to `default_option_{$option}`.
+ *
+ * @since 4.7.0
+ *
+ * @param mixed $default Existing default value to return.
+ * @param string $option Option name.
+ * @param bool $passed_default Was `get_option()` passed a default value?
+ * @return mixed Filtered default value.
+ */
+function filter_default_option( $default, $option, $passed_default ) {
+	if ( $passed_default ) {
+		return $default;
+	}
+
+	$registered = get_registered_settings();
+	if ( empty( $registered[ $option ] ) ) {
+		return $default;
+	}
+
+	return $registered[ $option ]['default'];
 }

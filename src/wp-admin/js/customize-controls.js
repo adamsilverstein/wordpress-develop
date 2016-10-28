@@ -904,7 +904,11 @@
 		 * @since 4.1.0
 		 */
 		attachEvents: function () {
-			var section = this;
+			var meta, content, section = this;
+
+			if ( section.container.hasClass( 'cannot-expand' ) ) {
+				return;
+			}
 
 			// Expand/Collapse accordion sections on click.
 			section.container.find( '.accordion-section-title, .customize-section-back' ).on( 'click keydown', function( event ) {
@@ -918,6 +922,21 @@
 				} else {
 					section.expand();
 				}
+			});
+
+			// This is very similar to what is found for api.Panel.attachEvents().
+			section.container.find( '.customize-section-title .customize-help-toggle' ).on( 'click', function() {
+
+				meta = section.container.find( '.section-meta' );
+				if ( meta.hasClass( 'cannot-expand' ) ) {
+					return;
+				}
+				content = meta.find( '.customize-section-description:first' );
+				content.toggleClass( 'open' );
+				content.slideToggle();
+				content.attr( 'aria-expanded', function ( i, attr ) {
+					return attr === 'true' ? 'false' : 'true';
+				});
 			});
 		},
 
@@ -989,6 +1008,7 @@
 
 						content.addClass( 'open' );
 						overlay.addClass( 'section-open' );
+						api.state( 'expandedSection' ).set( section );
 					}, this );
 				}
 
@@ -1027,6 +1047,9 @@
 
 				content.removeClass( 'open' );
 				overlay.removeClass( 'section-open' );
+				if ( section === api.state( 'expandedSection' ).get() ) {
+					api.state( 'expandedSection' ).set( false );
+				}
 
 			} else {
 				if ( args.completeCallback ) {
@@ -1167,7 +1190,7 @@
 
 			// Preview installed themes.
 			section.container.on( 'click', '.theme-actions .preview-theme', function() {
-				var themeId = $( this ).data( 'themeId' );
+				var themeId = $( this ).data( 'slug' );
 
 				$( '.wp-full-overlay' ).addClass( 'customize-loading' );
 				api.panel( 'themes' ).loadThemePreview( themeId ).fail( function() {
@@ -1716,7 +1739,7 @@
 		 * @param {Object}   theme
 		 */
 		showDetails: function ( theme, callback ) {
-			var section = this, link;
+			var section = this;
 			callback = callback || function(){};
 			section.currentTheme = theme.id;
 			section.overlay.html( section.template( theme ) )
@@ -1726,21 +1749,6 @@
 			section.containFocus( section.overlay );
 			section.updateLimits();
 			wp.a11y.speak( api.settings.l10n.announceThemeDetails.replace( '%s', theme.name ) );
-
-			link = section.overlay.find( '.inactive-theme > a' );
-			link.on( 'click', function( event ) {
-				event.preventDefault();
-
-				// Short-circuit if request is currently being made.
-				if ( link.hasClass( 'disabled' ) ) {
-					return;
-				}
-				link.addClass( 'disabled' );
-
-				api.panel( 'themes' ).loadThemePreview( theme.id ).fail( function() {
-					link.removeClass( 'disabled' );
-				} );
-			} );
 			callback();
 		},
 
@@ -1980,6 +1988,7 @@
 
 				overlay.addClass( 'in-sub-panel' );
 				accordionSection.addClass( 'current-panel' );
+				api.state( 'expandedPanel' ).set( panel );
 
 			} else if ( ! expanded && accordionSection.hasClass( 'current-panel' ) ) {
 				panel._animateChangeExpanded( function() {
@@ -1996,6 +2005,9 @@
 
 				overlay.removeClass( 'in-sub-panel' );
 				accordionSection.removeClass( 'current-panel' );
+				if ( panel === api.state( 'expandedPanel' ).get() ) {
+					api.state( 'expandedPanel' ).set( false );
+				}
 			}
 		},
 
@@ -2504,9 +2516,28 @@
 		/**
 		 * Triggered when the control's markup has been injected into the DOM.
 		 *
-		 * @abstract
+		 * @returns {void}
 		 */
-		ready: function() {},
+		ready: function() {
+			var control = this, newItem;
+			if ( 'dropdown-pages' === control.params.type && control.params.allow_addition ) {
+				newItem = control.container.find( '.new-content-item' );
+				newItem.hide(); // Hide in JS to preserve flex display when showing.
+				control.container.on( 'click', '.add-new-toggle', function( e ) {
+					$( e.currentTarget ).slideUp( 180 );
+					newItem.slideDown( 180 );
+					newItem.find( '.create-item-input' ).focus();
+				});
+				control.container.on( 'click', '.add-content', function() {
+					control.addNewPage();
+				});
+				control.container.on( 'keyup', '.create-item-input', function( e ) {
+					if ( 13 === e.which ) { // Enter
+						control.addNewPage();
+					}
+				});
+			}
+		},
 
 		/**
 		 * Get the element inside of a control's container that contains the validation error message.
@@ -2724,6 +2755,73 @@
 					control.container.html( template( control.params ) );
 				}
 			}
+		},
+
+		/**
+		 * Add a new page to a dropdown-pages control reusing menus code for this.
+		 *
+		 * @since 4.7.0
+		 * @access private
+		 * @returns {void}
+		 */
+		addNewPage: function () {
+			var control = this, promise, toggle, container, input, title, select;
+
+			if ( 'dropdown-pages' !== control.params.type || ! control.params.allow_addition || ! api.Menus ) {
+				return;
+			}
+
+			toggle = control.container.find( '.add-new-toggle' );
+			container = control.container.find( '.new-content-item' );
+			input = control.container.find( '.create-item-input' );
+			title = input.val();
+			select = control.container.find( 'select' );
+
+			if ( ! title ) {
+				input.addClass( 'invalid' );
+				return;
+			}
+
+			input.removeClass( 'invalid' );
+			input.attr( 'disabled', 'disabled' );
+
+			// The menus functions add the page, publish when appropriate, and also add the new page to the dropdown-pages controls.
+			promise = api.Menus.insertAutoDraftPost( {
+				post_title: title,
+				post_type: 'page'
+			} );
+			promise.done( function( data ) {
+				var availableItem, $content, itemTemplate;
+
+				// Prepare the new page as an available menu item.
+				// See api.Menus.submitNew().
+				availableItem = new api.Menus.AvailableItemModel( {
+					'id': 'post-' + data.post_id, // Used for available menu item Backbone models.
+					'title': title,
+					'type': 'page',
+					'type_label': api.Menus.data.l10n.page_label,
+					'object': 'post_type',
+					'object_id': data.post_id,
+					'url': data.url
+				} );
+
+				// Add the new item to the list of available menu items.
+				api.Menus.availableMenuItemsPanel.collection.add( availableItem );
+				$content = $( '#available-menu-items-post_type-page' ).find( '.available-menu-items-list' );
+				itemTemplate = wp.template( 'available-menu-item' );
+				$content.prepend( itemTemplate( availableItem.attributes ) );
+
+				// Focus the select control.
+				select.focus();
+				control.setting.set( String( data.post_id ) ); // Triggers a preview refresh and updates the setting.
+
+				// Reset the create page form.
+				container.slideUp( 180 );
+				toggle.slideDown( 180 );
+			} )
+			.always( function() {
+				input.val( '' ).removeAttr( 'disabled' );
+			} );
 		}
 	});
 
@@ -2737,21 +2835,43 @@
 	api.ColorControl = api.Control.extend({
 		ready: function() {
 			var control = this,
-				picker = this.container.find('.color-picker-hex');
+				isHueSlider = this.params.mode === 'hue',
+				updating = false,
+				picker;
 
-			picker.val( control.setting() ).wpColorPicker({
-				change: function() {
-					control.setting.set( picker.wpColorPicker('color') );
-				},
-				clear: function() {
-					control.setting.set( '' );
-				}
-			});
+			if ( isHueSlider ) {
+				picker = this.container.find( '.color-picker-hue' );
+				picker.val( control.setting() ).wpColorPicker({
+					change: function( event, ui ) {
+						updating = true;
+						control.setting( ui.color.h() );
+						updating = false;
+					}
+				});
+			} else {
+				picker = this.container.find( '.color-picker-hex' );
+				picker.val( control.setting() ).wpColorPicker({
+					change: function() {
+						updating = true;
+						control.setting.set( picker.wpColorPicker( 'color' ) );
+						updating = false;
+					},
+					clear: function() {
+						updating = true;
+						control.setting.set( '' );
+						updating = false;
+					}
+				});
+			}
 
 			this.setting.bind( function ( value ) {
+				// bail if the update came from the control itself
+				if ( updating ) {
+					return;
+				}
 				picker.val( value );
 				picker.wpColorPicker( 'color', value );
-			});
+			} );
 		}
 	});
 
@@ -3038,6 +3158,46 @@
 	});
 
 	/**
+	 * A control for positioning a background image.
+	 *
+	 * @since 4.7.0
+	 *
+	 * @class
+	 * @augments wp.customize.Control
+	 * @augments wp.customize.Class
+	 */
+	api.BackgroundPositionControl = api.Control.extend( {
+
+		/**
+		 * Set up control UI once embedded in DOM and settings are created.
+		 *
+		 * @since 4.7.0
+		 */
+		ready: function() {
+			var control = this, updateRadios;
+
+			control.container.on( 'change', 'input[name="background-position"]', function() {
+				var position = $( this ).val().split( ' ' );
+				control.settings.x( position[0] );
+				control.settings.y( position[1] );
+			} );
+
+			updateRadios = _.debounce( function() {
+				var x, y, radioInput, inputValue;
+				x = control.settings.x.get();
+				y = control.settings.y.get();
+				inputValue = String( x ) + ' ' + String( y );
+				radioInput = control.container.find( 'input[name="background-position"][value="' + inputValue + '"]' );
+				radioInput.click();
+			} );
+			control.settings.x.bind( updateRadios );
+			control.settings.y.bind( updateRadios );
+
+			updateRadios(); // Set initial UI.
+		}
+	} );
+
+	/**
 	 * A control for selecting and cropping an image.
 	 *
 	 * @class
@@ -3321,7 +3481,7 @@
 		 * @param {object} attachment
 		 */
 		setImageFromAttachment: function( attachment ) {
-			var sizes = [ 'site_icon-32', 'thumbnail', 'full' ],
+			var sizes = [ 'site_icon-32', 'thumbnail', 'full' ], link,
 				icon;
 
 			_.each( sizes, function( size ) {
@@ -3335,8 +3495,13 @@
 			// Set the Customizer setting; the callback takes care of rendering.
 			this.setting( attachment.id );
 
+			if ( ! icon ) {
+				return;
+			}
+
 			// Update the icon in-browser.
-			$( 'link[sizes="32x32"]' ).attr( 'href', icon.url );
+			link = $( 'link[rel="icon"][sizes="32x32"]' );
+			link.attr( 'href', icon.url );
 		},
 
 		/**
@@ -3353,7 +3518,7 @@
 			this.params.attachment = {};
 			this.setting( '' );
 			this.renderContent(); // Not bound to setting change when emptying.
-			$( 'link[rel="icon"]' ).attr( 'href', '' );
+			$( 'link[rel="icon"][sizes="32x32"]' ).attr( 'href', '/favicon.ico' ); // Set to default.
 		}
 	});
 
@@ -4032,7 +4197,7 @@
 			// ssl certs.
 
 			previewer.add( 'previewUrl', params.previewUrl ).setter( function( to ) {
-				var result, urlParser, newPreviewUrl, schemeMatchingPreviewUrl, queryParams;
+				var result = null, urlParser, queryParams, parsedAllowedUrl, parsedCandidateUrls = [];
 				urlParser = document.createElement( 'a' );
 				urlParser.href = to;
 
@@ -4054,31 +4219,30 @@
 					}
 				}
 
-				newPreviewUrl = urlParser.href;
-				urlParser.protocol = previewer.scheme.get() + ':';
-				schemeMatchingPreviewUrl = urlParser.href;
+				parsedCandidateUrls.push( urlParser );
+
+				// Prepend list with URL that matches the scheme/protocol of the iframe.
+				if ( previewer.scheme.get() + ':' !== urlParser.protocol ) {
+					urlParser = document.createElement( 'a' );
+					urlParser.href = parsedCandidateUrls[0].href;
+					urlParser.protocol = previewer.scheme.get() + ':';
+					parsedCandidateUrls.unshift( urlParser );
+				}
 
 				// Attempt to match the URL to the control frame's scheme
 				// and check if it's allowed. If not, try the original URL.
-				$.each( [ schemeMatchingPreviewUrl, newPreviewUrl ], function( i, url ) {
-					$.each( previewer.allowedUrls, function( i, allowed ) {
-						var path;
-
-						allowed = allowed.replace( /\/+$/, '' );
-						path = url.replace( allowed, '' );
-
-						if ( 0 === url.indexOf( allowed ) && /^([/#?]|$)/.test( path ) ) {
-							result = url;
-							return false;
+				parsedAllowedUrl = document.createElement( 'a' );
+				_.find( parsedCandidateUrls, function( parsedCandidateUrl ) {
+					return ! _.isUndefined( _.find( previewer.allowedUrls, function( allowedUrl ) {
+						parsedAllowedUrl.href = allowedUrl;
+						if ( urlParser.protocol === parsedAllowedUrl.protocol && urlParser.host === parsedAllowedUrl.host && 0 === urlParser.pathname.indexOf( parsedAllowedUrl.pathname.replace( /\/$/, '' ) ) ) {
+							result = parsedCandidateUrl.href;
+							return true;
 						}
-					});
-					if ( result ) {
-						return false;
-					}
-				});
+					} ) );
+				} );
 
-				// If we found a matching result, return it. If not, bail.
-				return result ? result : null;
+				return result;
 			});
 
 			previewer.bind( 'ready', previewer.ready );
@@ -4138,6 +4302,7 @@
 			if ( 'resolved' !== previewer.deferred.active.state() || previewer.loading ) {
 				synced.scroll = previewer.scroll;
 			}
+			synced['edit-shortcut-visibility'] = api.state( 'editShortcutVisibility' ).get();
 			previewer.send( 'sync', synced );
 
 			// Set the previewUrl without causing the url to set the iframe.
@@ -4383,15 +4548,16 @@
 
 	api.settingConstructor = {};
 	api.controlConstructor = {
-		color:         api.ColorControl,
-		media:         api.MediaControl,
-		upload:        api.UploadControl,
-		image:         api.ImageControl,
-		cropped_image: api.CroppedImageControl,
-		site_icon:     api.SiteIconControl,
-		header:        api.HeaderControl,
-		background:    api.BackgroundControl,
-		theme:         api.ThemeControl
+		color:               api.ColorControl,
+		media:               api.MediaControl,
+		upload:              api.UploadControl,
+		image:               api.ImageControl,
+		cropped_image:       api.CroppedImageControl,
+		site_icon:           api.SiteIconControl,
+		header:              api.HeaderControl,
+		background:          api.BackgroundControl,
+		background_position: api.BackgroundPositionControl,
+		theme:               api.ThemeControl
 	};
 	api.panelConstructor = {
 		themes: api.ThemesPanel
@@ -4516,7 +4682,7 @@
 			if ( 'themes' === panel.id ) {
 				return; // Don't reflow theme sections, as doing so moves them after the themes container.
 			}
-			
+
 			var sections = panel.sections(),
 				sectionHeadContainers = _.pluck( sections, 'headContainer' );
 			rootNodes.push( panel );
@@ -4953,8 +5119,11 @@
 				activated = state.create( 'activated' ),
 				processing = state.create( 'processing' ),
 				paneVisible = state.create( 'paneVisible' ),
+				expandedPanel = state.create( 'expandedPanel' ),
+				expandedSection = state.create( 'expandedSection' ),
 				changesetStatus = state.create( 'changesetStatus' ),
 				previewerAlive = state.create( 'previewerAlive' ),
+				editShortcutVisibility  = state.create( 'editShortcutVisibility' ),
 				populateChangesetUuidParam;
 
 			state.bind( 'change', function() {
@@ -4988,7 +5157,10 @@
 			activated( api.settings.theme.active );
 			processing( 0 );
 			paneVisible( true );
+			expandedPanel( false );
+			expandedSection( false );
 			previewerAlive( true );
+			editShortcutVisibility( 'initial' );
 			changesetStatus( api.settings.changeset.status );
 
 			api.bind( 'change', function() {
@@ -5141,6 +5313,165 @@
 			overlay.toggleClass( 'preview-only' );
 		});
 
+		/*
+		 * Sticky header feature.
+		 */
+		(function initStickyHeaders() {
+			var parentContainer = $( '.wp-full-overlay-sidebar-content' ),
+				changeContainer, getHeaderHeight, releaseStickyHeader, resetStickyHeader, positionStickyHeader,
+				activeHeader, lastScrollTop;
+
+			// Determine which panel or section is currently expanded.
+			changeContainer = function( container ) {
+				var newInstance = container,
+					expandedSection = api.state( 'expandedSection' ).get(),
+					expandedPanel = api.state( 'expandedPanel' ).get(),
+					headerElement;
+
+				// Release previously active header element.
+				if ( activeHeader && activeHeader.element ) {
+					releaseStickyHeader( activeHeader.element );
+				}
+
+				if ( ! newInstance ) {
+					if ( ! expandedSection && expandedPanel && expandedPanel.contentContainer ) {
+						newInstance = expandedPanel;
+					} else if ( ! expandedPanel && expandedSection && expandedSection.contentContainer ) {
+						newInstance = expandedSection;
+					} else {
+						activeHeader = false;
+						return;
+					}
+				}
+
+				headerElement = newInstance.contentContainer.find( '.customize-section-title, .panel-meta' ).first();
+				if ( headerElement.length ) {
+					activeHeader = {
+						instance: newInstance,
+						element:  headerElement,
+						parent:   headerElement.closest( '.customize-pane-child' ),
+						height:   getHeaderHeight( headerElement )
+					};
+					if ( expandedSection ) {
+						resetStickyHeader( activeHeader.element, activeHeader.parent );
+					}
+				} else {
+					activeHeader = false;
+				}
+			};
+			api.state( 'expandedSection' ).bind( changeContainer );
+			api.state( 'expandedPanel' ).bind( changeContainer );
+
+			// Throttled scroll event handler.
+			parentContainer.on( 'scroll', _.throttle( function() {
+				if ( ! activeHeader ) {
+					return;
+				}
+
+				var scrollTop = parentContainer.scrollTop(),
+					isScrollingUp = ( lastScrollTop ) ? scrollTop <= lastScrollTop : true;
+
+				lastScrollTop = scrollTop;
+				positionStickyHeader( activeHeader, scrollTop, isScrollingUp );
+			}, 8 ) );
+
+			// Release header element if it is sticky.
+			releaseStickyHeader = function( headerElement ) {
+				if ( ! headerElement.hasClass( 'is-sticky' ) ) {
+					return;
+				}
+				headerElement
+					.removeClass( 'is-sticky' )
+					.addClass( 'maybe-sticky is-in-view' )
+					.css( 'top', parentContainer.scrollTop() + 'px' );
+			};
+
+			// Reset position of the sticky header.
+			resetStickyHeader = function( headerElement, headerParent ) {
+				headerElement
+					.removeClass( 'maybe-sticky is-in-view' )
+					.css( {
+						width: '',
+						top: ''
+					} );
+				headerParent.css( 'padding-top', '' );
+			};
+
+			// Get header height.
+			getHeaderHeight = function( headerElement ) {
+				var height = headerElement.data( 'height' );
+				if ( ! height ) {
+					height = headerElement.outerHeight();
+					headerElement.data( 'height', height );
+				}
+				return height;
+			};
+
+			// Reposition header on throttled `scroll` event.
+			positionStickyHeader = function( header, scrollTop, isScrollingUp ) {
+				var headerElement = header.element,
+					headerParent = header.parent,
+					headerHeight = header.height,
+					headerTop = parseInt( headerElement.css( 'top' ), 10 ),
+					maybeSticky = headerElement.hasClass( 'maybe-sticky' ),
+					isSticky = headerElement.hasClass( 'is-sticky' ),
+					isInView = headerElement.hasClass( 'is-in-view' );
+
+				// When scrolling down, gradually hide sticky header.
+				if ( ! isScrollingUp ) {
+					if ( isSticky ) {
+						headerTop = scrollTop;
+						headerElement
+							.removeClass( 'is-sticky' )
+							.css( {
+								top:   headerTop + 'px',
+								width: ''
+							} );
+					}
+					if ( isInView && scrollTop > headerTop + headerHeight ) {
+						headerElement.removeClass( 'is-in-view' );
+						headerParent.css( 'padding-top', '' );
+					}
+					return;
+				}
+
+				// Scrolling up.
+				if ( ! maybeSticky && scrollTop >= headerHeight ) {
+					maybeSticky = true;
+					headerElement.addClass( 'maybe-sticky' );
+				} else if ( 0 === scrollTop ) {
+					// Reset header in base position.
+					headerElement
+						.removeClass( 'maybe-sticky is-in-view is-sticky' )
+						.css( {
+							top:   '',
+							width: ''
+						} );
+					headerParent.css( 'padding-top', '' );
+					return;
+				}
+
+				if ( isInView && ! isSticky ) {
+					// Header is in the view but is not yet sticky.
+					if ( headerTop >= scrollTop ) {
+						// Header is fully visible.
+						headerElement
+							.addClass( 'is-sticky' )
+							.css( {
+								top:   '',
+								width: headerParent.outerWidth() + 'px'
+							} );
+					}
+				} else if ( maybeSticky && ! isInView ) {
+					// Header is out of the view.
+					headerElement
+						.addClass( 'is-in-view' )
+						.css( 'top', ( scrollTop - headerHeight ) + 'px' );
+					headerParent.css( 'padding-top', headerHeight + 'px' );
+				}
+			};
+		}());
+
 		// Previewed device bindings.
 		api.previewedDevice = new api.Value();
 
@@ -5244,7 +5575,7 @@
 		// Control visibility for default controls
 		$.each({
 			'background_image': {
-				controls: [ 'background_repeat', 'background_position_x', 'background_attachment' ],
+				controls: [ 'background_preset', 'background_position', 'background_size', 'background_repeat', 'background_attachment' ],
 				callback: function( to ) { return !! to; }
 			},
 			'show_on_front': {
@@ -5269,6 +5600,92 @@
 				});
 			});
 		});
+
+		api.control( 'background_preset', function( control ) {
+			var visibility, defaultValues, values, toggleVisibility, updateSettings, preset;
+
+			visibility = { // position, size, repeat, attachment
+				'default': [ false, false, false, false ],
+				'fill': [ true, false, false, false ],
+				'fit': [ true, false, true, false ],
+				'repeat': [ true, false, false, true ],
+				'custom': [ true, true, true, true ]
+			};
+
+			defaultValues = [
+				_wpCustomizeBackground.defaults['default-position-x'],
+				_wpCustomizeBackground.defaults['default-position-y'],
+				_wpCustomizeBackground.defaults['default-size'],
+				_wpCustomizeBackground.defaults['default-repeat'],
+				_wpCustomizeBackground.defaults['default-attachment']
+			];
+
+			values = { // position_x, position_y, size, repeat, attachment
+				'default': defaultValues,
+				'fill': [ 'left', 'top', 'cover', 'no-repeat', 'fixed' ],
+				'fit': [ 'left', 'top', 'contain', 'no-repeat', 'fixed' ],
+				'repeat': [ 'left', 'top', 'auto', 'repeat', 'scroll' ]
+			};
+
+			// @todo These should actually toggle the active state, but without the preview overriding the state in data.activeControls.
+			toggleVisibility = function( preset ) {
+				_.each( [ 'background_position', 'background_size', 'background_repeat', 'background_attachment' ], function( controlId, i ) {
+					var control = api.control( controlId );
+					if ( control ) {
+						control.container.toggle( visibility[ preset ][ i ] );
+					}
+				} );
+			};
+
+			updateSettings = function( preset ) {
+				_.each( [ 'background_position_x', 'background_position_y', 'background_size', 'background_repeat', 'background_attachment' ], function( settingId, i ) {
+					var setting = api( settingId );
+					if ( setting ) {
+						setting.set( values[ preset ][ i ] );
+					}
+				} );
+			};
+
+			preset = control.setting.get();
+			toggleVisibility( preset );
+
+			control.setting.bind( 'change', function( preset ) {
+				toggleVisibility( preset );
+				if ( 'custom' !== preset ) {
+					updateSettings( preset );
+				}
+			} );
+		} );
+
+		api.control( 'background_repeat', function( control ) {
+			control.elements[0].unsync( api( 'background_repeat' ) );
+
+			control.element = new api.Element( control.container.find( 'input' ) );
+			control.element.set( 'no-repeat' !== control.setting() );
+
+			control.element.bind( function( to ) {
+				control.setting.set( to ? 'repeat' : 'no-repeat' );
+			} );
+
+			control.setting.bind( function( to ) {
+				control.element.set( 'no-repeat' !== to );
+			} );
+		} );
+
+		api.control( 'background_attachment', function( control ) {
+			control.elements[0].unsync( api( 'background_attachment' ) );
+
+			control.element = new api.Element( control.container.find( 'input' ) );
+			control.element.set( 'fixed' !== control.setting() );
+
+			control.element.bind( function( to ) {
+				control.setting.set( to ? 'scroll' : 'fixed' );
+			} );
+
+			control.setting.bind( function( to ) {
+				control.element.set( 'fixed' !== to );
+			} );
+		} );
 
 		// Juggle the two controls that use header_textcolor
 		api.control( 'display_header_text', function( control ) {
@@ -5339,6 +5756,14 @@
 		api.previewer.bind( 'refresh', function() {
 			api.previewer.refresh();
 		});
+
+		// Update the edit shortcut visibility state.
+		api.previewer.bind( 'edit-shortcut-visibility', function( visibility ) {
+			api.state( 'editShortcutVisibility' ).set( visibility );
+		} );
+		api.state( 'editShortcutVisibility' ).bind( function( visibility ) {
+			api.previewer.send( 'edit-shortcut-visibility', visibility );
+		} );
 
 		// Autosave changeset.
 		( function() {

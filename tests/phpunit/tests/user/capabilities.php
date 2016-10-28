@@ -391,6 +391,7 @@ class Tests_User_Capabilities extends WP_UnitTestCase {
 			// These primitive capabilities have a 'case' in `map_meta_cap()` but aren't meta capabilities:
 			$expected['unfiltered_upload'],
 			$expected['unfiltered_html'],
+			$expected['unfiltered_css'],
 			$expected['edit_files'],
 			$expected['edit_plugins'],
 			$expected['edit_themes'],
@@ -466,6 +467,9 @@ class Tests_User_Capabilities extends WP_UnitTestCase {
 
 		$this->assertFalse( $user->has_cap( 'do_not_allow' ), "User with the {$role} role should not have the do_not_allow capability" );
 		$this->assertFalse( user_can( $user, 'do_not_allow' ), "User with the {$role} role should not have the do_not_allow capability" );
+
+		$this->assertTrue( $user->has_cap( 'exist' ), "User with the {$role} role should have the exist capability" );
+		$this->assertTrue( user_can( $user, 'exist' ), "User with the {$role} role should have the exist capability" );
 	}
 
 	// special case for the link manager
@@ -670,7 +674,7 @@ class Tests_User_Capabilities extends WP_UnitTestCase {
 		// change the capabilites associated with a role and make sure the change is reflected in has_cap()
 
 		global $wp_roles;
-		$role_name = rand_str();
+		$role_name = 'janitor';
 		add_role( $role_name, 'Janitor', array('level_1'=>true) );
 		$this->_flush_roles();
 		$this->assertTrue( $wp_roles->is_role($role_name) );
@@ -710,7 +714,7 @@ class Tests_User_Capabilities extends WP_UnitTestCase {
 		// change the capabilites associated with a role and make sure the change is reflected in has_cap()
 
 		global $wp_roles;
-		$role_name = rand_str();
+		$role_name = 'janitor';
 		add_role( $role_name, 'Janitor', array('level_1'=>true, 'sweep_floor'=>true, 'polish_doorknobs'=>true) );
 		$this->_flush_roles();
 		$this->assertTrue( $wp_roles->is_role($role_name) );
@@ -1333,17 +1337,11 @@ class Tests_User_Capabilities extends WP_UnitTestCase {
 		$this->assertFalse( current_user_can( 'edit_user', $other_user->ID ) );
 	}
 
-	function test_multisite_user_can_edit_self() {
-		if ( ! is_multisite() ) {
-			$this->markTestSkipped( 'Test only runs in multisite' );
-			return;
+	function test_user_can_edit_self() {
+		foreach ( self::$users as $role => $user ) {
+			wp_set_current_user( $user->ID );
+			$this->assertTrue( current_user_can( 'edit_user', $user->ID ), "User with role {$role} should have the capability to edit their own profile" );
 		}
-
-		$user = self::$users['administrator'];
-
-		wp_set_current_user( $user->ID );
-
-		$this->assertTrue( current_user_can( 'edit_user', $user->ID ) );
 	}
 
 	/**

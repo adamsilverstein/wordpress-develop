@@ -370,6 +370,7 @@ final class WP_Customize_Nav_Menus {
 				'untitled'          => _x( '(no label)', 'missing menu item navigation label' ),
 				'unnamed'           => _x( '(unnamed)', 'Missing menu name.' ),
 				'custom_label'      => __( 'Custom Link' ),
+				'page_label'        => get_post_type_object( 'page' )->labels->singular_name,
 				/* translators: %s: menu location */
 				'menuLocation'      => _x( '(Currently set to: %s)', 'menu' ),
 				'menuNameLabel'     => __( 'Menu Name' ),
@@ -498,6 +499,7 @@ final class WP_Customize_Nav_Menus {
 				$nav_menus_setting_ids[] = $setting_id;
 			}
 		}
+		$this->manager->add_dynamic_settings( $nav_menus_setting_ids );
 		foreach ( $nav_menus_setting_ids as $setting_id ) {
 			$setting = $this->manager->get_setting( $setting_id );
 			if ( $setting ) {

@@ -214,6 +214,8 @@ add_filter( 'pingback_ping_source_uri', 'pingback_ping_source_uri'            );
 add_filter( 'xmlrpc_pingback_error',    'xmlrpc_pingback_error'               );
 add_filter( 'title_save_pre',           'trim'                                );
 
+add_action( 'transition_comment_status', '_clear_modified_cache_on_transition_comment_status', 10, 2 );
+
 add_filter( 'http_request_host_is_external',    'allowed_http_request_hosts', 10, 2 );
 
 // REST API filters.
@@ -245,6 +247,7 @@ add_action( 'wp_head',             'wp_print_head_scripts',            9    );
 add_action( 'wp_head',             'wp_generator'                           );
 add_action( 'wp_head',             'rel_canonical'                          );
 add_action( 'wp_head',             'wp_shortlink_wp_head',            10, 0 );
+add_action( 'wp_head',             'wp_custom_css_cb',                11    );
 add_action( 'wp_head',             'wp_site_icon',                    99    );
 add_action( 'wp_footer',           'wp_print_footer_scripts',         20    );
 add_action( 'template_redirect',   'wp_shortlink_header',             11, 0 );
@@ -373,7 +376,9 @@ add_action( 'edit_user_created_user', 'wp_send_new_user_notifications', 10, 2 );
 
 // REST API actions.
 add_action( 'init',          'rest_api_init' );
-add_action( 'rest_api_init', 'rest_api_default_filters', 10, 1 );
+add_action( 'rest_api_init', 'rest_api_default_filters',   10, 1 );
+add_action( 'rest_api_init', 'register_initial_settings',  10 );
+add_action( 'rest_api_init', 'create_initial_rest_routes', 99 );
 add_action( 'parse_request', 'rest_api_loaded' );
 
 /**
@@ -401,6 +406,7 @@ add_action( 'init', 'create_initial_post_types', 0 ); // highest priority
 add_action( 'admin_menu', '_add_post_type_submenus' );
 add_action( 'before_delete_post', '_reset_front_page_settings_for_post' );
 add_action( 'wp_trash_post',      '_reset_front_page_settings_for_post' );
+add_action( 'change_locale', 'create_initial_post_types' );
 
 // Post Formats
 add_filter( 'request', '_post_format_request' );
@@ -426,6 +432,7 @@ add_filter( 'style_loader_src', 'wp_style_loader_src', 10, 2 );
 
 // Taxonomy
 add_action( 'init', 'create_initial_taxonomies', 0 ); // highest priority
+add_action( 'change_locale', 'create_initial_taxonomies' );
 
 // Canonical
 add_action( 'template_redirect', 'redirect_canonical' );
