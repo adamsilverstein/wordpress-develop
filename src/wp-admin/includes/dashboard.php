@@ -491,40 +491,33 @@ function wp_dashboard_quick_press( $error_msg = false ) {
 	$post_ID = (int) $post->ID;
 ?>
 
-	<form name="post" action="<?php echo esc_url( admin_url( 'post.php' ) ); ?>" method="post" id="quick-press" class="initial-form hide-if-no-js">
-
-		<?php if ( $error_msg ) : ?>
-		<div class="error"><?php echo $error_msg; ?></div>
-		<?php endif; ?>
+	<form name="post" method="post" id="quick-press" class="initial-form hide-if-no-js">
 
 		<div class="input-text-wrap" id="title-wrap">
-			<label class="screen-reader-text prompt" for="title" id="title-prompt-text">
+			<label class="prompt" for="title" id="title-prompt-text">
 
 				<?php
 				/** This filter is documented in wp-admin/edit-form-advanced.php */
 				echo apply_filters( 'enter_title_here', __( 'Title' ), $post );
 				?>
 			</label>
-			<input type="text" name="post_title" id="title" autocomplete="off" />
+			<input type="text" name="title" id="title" autocomplete="off" />
 		</div>
 
 		<div class="textarea-wrap" id="description-wrap">
-			<label class="screen-reader-text prompt" for="content" id="content-prompt-text"><?php _e( 'What&#8217;s on your mind?' ); ?></label>
+			<label class="prompt" for="content" id="content-prompt-text"><?php _e( 'What&#8217;s on your mind?' ); ?></label>
 			<textarea name="content" id="content" class="mceEditor" rows="3" cols="15" autocomplete="off"></textarea>
 		</div>
-
 		<p class="submit">
-			<input type="hidden" name="action" id="quickpost-action" value="post-quickdraft-save" />
-			<input type="hidden" name="post_ID" value="<?php echo $post_ID; ?>" />
-			<input type="hidden" name="post_type" value="post" />
-			<?php wp_nonce_field( 'add-post' ); ?>
+			<div class="error inline" style="display: none;"><p></p></div>
+			<div class="spinner no-float"></div>
 			<?php submit_button( __( 'Save Draft' ), 'primary', 'save', false, array( 'id' => 'save-post' ) ); ?>
 			<br class="clear" />
 		</p>
 
 	</form>
 	<?php
-	wp_dashboard_recent_drafts();
+	echo wp_dashboard_get_recent_drafts_js_template();
 }
 
 /**
@@ -580,6 +573,48 @@ function wp_dashboard_recent_drafts( $drafts = false ) {
 		echo "</li>\n";
  	}
 	echo "</ul>\n</div>";
+}
+/**
+ * Get the HTML template for the Quick Draft recent posts.
+ *
+ * @since 4.8.0
+ *
+ * @return string The template HTML.
+ */
+function wp_dashboard_get_recent_drafts_js_template() {
+	$template_html  = '<div id="quick-press-drafts" class="drafts">';
+	$template_html .= '<p class="view-all" style="display: none;"><a href="' . esc_url( admin_url( 'edit.php?post_status=draft' ) ) . '" aria-label="' . __( 'View all drafts' ) . '">' . _x( 'View all', 'drafts' ) . "</a></p>\n";
+	$template_html .= '<h2 class="hide-if-no-js">' . __( 'Drafts' ) . "</h2>\n";
+	$template_html .= '<script id="tmpl-item-quick-press-draft" type="text/template">';
+	/* translators: %s: post title */
+	$template_html .= '<div class="draft-title"><a href="post.php?post={{ data.id }}&action=edit" aria-label="' . esc_attr( __( 'Edit Post' ) ) . '">{{ data.title }}</a>';
+	$template_html .= '<time datetime="{{ data.date }}">{{ data.formattedDate }}</time></div>';
+	$template_html .= '{{{ data.formattedContent }}}';
+	$template_html .= '</script>';
+	$template_html .= '<ul class="drafts-list is-placeholder">';
+
+	// Add a placeholder for each draft.
+	$query_args = array(
+		'post_type'      => 'post',
+		'post_status'    => 'draft',
+		'author'         => get_current_user_id(),
+		'posts_per_page' => 4,
+		'fields'         => 'ids',
+		'no_found_rows'  => true,
+	);
+
+	/** This filter is documented in wp-admin/includes/dashboard.php */
+	$query_args = apply_filters( 'dashboard_recent_drafts_query_args', $query_args );
+
+	$count_query = new WP_Query( $query_args );
+	if ( $count_query->have_posts()  ) {
+		for ( $i = 0; $i < ($count_query->post_count ? $count_query->post_count : 4 ); $i++ ) {
+			$template_html .= '<li><span class="screen-reader-text">' . esc_html( __( 'Loading…' ) ) . '</span></li>';
+		}
+	}
+	$template_html .= '</ul></div>';
+
+	return $template_html;
 }
 
 /**

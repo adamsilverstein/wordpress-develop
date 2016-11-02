@@ -1,5 +1,5 @@
-/* global pagenow, ajaxurl, postboxes, wpActiveEditor:true */
-var ajaxWidgets, ajaxPopulateWidgets, quickPressLoad;
+/* global _, wp, quickPress, pagenow, ajaxurl, postboxes, wpActiveEditor:true */
+var ajaxWidgets, ajaxPopulateWidgets;
 
 jQuery(document).ready( function($) {
 	var welcomePanel = $( '#welcome-panel' ),
@@ -60,68 +60,6 @@ jQuery(document).ready( function($) {
 	ajaxPopulateWidgets();
 
 	postboxes.add_postbox_toggles(pagenow, { pbshow: ajaxPopulateWidgets } );
-
-	/* QuickPress */
-	quickPressLoad = function() {
-		var act = $('#quickpost-action'), t;
-
-		$( '#quick-press .submit input[type="submit"], #quick-press .submit input[type="reset"]' ).prop( 'disabled' , false );
-
-		t = $('#quick-press').submit( function( e ) {
-			e.preventDefault();
-			$('#dashboard_quick_press #publishing-action .spinner').show();
-			$('#quick-press .submit input[type="submit"], #quick-press .submit input[type="reset"]').prop('disabled', true);
-
-			$.post( t.attr( 'action' ), t.serializeArray(), function( data ) {
-				// Replace the form, and prepend the published post.
-				$('#dashboard_quick_press .inside').html( data );
-				$('#quick-press').removeClass('initial-form');
-				quickPressLoad();
-				highlightLatestPost();
-				$('#title').focus();
-			});
-
-			function highlightLatestPost () {
-				var latestPost = $('.drafts ul li').first();
-				latestPost.css('background', '#fffbe5');
-				setTimeout(function () {
-					latestPost.css('background', 'none');
-				}, 1000);
-			}
-		} );
-
-		$('#publish').click( function() { act.val( 'post-quickpress-publish' ); } );
-
-		$('#title, #tags-input, #content').each( function() {
-			var input = $(this), prompt = $('#' + this.id + '-prompt-text');
-
-			if ( '' === this.value ) {
-				prompt.removeClass('screen-reader-text');
-			}
-
-			prompt.click( function() {
-				$(this).addClass('screen-reader-text');
-				input.focus();
-			});
-
-			input.blur( function() {
-				if ( '' === this.value ) {
-					prompt.removeClass('screen-reader-text');
-				}
-			});
-
-			input.focus( function() {
-				prompt.addClass('screen-reader-text');
-			});
-		});
-
-		$('#quick-press').on( 'click focusin', function() {
-			wpActiveEditor = 'content';
-		});
-
-		autoResizeTextarea();
-	};
-	quickPressLoad();
 
 	$( '.meta-box-sortables' ).sortable( 'option', 'containment', '#wpwrap' );
 
@@ -186,4 +124,285 @@ jQuery(document).ready( function($) {
 		});
 	}
 
+	autoResizeTextarea();
+
+});
+
+wp.api.loadPromise.done( function() {
+	var $ = jQuery,
+		QuickPress = {},
+		draftsCollection;
+
+	/**
+	 * Models
+	 */
+
+	QuickPress.Models = {};
+
+	QuickPress.Models.Draft = wp.api.models.Post.extend( {
+		initialize: function( attributes ) {
+			if ( attributes ) {
+				this.set( this.normalizeAttributes( attributes ) );
+			}
+		},
+
+		parse: function( response ) {
+			return this.normalizeAttributes( response );
+		},
+
+		normalizeAttributes: function( attributes ) {
+			var date;
+
+			if ( ! attributes ) {
+				return attributes;
+			}
+
+			// Post entities from the REST API include the content and title in
+			// nested objects, but our new form model will assign as a string,
+			// so we normalize to simplify display logic
+
+			if ( 'object' === typeof attributes.content ) {
+				attributes.content = attributes.content.rendered;
+			}
+
+			if ( 'object' === typeof attributes.title ) {
+				attributes.title = attributes.title.rendered;
+			}
+
+			attributes.formattedContent = wp.formatting.trimWords( attributes.content, 10 );
+
+			// We can format dates using newer browser i18n features, but also
+			// provide a fallback to the not-as-nice Date#toLocaleDateString
+			date = new Date( wp.api.utils.parseISO8601( attributes.date ) );
+			date.setTime( date.getTime() + ( date.getTimezoneOffset() * 60 * 1000 ) );
+			if ( 'undefined' !== typeof Intl && Intl.DateTimeFormat ) {
+				attributes.formattedDate = new Intl.DateTimeFormat( undefined, {
+					month: 'long',
+					day: 'numeric',
+					year: 'numeric'
+				} ).format( date );
+			} else {
+				attributes.formattedDate = date.toLocaleDateString();
+			}
+
+			return attributes;
+		},
+
+		validate: function( attributes ) {
+			if ( ! attributes.title && ! attributes.content ) {
+				return 'no-content';
+			}
+		}
+	} );
+
+	/**
+	 * Collections
+	 */
+
+	QuickPress.Collections = {};
+
+	QuickPress.Collections.Drafts = wp.api.collections.Posts.extend( {
+		model: QuickPress.Models.Draft,
+
+		comparator: function( a, b ) {
+			// Sort by date descending, date is an ISO8601 string and can be
+			// compared lexicographically
+			return a.get( 'date' ) < b.get( 'date' );
+		}
+	} );
+
+	/**
+	 * Collections
+	 */
+
+	QuickPress.Views = {};
+
+	QuickPress.Views.Form = wp.Backbone.View.extend( {
+		events: {
+			'click :input': 'hidePromptAndFocus',
+			'focus :input': 'hidePrompt',
+			'blur :input': 'showPrompt',
+			reset: 'showAllPrompts',
+			click: 'setActiveEditor',
+			focusin: 'setActiveEditor',
+			submit: 'submit'
+		},
+
+		initialize: function() {
+			this.showAllPrompts();
+
+			this.listenTo( this.model, 'invalid', this.render );
+			this.listenTo( this.model, 'error', this.showSyncError );
+		},
+
+		togglePrompt: function( element, visible ) {
+			var $input = $( element ),
+				hasContent = $input.val().length > 0;
+
+			$( element ).siblings( '.prompt' ).toggleClass( 'screen-reader-text', ! visible || hasContent );
+		},
+
+		showAllPrompts: function() {
+			this.$el.find( ':input' ).each( _.bind( function( i, input ) {
+				// Prompt toggling must be deferred because the reset event is
+				// fired before the input values have been cleared
+				_.defer( _.bind( this.togglePrompt, this, input, true ) );
+			}, this ) );
+		},
+
+		showPrompt: function( event ) {
+			this.togglePrompt( event.target, true );
+		},
+
+		hidePrompt: function( event ) {
+			this.togglePrompt( event.target, false );
+		},
+
+		hidePromptAndFocus: function( event ) {
+			this.togglePrompt( event.target, false );
+			$( ':input', event.target ).focus();
+		},
+
+		setActiveEditor: function() {
+			wpActiveEditor = 'content';
+		},
+
+		showSyncError: function() {
+			this.syncError = true;
+			this.render();
+		},
+
+		submit: function( event ) {
+			var values;
+
+			delete this.syncError;
+			event.preventDefault();
+
+			// jQuery's serializeArray returns an array of field tuples, which
+			// we need to transform into an object before sending to API
+			values = _.reduce( this.$el.serializeArray(), function( memo, field ) {
+				memo[ field.name ] = field.value;
+				return memo;
+			}, {} );
+
+			// Ensure that by setting these fields on model that it is valid
+			// before proceeding with save
+			this.model.set( values );
+			if ( ! this.model.isValid() ) {
+				return;
+			}
+
+			// Show a spinner during the callback.
+			this.$el.addClass( 'is-saving' );
+
+			this.model.save()
+				.always( _.bind( function() {
+					this.$el.removeClass( 'is-saving' );
+				}, this ) )
+				.success( _.bind( function() {
+					this.collection.add( this.model );
+					this.model = new QuickPress.Models.Draft();
+					this.el.reset();
+				}, this ) );
+		},
+
+		render: function() {
+			var $error = this.$el.find( '.error' ),
+				errorText;
+
+			if ( this.model.validationError ) {
+				// Error via submission validation
+				errorText = quickPress.l10n[ this.model.validationError ];
+			} else if ( this.syncError ) {
+				// Error via API save failure
+				errorText = quickPress.l10n.error;
+			}
+
+			// Error notice is only visible if error text determined
+			$error.toggle( !! errorText );
+			if ( errorText ) {
+				$error.html( $( '<p />', { text: errorText } ) );
+			}
+		}
+	} );
+
+	QuickPress.Views.DraftList = wp.Backbone.View.extend( {
+		initialize: function() {
+			this.listenTo( this.collection, 'sync', this.onDraftsLoaded );
+		},
+
+		onDraftsLoaded: function() {
+			this.listenTo( this.collection, 'add', this.renderNew );
+			this.render();
+		},
+
+		renderNew: function() {
+			// Display highlight effect to first (added) item for one second
+			var $newEl = this.render().$el.find( 'li:first' ).addClass( 'is-new' );
+			setTimeout( function() {
+				$newEl.removeClass( 'is-new' );
+			}, 1000 );
+		},
+
+		render: function() {
+
+			// Hide drafts list if no drafts exist
+			this.$el.toggle( this.collection.length > 0 );
+
+			// "View All" link is visible if 5 or more drafts, since we only
+			// show a maximum of 5 drafts in the list
+			this.$el.find( '.view-all' ).toggle( this.collection.length > 0 );
+
+			// If after drafts load, this could be the first render, so remove
+			// placeholder effect and render the first four drafts
+			this.$el.find( '.drafts-list' )
+				.removeClass( 'is-placeholder' )
+				.html( _.map( this.collection.models, function( draft ) {
+					return new QuickPress.Views.DraftListItem( {
+						model: draft
+					} ).render().el;
+				} ) );
+
+			return this;
+		}
+	} );
+
+	QuickPress.Views.DraftListItem = wp.Backbone.View.extend( {
+		tagName: 'li',
+
+		template: wp.template( 'item-quick-press-draft' ),
+
+		render: function() {
+			this.$el.html( this.template( this.model.attributes ) );
+
+			return this;
+		}
+	} );
+
+	/**
+	 * Initialize
+	 */
+
+	// Fetch drafts
+	draftsCollection = new QuickPress.Collections.Drafts();
+	draftsCollection.fetch( {
+		data: {
+			status: 'draft',
+			author: quickPress.currentUserId,
+			per_page: 4,
+			'quick-draft-post-list': true
+		}
+	} );
+
+	// Drafts list is initialized but not rendered until drafts load
+	new QuickPress.Views.DraftList( {
+		el: '#quick-press-drafts',
+		collection: draftsCollection
+	} );
+
+	new QuickPress.Views.Form( {
+		el: '#quick-press',
+		model: new QuickPress.Models.Draft(),
+		collection: draftsCollection
+	} ).render();
 } );
