@@ -146,7 +146,7 @@
 			settingRevision = api._latestSettingRevisions[ setting.id ];
 
 			// Skip including settings that have already been included in the changeset, if only requesting unsaved.
-			if ( ( options && options.unsaved ) && ( _.isUndefined( settingRevision ) || settingRevision <= api._lastSavedRevision ) ) {
+			if ( api.state( 'changesetStatus' ).get() && ( options && options.unsaved ) && ( _.isUndefined( settingRevision ) || settingRevision <= api._lastSavedRevision ) ) {
 				return;
 			}
 
@@ -2835,21 +2835,43 @@
 	api.ColorControl = api.Control.extend({
 		ready: function() {
 			var control = this,
-				picker = this.container.find('.color-picker-hex');
+				isHueSlider = this.params.mode === 'hue',
+				updating = false,
+				picker;
 
-			picker.val( control.setting() ).wpColorPicker({
-				change: function() {
-					control.setting.set( picker.wpColorPicker('color') );
-				},
-				clear: function() {
-					control.setting.set( '' );
-				}
-			});
+			if ( isHueSlider ) {
+				picker = this.container.find( '.color-picker-hue' );
+				picker.val( control.setting() ).wpColorPicker({
+					change: function( event, ui ) {
+						updating = true;
+						control.setting( ui.color.h() );
+						updating = false;
+					}
+				});
+			} else {
+				picker = this.container.find( '.color-picker-hex' );
+				picker.val( control.setting() ).wpColorPicker({
+					change: function() {
+						updating = true;
+						control.setting.set( picker.wpColorPicker( 'color' ) );
+						updating = false;
+					},
+					clear: function() {
+						updating = true;
+						control.setting.set( '' );
+						updating = false;
+					}
+				});
+			}
 
 			this.setting.bind( function ( value ) {
+				// bail if the update came from the control itself
+				if ( updating ) {
+					return;
+				}
 				picker.val( value );
 				picker.wpColorPicker( 'color', value );
-			});
+			} );
 		}
 	});
 
@@ -3134,6 +3156,46 @@
 			} );
 		}
 	});
+
+	/**
+	 * A control for positioning a background image.
+	 *
+	 * @since 4.7.0
+	 *
+	 * @class
+	 * @augments wp.customize.Control
+	 * @augments wp.customize.Class
+	 */
+	api.BackgroundPositionControl = api.Control.extend( {
+
+		/**
+		 * Set up control UI once embedded in DOM and settings are created.
+		 *
+		 * @since 4.7.0
+		 */
+		ready: function() {
+			var control = this, updateRadios;
+
+			control.container.on( 'change', 'input[name="background-position"]', function() {
+				var position = $( this ).val().split( ' ' );
+				control.settings.x( position[0] );
+				control.settings.y( position[1] );
+			} );
+
+			updateRadios = _.debounce( function() {
+				var x, y, radioInput, inputValue;
+				x = control.settings.x.get();
+				y = control.settings.y.get();
+				inputValue = String( x ) + ' ' + String( y );
+				radioInput = control.container.find( 'input[name="background-position"][value="' + inputValue + '"]' );
+				radioInput.click();
+			} );
+			control.settings.x.bind( updateRadios );
+			control.settings.y.bind( updateRadios );
+
+			updateRadios(); // Set initial UI.
+		}
+	} );
 
 	/**
 	 * A control for selecting and cropping an image.
@@ -4173,7 +4235,7 @@
 				_.find( parsedCandidateUrls, function( parsedCandidateUrl ) {
 					return ! _.isUndefined( _.find( previewer.allowedUrls, function( allowedUrl ) {
 						parsedAllowedUrl.href = allowedUrl;
-						if ( urlParser.protocol === parsedAllowedUrl.protocol && urlParser.host === parsedAllowedUrl.host && 0 === parsedAllowedUrl.pathname.indexOf( urlParser.pathname ) ) {
+						if ( urlParser.protocol === parsedAllowedUrl.protocol && urlParser.host === parsedAllowedUrl.host && 0 === urlParser.pathname.indexOf( parsedAllowedUrl.pathname.replace( /\/$/, '' ) ) ) {
 							result = parsedCandidateUrl.href;
 							return true;
 						}
@@ -4240,6 +4302,7 @@
 			if ( 'resolved' !== previewer.deferred.active.state() || previewer.loading ) {
 				synced.scroll = previewer.scroll;
 			}
+			synced['edit-shortcut-visibility'] = api.state( 'editShortcutVisibility' ).get();
 			previewer.send( 'sync', synced );
 
 			// Set the previewUrl without causing the url to set the iframe.
@@ -4485,15 +4548,16 @@
 
 	api.settingConstructor = {};
 	api.controlConstructor = {
-		color:         api.ColorControl,
-		media:         api.MediaControl,
-		upload:        api.UploadControl,
-		image:         api.ImageControl,
-		cropped_image: api.CroppedImageControl,
-		site_icon:     api.SiteIconControl,
-		header:        api.HeaderControl,
-		background:    api.BackgroundControl,
-		theme:         api.ThemeControl
+		color:               api.ColorControl,
+		media:               api.MediaControl,
+		upload:              api.UploadControl,
+		image:               api.ImageControl,
+		cropped_image:       api.CroppedImageControl,
+		site_icon:           api.SiteIconControl,
+		header:              api.HeaderControl,
+		background:          api.BackgroundControl,
+		background_position: api.BackgroundPositionControl,
+		theme:               api.ThemeControl
 	};
 	api.panelConstructor = {
 		themes: api.ThemesPanel
@@ -4618,7 +4682,7 @@
 			if ( 'themes' === panel.id ) {
 				return; // Don't reflow theme sections, as doing so moves them after the themes container.
 			}
-			
+
 			var sections = panel.sections(),
 				sectionHeadContainers = _.pluck( sections, 'headContainer' );
 			rootNodes.push( panel );
@@ -4816,7 +4880,7 @@
 				api.bind( 'change', captureSettingModifiedDuringSave );
 
 				submit = function () {
-					var request, query, settingInvalidities = {};
+					var request, query, settingInvalidities = {}, latestRevision = api._latestRevision;
 
 					/*
 					 * Block saving if there are any settings that are marked as
@@ -4920,6 +4984,20 @@
 
 						api.state( 'changesetStatus' ).set( response.changeset_status );
 						if ( 'publish' === response.changeset_status ) {
+
+							// Mark all published as clean if they haven't been modified during the request.
+							api.each( function( setting ) {
+								/*
+								 * Note that the setting revision will be undefined in the case of setting
+								 * values that are marked as dirty when the customizer is loaded, such as
+								 * when applying starter content. All other dirty settings will have an
+								 * associated revision due to their modification triggering a change event.
+								 */
+								if ( setting._dirty && ( _.isUndefined( api._latestSettingRevisions[ setting.id ] ) || api._latestSettingRevisions[ setting.id ] <= latestRevision ) ) {
+									setting._dirty = false;
+								}
+							} );
+
 							api.state( 'changesetStatus' ).set( '' );
 							api.settings.changeset.uuid = response.next_changeset_uuid;
 							parent.send( 'changeset-uuid', api.settings.changeset.uuid );
@@ -5059,6 +5137,7 @@
 				expandedSection = state.create( 'expandedSection' ),
 				changesetStatus = state.create( 'changesetStatus' ),
 				previewerAlive = state.create( 'previewerAlive' ),
+				editShortcutVisibility  = state.create( 'editShortcutVisibility' ),
 				populateChangesetUuidParam;
 
 			state.bind( 'change', function() {
@@ -5087,7 +5166,15 @@
 			});
 
 			// Set default states.
+			changesetStatus( api.settings.changeset.status );
 			saved( true );
+			if ( '' === changesetStatus() ) { // Handle case for loading starter content.
+				api.each( function( setting ) {
+					if ( setting._dirty ) {
+						saved( false );
+					}
+				} );
+			}
 			saving( false );
 			activated( api.settings.theme.active );
 			processing( 0 );
@@ -5095,7 +5182,7 @@
 			expandedPanel( false );
 			expandedSection( false );
 			previewerAlive( true );
-			changesetStatus( api.settings.changeset.status );
+			editShortcutVisibility( 'initial' );
 
 			api.bind( 'change', function() {
 				state('saved').set( false );
@@ -5185,6 +5272,7 @@
 		});
 
 		api.state( 'paneVisible' ).bind( function( paneVisible ) {
+			overlay.toggleClass( 'preview-only', ! paneVisible );
 			overlay.toggleClass( 'expanded', paneVisible );
 			overlay.toggleClass( 'collapsed', ! paneVisible );
 
@@ -5244,7 +5332,7 @@
 		});
 
 		$( '.customize-controls-preview-toggle' ).on( 'click', function() {
-			overlay.toggleClass( 'preview-only' );
+			api.state( 'paneVisible' ).set( ! api.state( 'paneVisible' ).get() );
 		});
 
 		/*
@@ -5509,7 +5597,7 @@
 		// Control visibility for default controls
 		$.each({
 			'background_image': {
-				controls: [ 'background_repeat', 'background_position_x', 'background_attachment' ],
+				controls: [ 'background_preset', 'background_position', 'background_size', 'background_repeat', 'background_attachment' ],
 				callback: function( to ) { return !! to; }
 			},
 			'show_on_front': {
@@ -5534,6 +5622,92 @@
 				});
 			});
 		});
+
+		api.control( 'background_preset', function( control ) {
+			var visibility, defaultValues, values, toggleVisibility, updateSettings, preset;
+
+			visibility = { // position, size, repeat, attachment
+				'default': [ false, false, false, false ],
+				'fill': [ true, false, false, false ],
+				'fit': [ true, false, true, false ],
+				'repeat': [ true, false, false, true ],
+				'custom': [ true, true, true, true ]
+			};
+
+			defaultValues = [
+				_wpCustomizeBackground.defaults['default-position-x'],
+				_wpCustomizeBackground.defaults['default-position-y'],
+				_wpCustomizeBackground.defaults['default-size'],
+				_wpCustomizeBackground.defaults['default-repeat'],
+				_wpCustomizeBackground.defaults['default-attachment']
+			];
+
+			values = { // position_x, position_y, size, repeat, attachment
+				'default': defaultValues,
+				'fill': [ 'left', 'top', 'cover', 'no-repeat', 'fixed' ],
+				'fit': [ 'left', 'top', 'contain', 'no-repeat', 'fixed' ],
+				'repeat': [ 'left', 'top', 'auto', 'repeat', 'scroll' ]
+			};
+
+			// @todo These should actually toggle the active state, but without the preview overriding the state in data.activeControls.
+			toggleVisibility = function( preset ) {
+				_.each( [ 'background_position', 'background_size', 'background_repeat', 'background_attachment' ], function( controlId, i ) {
+					var control = api.control( controlId );
+					if ( control ) {
+						control.container.toggle( visibility[ preset ][ i ] );
+					}
+				} );
+			};
+
+			updateSettings = function( preset ) {
+				_.each( [ 'background_position_x', 'background_position_y', 'background_size', 'background_repeat', 'background_attachment' ], function( settingId, i ) {
+					var setting = api( settingId );
+					if ( setting ) {
+						setting.set( values[ preset ][ i ] );
+					}
+				} );
+			};
+
+			preset = control.setting.get();
+			toggleVisibility( preset );
+
+			control.setting.bind( 'change', function( preset ) {
+				toggleVisibility( preset );
+				if ( 'custom' !== preset ) {
+					updateSettings( preset );
+				}
+			} );
+		} );
+
+		api.control( 'background_repeat', function( control ) {
+			control.elements[0].unsync( api( 'background_repeat' ) );
+
+			control.element = new api.Element( control.container.find( 'input' ) );
+			control.element.set( 'no-repeat' !== control.setting() );
+
+			control.element.bind( function( to ) {
+				control.setting.set( to ? 'repeat' : 'no-repeat' );
+			} );
+
+			control.setting.bind( function( to ) {
+				control.element.set( 'no-repeat' !== to );
+			} );
+		} );
+
+		api.control( 'background_attachment', function( control ) {
+			control.elements[0].unsync( api( 'background_attachment' ) );
+
+			control.element = new api.Element( control.container.find( 'input' ) );
+			control.element.set( 'fixed' !== control.setting() );
+
+			control.element.bind( function( to ) {
+				control.setting.set( to ? 'scroll' : 'fixed' );
+			} );
+
+			control.setting.bind( function( to ) {
+				control.element.set( 'fixed' !== to );
+			} );
+		} );
 
 		// Juggle the two controls that use header_textcolor
 		api.control( 'display_header_text', function( control ) {
@@ -5604,6 +5778,14 @@
 		api.previewer.bind( 'refresh', function() {
 			api.previewer.refresh();
 		});
+
+		// Update the edit shortcut visibility state.
+		api.previewer.bind( 'edit-shortcut-visibility', function( visibility ) {
+			api.state( 'editShortcutVisibility' ).set( visibility );
+		} );
+		api.state( 'editShortcutVisibility' ).bind( function( visibility ) {
+			api.previewer.send( 'edit-shortcut-visibility', visibility );
+		} );
 
 		// Autosave changeset.
 		( function() {

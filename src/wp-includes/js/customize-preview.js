@@ -29,20 +29,21 @@
 		 * @returns {string} URL with customized state.
 		 */
 		injectUrlWithState = function( url ) {
-			var urlParser, queryParams;
+			var urlParser, oldQueryParams, newQueryParams;
 			urlParser = document.createElement( 'a' );
 			urlParser.href = url;
-			queryParams = api.utils.parseQueryString( urlParser.search.substr( 1 ) );
+			oldQueryParams = api.utils.parseQueryString( location.search.substr( 1 ) );
+			newQueryParams = api.utils.parseQueryString( urlParser.search.substr( 1 ) );
 
-			queryParams.customize_changeset_uuid = api.settings.changeset.uuid;
-			if ( ! api.settings.theme.active ) {
-				queryParams.customize_theme = api.settings.theme.stylesheet;
+			newQueryParams.customize_changeset_uuid = oldQueryParams.customize_changeset_uuid;
+			if ( oldQueryParams.customize_theme ) {
+				newQueryParams.customize_theme = oldQueryParams.customize_theme;
 			}
-			if ( api.settings.theme.channel ) {
-				queryParams.customize_messenger_channel = api.settings.channel;
+			if ( oldQueryParams.customize_messenger_channel ) {
+				newQueryParams.customize_messenger_channel = oldQueryParams.customize_messenger_channel;
 			}
-			urlParser.search = $.param( queryParams );
-			return url;
+			urlParser.search = $.param( newQueryParams );
+			return urlParser.href;
 		};
 
 		history.replaceState = ( function( nativeReplaceState ) {
@@ -297,7 +298,7 @@
 		parsedAllowedUrl = document.createElement( 'a' );
 		matchesAllowedUrl = ! _.isUndefined( _.find( api.settings.url.allowed, function( allowedUrl ) {
 			parsedAllowedUrl.href = allowedUrl;
-			return parsedAllowedUrl.protocol === element.protocol && parsedAllowedUrl.host === element.host && 0 === element.pathname.indexOf( parsedAllowedUrl.pathname );
+			return parsedAllowedUrl.protocol === element.protocol && parsedAllowedUrl.host === element.host && 0 === element.pathname.indexOf( parsedAllowedUrl.pathname.replace( /\/$/, '' ) );
 		} ) );
 		if ( ! matchesAllowedUrl ) {
 			return false;
@@ -735,11 +736,11 @@
 		});
 
 		/* Custom Backgrounds */
-		bg = $.map(['color', 'image', 'position_x', 'repeat', 'attachment'], function( prop ) {
+		bg = $.map( ['color', 'image', 'preset', 'position_x', 'position_y', 'size', 'repeat', 'attachment'], function( prop ) {
 			return 'background_' + prop;
-		});
+		} );
 
-		api.when.apply( api, bg ).done( function( color, image, position_x, repeat, attachment ) {
+		api.when.apply( api, bg ).done( function( color, image, preset, positionX, positionY, size, repeat, attachment ) {
 			var body = $(document.body),
 				head = $('head'),
 				style = $('#custom-background-css'),
@@ -759,7 +760,8 @@
 
 				if ( image() ) {
 					css += 'background-image: url("' + image() + '");';
-					css += 'background-position: top ' + position_x() + ';';
+					css += 'background-size: ' + size() + ';';
+					css += 'background-position: ' + positionX() + ' ' + positionY() + ';';
 					css += 'background-repeat: ' + repeat() + ';';
 					css += 'background-attachment: ' + attachment() + ';';
 				}

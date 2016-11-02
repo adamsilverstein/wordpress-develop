@@ -188,6 +188,11 @@ add_filter( 'the_guid',           'esc_url'                       );
 // Email filters
 add_filter( 'wp_mail', 'wp_staticize_emoji_for_email' );
 
+// Mark site as no longer fresh
+foreach ( array( 'publish_post', 'publish_page', 'wp_ajax_save-widget', 'wp_ajax_widgets-order', 'customize_save_after' ) as $action ) {
+	add_action( $action, '_delete_option_fresh_site' );
+}
+
 // Misc filters
 add_filter( 'option_ping_sites',        'privacy_ping_filter'                 );
 add_filter( 'option_blog_charset',      '_wp_specialchars'                    ); // IMPORTANT: This must not be wp_specialchars() or esc_html() or it'll cause an infinite loop
@@ -213,6 +218,8 @@ add_filter( 'nav_menu_meta_box_object', '_wp_nav_menu_meta_box_object'        );
 add_filter( 'pingback_ping_source_uri', 'pingback_ping_source_uri'            );
 add_filter( 'xmlrpc_pingback_error',    'xmlrpc_pingback_error'               );
 add_filter( 'title_save_pre',           'trim'                                );
+
+add_action( 'transition_comment_status', '_clear_modified_cache_on_transition_comment_status', 10, 2 );
 
 add_filter( 'http_request_host_is_external',    'allowed_http_request_hosts', 10, 2 );
 
@@ -404,6 +411,7 @@ add_action( 'init', 'create_initial_post_types', 0 ); // highest priority
 add_action( 'admin_menu', '_add_post_type_submenus' );
 add_action( 'before_delete_post', '_reset_front_page_settings_for_post' );
 add_action( 'wp_trash_post',      '_reset_front_page_settings_for_post' );
+add_action( 'change_locale', 'create_initial_post_types' );
 
 // Post Formats
 add_filter( 'request', '_post_format_request' );
@@ -429,6 +437,7 @@ add_filter( 'style_loader_src', 'wp_style_loader_src', 10, 2 );
 
 // Taxonomy
 add_action( 'init', 'create_initial_taxonomies', 0 ); // highest priority
+add_action( 'change_locale', 'create_initial_taxonomies' );
 
 // Canonical
 add_action( 'template_redirect', 'redirect_canonical' );

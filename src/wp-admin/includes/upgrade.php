@@ -50,6 +50,9 @@ function wp_install( $blog_title, $user_name, $user_email, $public, $deprecated 
 	update_option('admin_email', $user_email);
 	update_option('blog_public', $public);
 
+	// Freshness of site - in the future, this could get more specific about actions taken, perhaps.
+	update_option( 'fresh_site', 1 );
+
 	if ( $language ) {
 		update_option( 'WPLANG', $language );
 	}
@@ -253,8 +256,7 @@ As a new WordPress user, you should go to <a href=\"%s\">your dashboard</a> to d
 	update_option( 'widget_archives', array ( 2 => array ( 'title' => '', 'count' => 0, 'dropdown' => 0 ), '_multiwidget' => 1 ) );
 	update_option( 'widget_categories', array ( 2 => array ( 'title' => '', 'count' => 0, 'hierarchical' => 0, 'dropdown' => 0 ), '_multiwidget' => 1 ) );
 	update_option( 'widget_meta', array ( 2 => array ( 'title' => '' ), '_multiwidget' => 1 ) );
-	update_option( 'sidebars_widgets', array ( 'wp_inactive_widgets' => array (), 'sidebar-1' => array ( 0 => 'search-2', 1 => 'recent-posts-2', 2 => 'recent-comments-2', 3 => 'archives-2', 4 => 'categories-2', 5 => 'meta-2', ), 'array_version' => 3 ) );
-
+	update_option( 'sidebars_widgets', array( 'wp_inactive_widgets' => array(), 'sidebar-1' => array( 0 => 'search-2', 1 => 'recent-posts-2', 2 => 'recent-comments-2', 3 => 'archives-2', 4 => 'categories-2', 5 => 'meta-2' ), 'sidebar-2' => array(), 'sidebar-3' => array(), 'array_version' => 3 ) );
 	if ( ! is_multisite() )
 		update_user_meta( $user_id, 'show_welcome_panel', 1 );
 	elseif ( ! is_super_admin( $user_id ) && ! metadata_exists( 'user', $user_id, 'show_welcome_panel' ) )

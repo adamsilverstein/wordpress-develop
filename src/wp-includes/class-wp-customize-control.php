@@ -457,7 +457,7 @@ class WP_Customize_Control {
 	/**
 	 * Render the control's content.
 	 *
-	 * Allows the content to be overriden without having to rewrite the wrapper in `$this::render()`.
+	 * Allows the content to be overridden without having to rewrite the wrapper in `$this::render()`.
 	 *
 	 * Supports basic input types `text`, `checkbox`, `textarea`, `radio`, `select` and `dropdown-pages`.
 	 * Additional input types such as `email`, `url`, `number`, `hidden` and `date` are supported implicitly.
@@ -532,7 +532,7 @@ class WP_Customize_Control {
 					if ( ! empty( $this->description ) ) : ?>
 						<span class="description customize-control-description"><?php echo $this->description; ?></span>
 					<?php endif; ?>
-					<textarea rows="5" <?php $this->link(); ?>><?php echo esc_textarea( $this->value() ); ?></textarea>
+					<textarea rows="5" <?php $this->input_attrs(); ?> <?php $this->link(); ?>><?php echo esc_textarea( $this->value() ); ?></textarea>
 				</label>
 				<?php
 				break;
@@ -659,6 +659,9 @@ require_once( ABSPATH . WPINC . '/customize/class-wp-customize-image-control.php
 
 /** WP_Customize_Background_Image_Control class */
 require_once( ABSPATH . WPINC . '/customize/class-wp-customize-background-image-control.php' );
+
+/** WP_Customize_Background_Position_Control class */
+require_once( ABSPATH . WPINC . '/customize/class-wp-customize-background-position-control.php' );
 
 /** WP_Customize_Cropped_Image_Control class */
 require_once( ABSPATH . WPINC . '/customize/class-wp-customize-cropped-image-control.php' );

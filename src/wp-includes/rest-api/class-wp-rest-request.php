@@ -359,7 +359,8 @@ class WP_REST_Request implements ArrayAccess {
 
 		// Ensure we parse the body data.
 		$body = $this->get_body();
-		if ( $this->method !== 'POST' && ! empty( $body ) ) {
+
+		if ( 'POST' !== $this->method && ! empty( $body ) ) {
 			$this->parse_body_params();
 		}
 
@@ -450,7 +451,11 @@ class WP_REST_Request implements ArrayAccess {
 
 		$params = array();
 		foreach ( $order as $type ) {
-			$params = array_merge( $params, (array) $this->params[ $type ] );
+			// array_merge / the "+" operator will mess up
+			// numeric keys, so instead do a manual foreach.
+			foreach ( (array) $this->params[ $type ] as $key => $value ) {
+				$params[ $key ] = $value;
+			}
 		}
 
 		return $params;
@@ -799,6 +804,11 @@ class WP_REST_Request implements ArrayAccess {
 				continue;
 			}
 			foreach ( $this->params[ $type ] as $key => $value ) {
+				// if no sanitize_callback was specified, default to rest_parse_request_arg
+				// if a type was specified in the args.
+				if ( ! isset( $attributes['args'][ $key ]['sanitize_callback'] ) && ! empty( $attributes['args'][ $key ]['type'] ) ) {
+					$attributes['args'][ $key ]['sanitize_callback'] = 'rest_parse_request_arg';
+				}
 				// Check if this param has a sanitize_callback added.
 				if ( ! isset( $attributes['args'][ $key ] ) || empty( $attributes['args'][ $key ]['sanitize_callback'] ) ) {
 					continue;
@@ -967,7 +977,7 @@ class WP_REST_Request implements ArrayAccess {
 
 		$api_root = rest_url();
 		if ( get_option( 'permalink_structure' ) && 0 === strpos( $url, $api_root ) ) {
-			// Pretty permalinks on, and URL is under the API root
+			// Pretty permalinks on, and URL is under the API root.
 			$api_url_part = substr( $url, strlen( untrailingslashit( $api_root ) ) );
 			$route = parse_url( $api_url_part, PHP_URL_PATH );
 		} elseif ( ! empty( $query_params['rest_route'] ) ) {

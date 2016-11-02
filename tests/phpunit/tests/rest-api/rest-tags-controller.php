@@ -10,15 +10,21 @@
  * @group restapi
  */
 class WP_Test_REST_Tags_Controller extends WP_Test_REST_Controller_Testcase {
+	protected static $administrator;
+	protected static $subscriber;
 
-	public function setUp() {
-		parent::setUp();
-		$this->administrator = $this->factory->user->create( array(
+	public static function wpSetUpBeforeClass( $factory ) {
+		self::$administrator = $factory->user->create( array(
 			'role' => 'administrator',
 		) );
-		$this->subscriber = $this->factory->user->create( array(
+		self::$subscriber = $factory->user->create( array(
 			'role' => 'subscriber',
 		) );
+	}
+
+	public static function wpTearDownAfterClass() {
+		self::delete_user( self::$administrator );
+		self::delete_user( self::$subscriber );
 	}
 
 	public function test_register_routes() {
@@ -450,7 +456,7 @@ class WP_Test_REST_Tags_Controller extends WP_Test_REST_Controller_Testcase {
 	}
 
 	public function test_create_item() {
-		wp_set_current_user( $this->administrator );
+		wp_set_current_user( self::$administrator );
 		$request = new WP_REST_Request( 'POST', '/wp/v2/tags' );
 		$request->set_param( 'name', 'My Awesome Term' );
 		$request->set_param( 'description', 'This term is so awesome.' );
@@ -466,7 +472,7 @@ class WP_Test_REST_Tags_Controller extends WP_Test_REST_Controller_Testcase {
 	}
 
 	public function test_create_item_incorrect_permissions() {
-		wp_set_current_user( $this->subscriber );
+		wp_set_current_user( self::$subscriber );
 		$request = new WP_REST_Request( 'POST', '/wp/v2/tags' );
 		$request->set_param( 'name', 'Incorrect permissions' );
 		$response = $this->server->dispatch( $request );
@@ -474,14 +480,14 @@ class WP_Test_REST_Tags_Controller extends WP_Test_REST_Controller_Testcase {
 	}
 
 	public function test_create_item_missing_arguments() {
-		wp_set_current_user( $this->administrator );
+		wp_set_current_user( self::$administrator );
 		$request = new WP_REST_Request( 'POST', '/wp/v2/tags' );
 		$response = $this->server->dispatch( $request );
 		$this->assertErrorResponse( 'rest_missing_callback_param', $response, 400 );
 	}
 
 	public function test_create_item_parent_non_hierarchical_taxonomy() {
-		wp_set_current_user( $this->administrator );
+		wp_set_current_user( self::$administrator );
 
 		$request = new WP_REST_Request( 'POST', '/wp/v2/tags' );
 		$request->set_param( 'name', 'My Awesome Term' );
@@ -491,7 +497,7 @@ class WP_Test_REST_Tags_Controller extends WP_Test_REST_Controller_Testcase {
 	}
 
 	public function test_update_item() {
-		wp_set_current_user( $this->administrator );
+		wp_set_current_user( self::$administrator );
 		$orig_args = array(
 			'name'        => 'Original Name',
 			'description' => 'Original Description',
@@ -511,7 +517,7 @@ class WP_Test_REST_Tags_Controller extends WP_Test_REST_Controller_Testcase {
 	}
 
 	public function test_update_item_invalid_term() {
-		wp_set_current_user( $this->administrator );
+		wp_set_current_user( self::$administrator );
 		$request = new WP_REST_Request( 'POST', '/wp/v2/tags/' . REST_TESTS_IMPOSSIBLY_HIGH_NUMBER );
 		$request->set_param( 'name', 'Invalid Term' );
 		$response = $this->server->dispatch( $request );
@@ -519,7 +525,7 @@ class WP_Test_REST_Tags_Controller extends WP_Test_REST_Controller_Testcase {
 	}
 
 	public function test_update_item_incorrect_permissions() {
-		wp_set_current_user( $this->subscriber );
+		wp_set_current_user( self::$subscriber );
 		$term = get_term_by( 'id', $this->factory->tag->create(), 'post_tag' );
 		$request = new WP_REST_Request( 'POST', '/wp/v2/tags/' . $term->term_id );
 		$request->set_param( 'name', 'Incorrect permissions' );
@@ -527,8 +533,56 @@ class WP_Test_REST_Tags_Controller extends WP_Test_REST_Controller_Testcase {
 		$this->assertErrorResponse( 'rest_cannot_update', $response, 403 );
 	}
 
+	/**
+	 * @ticket 38505
+	 */
+	public function test_update_item_with_edit_term_cap_granted() {
+		wp_set_current_user( self::$subscriber );
+		$term = $this->factory->tag->create_and_get();
+		$request = new WP_REST_Request( 'POST', '/wp/v2/tags/' . $term->term_id );
+		$request->set_param( 'name', 'New Name' );
+
+		add_filter( 'map_meta_cap', array( $this, 'grant_edit_term' ), 10, 2 );
+		$response = $this->server->dispatch( $request );
+		remove_filter( 'user_has_cap', array( $this, 'grant_edit_term' ), 10, 2 );
+
+		$this->assertEquals( 200, $response->get_status() );
+		$data = $response->get_data();
+		$this->assertEquals( 'New Name', $data['name'] );
+	}
+
+	public function grant_edit_term( $caps, $cap ) {
+		if ( 'edit_term' === $cap ) {
+			$caps = array( 'read' );
+		}
+		return $caps;
+	}
+
+	/**
+	 * @ticket 38505
+	 */
+	public function test_update_item_with_edit_term_cap_revoked() {
+		wp_set_current_user( self::$administrator );
+		$term = $this->factory->tag->create_and_get();
+		$request = new WP_REST_Request( 'POST', '/wp/v2/tags/' . $term->term_id );
+		$request->set_param( 'name', 'New Name' );
+
+		add_filter( 'map_meta_cap', array( $this, 'revoke_edit_term' ), 10, 2 );
+		$response = $this->server->dispatch( $request );
+		remove_filter( 'user_has_cap', array( $this, 'revoke_edit_term' ), 10, 2 );
+
+		$this->assertErrorResponse( 'rest_cannot_update', $response, 403 );
+	}
+
+	public function revoke_edit_term( $caps, $cap ) {
+		if ( 'edit_term' === $cap ) {
+			$caps = array( 'do_not_allow' );
+		}
+		return $caps;
+	}
+
 	public function test_update_item_parent_non_hierarchical_taxonomy() {
-		wp_set_current_user( $this->administrator );
+		wp_set_current_user( self::$administrator );
 		$term = get_term_by( 'id', $this->factory->tag->create(), 'post_tag' );
 
 		$request = new WP_REST_Request( 'POST', '/wp/v2/tags/' . $term->term_id );
@@ -538,7 +592,7 @@ class WP_Test_REST_Tags_Controller extends WP_Test_REST_Controller_Testcase {
 	}
 
 	public function test_delete_item() {
-		wp_set_current_user( $this->administrator );
+		wp_set_current_user( self::$administrator );
 		$term = get_term_by( 'id', $this->factory->tag->create( array( 'name' => 'Deleted Tag' ) ), 'post_tag' );
 		$request = new WP_REST_Request( 'DELETE', '/wp/v2/tags/' . $term->term_id );
 		$request->set_param( 'force', true );
@@ -549,7 +603,7 @@ class WP_Test_REST_Tags_Controller extends WP_Test_REST_Controller_Testcase {
 	}
 
 	public function test_delete_item_force_false() {
-		wp_set_current_user( $this->administrator );
+		wp_set_current_user( self::$administrator );
 		$term = get_term_by( 'id', $this->factory->tag->create( array( 'name' => 'Deleted Tag' ) ), 'post_tag' );
 		$request = new WP_REST_Request( 'DELETE', '/wp/v2/tags/' . $term->term_id );
 		// force defaults to false
@@ -558,18 +612,66 @@ class WP_Test_REST_Tags_Controller extends WP_Test_REST_Controller_Testcase {
 	}
 
 	public function test_delete_item_invalid_term() {
-		wp_set_current_user( $this->administrator );
+		wp_set_current_user( self::$administrator );
 		$request = new WP_REST_Request( 'DELETE', '/wp/v2/tags/' . REST_TESTS_IMPOSSIBLY_HIGH_NUMBER );
 		$response = $this->server->dispatch( $request );
 		$this->assertErrorResponse( 'rest_term_invalid', $response, 404 );
 	}
 
 	public function test_delete_item_incorrect_permissions() {
-		wp_set_current_user( $this->subscriber );
+		wp_set_current_user( self::$subscriber );
 		$term = get_term_by( 'id', $this->factory->tag->create(), 'post_tag' );
 		$request = new WP_REST_Request( 'DELETE', '/wp/v2/tags/' . $term->term_id );
 		$response = $this->server->dispatch( $request );
 		$this->assertErrorResponse( 'rest_cannot_delete', $response, 403 );
+	}
+
+	/**
+	 * @ticket 38505
+	 */
+	public function test_delete_item_with_delete_term_cap_granted() {
+		wp_set_current_user( self::$subscriber );
+		$term = get_term_by( 'id', $this->factory->tag->create( array( 'name' => 'Deleted Tag' ) ), 'post_tag' );
+		$request = new WP_REST_Request( 'DELETE', '/wp/v2/tags/' . $term->term_id );
+		$request->set_param( 'force', true );
+
+		add_filter( 'map_meta_cap', array( $this, 'grant_delete_term' ), 10, 2 );
+		$response = $this->server->dispatch( $request );
+		remove_filter( 'map_meta_cap', array( $this, 'grant_delete_term' ), 10, 2 );
+
+		$this->assertEquals( 200, $response->get_status() );
+		$data = $response->get_data();
+		$this->assertEquals( 'Deleted Tag', $data['name'] );
+	}
+
+	public function grant_delete_term( $caps, $cap ) {
+		if ( 'delete_term' === $cap ) {
+			$caps = array( 'read' );
+		}
+		return $caps;
+	}
+
+	/**
+	 * @ticket 38505
+	 */
+	public function test_delete_item_with_delete_term_cap_revoked() {
+		wp_set_current_user( self::$administrator );
+		$term = get_term_by( 'id', $this->factory->tag->create( array( 'name' => 'Deleted Tag' ) ), 'post_tag' );
+		$request = new WP_REST_Request( 'DELETE', '/wp/v2/tags/' . $term->term_id );
+		$request->set_param( 'force', true );
+
+		add_filter( 'map_meta_cap', array( $this, 'revoke_delete_term' ), 10, 2 );
+		$response = $this->server->dispatch( $request );
+		remove_filter( 'map_meta_cap', array( $this, 'revoke_delete_term' ), 10, 2 );
+
+		$this->assertErrorResponse( 'rest_cannot_delete', $response, 403 );
+	}
+
+	public function revoke_delete_term( $caps, $cap ) {
+		if ( 'delete_term' === $cap ) {
+			$caps = array( 'do_not_allow' );
+		}
+		return $caps;
 	}
 
 	public function test_prepare_item() {
@@ -652,7 +754,7 @@ class WP_Test_REST_Tags_Controller extends WP_Test_REST_Controller_Testcase {
 			'update_callback' => array( $this, 'additional_field_update_callback' ),
 		) );
 
-		wp_set_current_user( $this->administrator );
+		wp_set_current_user( self::$administrator );
 		$tag_id = $this->factory->tag->create();
 		// Check for error on update.
 		$request = new WP_REST_Request( 'POST', sprintf( '/wp/v2/tags/%d', $tag_id ) );
@@ -666,6 +768,34 @@ class WP_Test_REST_Tags_Controller extends WP_Test_REST_Controller_Testcase {
 
 		global $wp_rest_additional_fields;
 		$wp_rest_additional_fields = array();
+	}
+
+	/**
+	 * @ticket 38504
+	 */
+	public function test_object_term_queries_are_cached() {
+		global $wpdb;
+
+		$tags = $this->factory->tag->create_many( 2 );
+		$p = $this->factory->post->create();
+		wp_set_object_terms( $p, $tags[0], 'post_tag' );
+
+		$request = new WP_REST_Request( 'GET', '/wp/v2/tags' );
+		$request->set_param( 'post', $p );
+		$response = $this->server->dispatch( $request );
+		$found_1 = wp_list_pluck( $response->data, 'id' );
+
+		unset( $request, $response );
+
+		$num_queries = $wpdb->num_queries;
+
+		$request = new WP_REST_Request( 'GET', '/wp/v2/tags' );
+		$request->set_param( 'post', $p );
+		$response = $this->server->dispatch( $request );
+		$found_2 = wp_list_pluck( $response->data, 'id' );
+
+		$this->assertEqualSets( $found_1, $found_2 );
+		$this->assertSame( $num_queries, $wpdb->num_queries );
 	}
 
 	public function additional_field_get_callback( $object, $request ) {

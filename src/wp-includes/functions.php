@@ -1213,6 +1213,18 @@ function bool_from_yn( $yn ) {
 function do_feed() {
 	global $wp_query;
 
+	// Determine if we are looking at the main comment feed
+	$is_main_comments_feed = ( $wp_query->is_comment_feed() && ! $wp_query->is_singular() );
+
+	/*
+	 * Check the queried object for the existence of posts if it is not a feed for an archive,
+	 * search result, or main comments. By checking for the absense of posts we can prevent rendering the feed
+	 * templates at invalid endpoints. e.g.) /wp-content/plugins/feed/
+	 */
+	if ( ! $wp_query->have_posts() && ! ( $wp_query->is_archive() || $wp_query->is_search() || $is_main_comments_feed ) ) {
+		wp_die( __( 'ERROR: This is not a valid feed.' ), '', array( 'response' => 404 ) );
+	}
+
 	$feed = get_query_var( 'feed' );
 
 	// Remove the pad, if present.
@@ -2868,9 +2880,10 @@ function _ajax_wp_die_handler( $message, $title = '', $args = array() ) {
 	);
 	$r = wp_parse_args( $args, $defaults );
 
-	if ( ! headers_sent() ) {
+	if ( ! headers_sent() && null !== $r['response'] ) {
 		status_header( $r['response'] );
 	}
+
 	if ( is_scalar( $message ) )
 		die( (string) $message );
 	die( '0' );
@@ -3099,10 +3112,14 @@ function wp_send_json( $response, $status_code = null ) {
 		status_header( $status_code );
 	}
 	echo wp_json_encode( $response );
-	if ( wp_doing_ajax() )
-		wp_die();
-	else
+
+	if ( wp_doing_ajax() ) {
+		wp_die( '', '', array(
+			'response' => null,
+		) );
+	} else {
 		die;
+	}
 }
 
 /**
@@ -3221,6 +3238,16 @@ function _config_wp_siteurl( $url = '' ) {
 	if ( defined( 'WP_SITEURL' ) )
 		return untrailingslashit( WP_SITEURL );
 	return $url;
+}
+
+/**
+ * Delete the fresh site option.
+ *
+ * @since 4.7.0
+ * @access private
+ */
+function _delete_option_fresh_site() {
+	update_option( 'fresh_site', 0 );
 }
 
 /**
@@ -3489,6 +3516,7 @@ function wp_is_numeric_array( $data ) {
  * Filters a list of objects, based on a set of key => value arguments.
  *
  * @since 3.0.0
+ * @since 4.7.0 Uses WP_List_Util class.
  *
  * @param array       $list     An array of objects to filter
  * @param array       $args     Optional. An array of key => value arguments to match
@@ -3502,21 +3530,26 @@ function wp_is_numeric_array( $data ) {
  * @return array A list of objects or object fields.
  */
 function wp_filter_object_list( $list, $args = array(), $operator = 'and', $field = false ) {
-	if ( ! is_array( $list ) )
+	if ( ! is_array( $list ) ) {
 		return array();
+	}
 
-	$list = wp_list_filter( $list, $args, $operator );
+	$util = new WP_List_Util( $list );
 
-	if ( $field )
-		$list = wp_list_pluck( $list, $field );
+	$util->filter( $args, $operator );
 
-	return $list;
+	if ( $field ) {
+		$util->pluck( $field );
+	}
+
+	return $util->get_output();
 }
 
 /**
  * Filters a list of objects, based on a set of key => value arguments.
  *
  * @since 3.1.0
+ * @since 4.7.0 Uses WP_List_Util class.
  *
  * @param array  $list     An array of objects to filter.
  * @param array  $args     Optional. An array of key => value arguments to match
@@ -3528,33 +3561,12 @@ function wp_filter_object_list( $list, $args = array(), $operator = 'and', $fiel
  * @return array Array of found values.
  */
 function wp_list_filter( $list, $args = array(), $operator = 'AND' ) {
-	if ( ! is_array( $list ) )
+	if ( ! is_array( $list ) ) {
 		return array();
-
-	if ( empty( $args ) )
-		return $list;
-
-	$operator = strtoupper( $operator );
-	$count = count( $args );
-	$filtered = array();
-
-	foreach ( $list as $key => $obj ) {
-		$to_match = (array) $obj;
-
-		$matched = 0;
-		foreach ( $args as $m_key => $m_value ) {
-			if ( array_key_exists( $m_key, $to_match ) && $m_value == $to_match[ $m_key ] )
-				$matched++;
-		}
-
-		if ( ( 'AND' == $operator && $matched == $count )
-		  || ( 'OR' == $operator && $matched > 0 )
-		  || ( 'NOT' == $operator && 0 == $matched ) ) {
-			$filtered[$key] = $obj;
-		}
 	}
 
-	return $filtered;
+	$util = new WP_List_Util( $list );
+	return $util->filter( $args, $operator );
 }
 
 /**
@@ -3565,6 +3577,7 @@ function wp_list_filter( $list, $args = array(), $operator = 'AND' ) {
  *
  * @since 3.1.0
  * @since 4.0.0 $index_key parameter added.
+ * @since 4.7.0 Uses WP_List_Util class.
  *
  * @param array      $list      List of objects or arrays
  * @param int|string $field     Field from the object to place instead of the entire object
@@ -3575,43 +3588,30 @@ function wp_list_filter( $list, $args = array(), $operator = 'AND' ) {
  *               `$list` will be preserved in the results.
  */
 function wp_list_pluck( $list, $field, $index_key = null ) {
-	if ( ! $index_key ) {
-		/*
-		 * This is simple. Could at some point wrap array_column()
-		 * if we knew we had an array of arrays.
-		 */
-		foreach ( $list as $key => $value ) {
-			if ( is_object( $value ) ) {
-				$list[ $key ] = $value->$field;
-			} else {
-				$list[ $key ] = $value[ $field ];
-			}
-		}
-		return $list;
+	$util = new WP_List_Util( $list );
+	return $util->pluck( $field, $index_key );
+}
+
+/**
+ * Sorts a list of objects, based on one or more orderby arguments.
+ *
+ * @since 4.7.0
+ *
+ * @param array        $list          An array of objects to filter.
+ * @param string|array $orderby       Optional. Either the field name to order by or an array
+ *                                    of multiple orderby fields as $orderby => $order.
+ * @param string       $order         Optional. Either 'ASC' or 'DESC'. Only used if $orderby
+ *                                    is a string.
+ * @param bool         $preserve_keys Optional. Whether to preserve keys. Default false.
+ * @return array The sorted array.
+ */
+function wp_list_sort( $list, $orderby = array(), $order = 'ASC', $preserve_keys = false ) {
+	if ( ! is_array( $list ) ) {
+		return array();
 	}
 
-	/*
-	 * When index_key is not set for a particular item, push the value
-	 * to the end of the stack. This is how array_column() behaves.
-	 */
-	$newlist = array();
-	foreach ( $list as $value ) {
-		if ( is_object( $value ) ) {
-			if ( isset( $value->$index_key ) ) {
-				$newlist[ $value->$index_key ] = $value->$field;
-			} else {
-				$newlist[] = $value->$field;
-			}
-		} else {
-			if ( isset( $value[ $index_key ] ) ) {
-				$newlist[ $value[ $index_key ] ] = $value[ $field ];
-			} else {
-				$newlist[] = $value[ $field ];
-			}
-		}
-	}
-
-	return $newlist;
+	$util = new WP_List_Util( $list );
+	return $util->sort( $orderby, $order, $preserve_keys );
 }
 
 /**
@@ -4501,21 +4501,25 @@ function _wp_timezone_choice_usort_callback( $a, $b ) {
  * Gives a nicely-formatted list of timezone strings.
  *
  * @since 2.9.0
+ * @since 4.7.0 Added the `$locale` parameter.
  *
  * @staticvar bool $mo_loaded
+ * @staticvar string $locale_loaded
  *
  * @param string $selected_zone Selected timezone.
+ * @param string $locale        Optional. Locale to load the timezones in. Default current site locale.
  * @return string
  */
-function wp_timezone_choice( $selected_zone ) {
-	static $mo_loaded = false;
+function wp_timezone_choice( $selected_zone, $locale = null ) {
+	static $mo_loaded = false, $locale_loaded = null;
 
 	$continents = array( 'Africa', 'America', 'Antarctica', 'Arctic', 'Asia', 'Atlantic', 'Australia', 'Europe', 'Indian', 'Pacific');
 
-	// Load translations for continents and cities
-	if ( !$mo_loaded ) {
-		$locale = get_locale();
-		$mofile = WP_LANG_DIR . '/continents-cities-' . $locale . '.mo';
+	// Load translations for continents and cities.
+	if ( ! $mo_loaded || $locale !== $locale_loaded ) {
+		$locale_loaded = $locale ? $locale : get_locale();
+		$mofile = WP_LANG_DIR . '/continents-cities-' . $locale_loaded . '.mo';
+		unload_textdomain( 'continents-cities' );
 		load_textdomain( 'continents-cities', $mofile );
 		$mo_loaded = true;
 	}

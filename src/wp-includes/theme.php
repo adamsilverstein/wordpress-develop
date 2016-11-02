@@ -1264,6 +1264,7 @@ function get_custom_header() {
 		'thumbnail_url' => '',
 		'width'         => get_theme_support( 'custom-header', 'width' ),
 		'height'        => get_theme_support( 'custom-header', 'height' ),
+		'video'         => get_theme_support( 'custom-header', 'video' ),
 	);
 	return (object) wp_parse_args( $data, $default );
 }
@@ -1307,6 +1308,138 @@ function unregister_default_headers( $header ) {
 		return true;
 	} else {
 		return false;
+	}
+}
+
+/**
+ * Check whether a header video is set or not.
+ *
+ * @since 4.7.0
+ *
+ * @see get_header_video_url()
+ *
+ * @return bool Whether a header video is set or not.
+ */
+function has_header_video() {
+	return (bool) get_header_video_url();
+}
+
+/* Retrieve header video URL for custom header.
+ *
+ * Uses a local video if present, or falls back to an external video. Returns false if there is no video.
+ *
+ * @since 4.7.0
+ *
+ * @return string|false
+ */
+function get_header_video_url() {
+	$id = absint( get_theme_mod( 'header_video' ) );
+	$url = esc_url( get_theme_mod( 'external_header_video' ) );
+
+	if ( ! $id && ! $url ) {
+		return false;
+	}
+
+	if ( $id ) {
+		// Get the file URL from the attachment ID.
+		$url = wp_get_attachment_url( $id );
+	}
+
+	return esc_url_raw( set_url_scheme( $url ) );
+}
+
+/**
+ * Display header video URL.
+ *
+ * @since 4.7.0
+ */
+function the_header_video_url() {
+	$video = get_header_video_url();
+	if ( $video ) {
+		echo esc_url( $video );
+	}
+}
+
+/**
+ * Retrieve header video settings.
+ *
+ * @since 4.7.0
+ *
+ * @return array
+ */
+function get_header_video_settings() {
+	$header     = get_custom_header();
+	$video_url  = get_header_video_url();
+	$video_type = wp_check_filetype( $video_url, wp_get_mime_types() );
+
+	$settings = array(
+		'mimeType'  => '',
+		'posterUrl' => get_header_image(),
+		'videoUrl'  => $video_url,
+		'width'     => absint( $header->width ),
+		'height'    => absint( $header->height ),
+		'minWidth'  => 900,
+		'minHeight' => 500,
+	);
+
+	if ( preg_match( '#^https?://(?:www\.)?(?:youtube\.com/watch|youtu\.be/)#', $video_url ) ) {
+		$settings['mimeType'] = 'video/x-youtube';
+	} elseif ( preg_match( '#^https?://(.+\.)?vimeo\.com/.*#', $video_url ) ) {
+		$settings['mimeType'] = 'video/x-vimeo';
+	} elseif ( ! empty( $video_type['type'] ) ) {
+		$settings['mimeType'] = $video_type['type'];
+	}
+
+	return apply_filters( 'header_video_settings', $settings );
+}
+
+/**
+ * Check whether a custom header is set or not.
+ *
+ * @since 4.7.0
+ *
+ * @return bool True if a custom header is set. False if not.
+ */
+function has_custom_header() {
+	if ( has_header_image() || ( is_front_page() && has_header_video() ) ) {
+		return true;
+	}
+
+	return false;
+}
+
+/**
+ * Retrieve the markup for a custom header.
+ *
+ * @since 4.7.0
+ *
+ * @return string|false The markup for a custom header on success. False if not.
+ */
+function get_custom_header_markup() {
+	if ( ! has_custom_header() ) {
+		return false;
+	}
+
+	return sprintf(
+		'<div id="wp-custom-header" class="wp-custom-header">%s</div>',
+		get_header_image_tag()
+	);
+}
+
+/**
+ * Print the markup for a custom header.
+ *
+ * @since 4.7.0
+ */
+function the_custom_header_markup() {
+	if ( ! $custom_header = get_custom_header_markup() ) {
+		return;
+	}
+	echo $custom_header;
+
+	if ( has_header_video() && is_front_page() ) {
+		wp_enqueue_script( 'wp-custom-header' );
+		wp_localize_script( 'wp-custom-header', '_wpCustomHeaderSettings', get_header_video_settings() );
 	}
 }
 
@@ -1374,24 +1507,50 @@ function _custom_background_cb() {
 	$style = $color ? "background-color: #$color;" : '';
 
 	if ( $background ) {
-		$image = " background-image: url('$background');";
+		$image = " background-image: url(" . wp_json_encode( $background ) . ");";
 
+		// Background Position.
+		$position_x = get_theme_mod( 'background_position_x', get_theme_support( 'custom-background', 'default-position-x' ) );
+		$position_y = get_theme_mod( 'background_position_y', get_theme_support( 'custom-background', 'default-position-y' ) );
+
+		if ( ! in_array( $position_x, array( 'left', 'center', 'right' ), true ) ) {
+			$position_x = 'left';
+		}
+
+		if ( ! in_array( $position_y, array( 'top', 'center', 'bottom' ), true ) ) {
+			$position_y = 'top';
+		}
+
+		$position = " background-position: $position_x $position_y;";
+
+		// Background Size.
+		$size = get_theme_mod( 'background_size', get_theme_support( 'custom-background', 'default-size' ) );
+
+		if ( ! in_array( $size, array( 'auto', 'contain', 'cover' ), true ) ) {
+			$size = 'auto';
+		}
+
+		$size = " background-size: $size;";
+
+		// Background Repeat.
 		$repeat = get_theme_mod( 'background_repeat', get_theme_support( 'custom-background', 'default-repeat' ) );
-		if ( ! in_array( $repeat, array( 'no-repeat', 'repeat-x', 'repeat-y', 'repeat' ) ) )
+
+		if ( ! in_array( $repeat, array( 'repeat-x', 'repeat-y', 'repeat', 'no-repeat' ), true ) ) {
 			$repeat = 'repeat';
+		}
+
 		$repeat = " background-repeat: $repeat;";
 
-		$position = get_theme_mod( 'background_position_x', get_theme_support( 'custom-background', 'default-position-x' ) );
-		if ( ! in_array( $position, array( 'center', 'right', 'left' ) ) )
-			$position = 'left';
-		$position = " background-position: top $position;";
-
+		// Background Scroll.
 		$attachment = get_theme_mod( 'background_attachment', get_theme_support( 'custom-background', 'default-attachment' ) );
-		if ( ! in_array( $attachment, array( 'fixed', 'scroll' ) ) )
+
+		if ( 'fixed' !== $attachment ) {
 			$attachment = 'scroll';
+		}
+
 		$attachment = " background-attachment: $attachment;";
 
-		$style .= $image . $repeat . $position . $attachment;
+		$style .= $image . $position . $size . $repeat . $attachment;
 	}
 ?>
 <style type="text/css" id="custom-background-css">
@@ -1597,6 +1756,175 @@ function get_editor_stylesheets() {
 }
 
 /**
+ * Expand a theme's starter content configuration using core-provided data.
+ *
+ * @since 4.7.0
+ *
+ * @return array Array of starter content.
+ */
+function get_theme_starter_content() {
+	$theme_support = get_theme_support( 'starter-content' );
+	if ( ! empty( $theme_support ) ) {
+		$config = $theme_support[0];
+	} else {
+		$config = array();
+	}
+
+	$core_content = array (
+		'widgets' => array(
+			'text_business_info' => array ( 'text', array (
+				'title' => __( 'Find Us' ),
+				'text' => join( '', array (
+					'<p><strong>' . __( 'Address' ) . '</strong><br />',
+					__( '123 Main Street' ) . '<br />' . __( 'New York, NY 10001' ) . '</p>',
+					'<p><strong>' . __( 'Hours' ) . '</strong><br />',
+					__( 'Monday&mdash;Friday: 9:00AM&ndash;5:00PM' ) . '<br />' . __( 'Saturday &amp; Sunday: 11:00AM&ndash;3:00PM' ) . '</p>'
+				) ),
+			) ),
+			'search' => array ( 'search', array (
+				'title' => __( 'Site Search' ),
+			) ),
+			'text_credits' => array ( 'text', array (
+				'title' => __( 'Site Credits' ),
+				'text' => sprintf( __( 'This site was created on %s' ), get_date_from_gmt( current_time( 'mysql', 1 ), 'c' ) ),
+			) ),
+		),
+		'nav_menus' => array (
+			'page_home' => array(
+				'type' => 'post_type',
+				'object' => 'page',
+				'object_id' => '{{home}}',
+			),
+			'page_about' => array(
+				'type' => 'post_type',
+				'object' => 'page',
+				'object_id' => '{{about-us}}',
+			),
+			'page_blog' => array(
+				'type' => 'post_type',
+				'object' => 'page',
+				'object_id' => '{{blog}}',
+			),
+			'page_contact' => array(
+				'type' => 'post_type',
+				'object' => 'page',
+				'object_id' => '{{contact-us}}',
+			),
+
+			'link_yelp' => array(
+				'title' => __( 'Yelp' ),
+				'url' => 'https://www.yelp.com',
+			),
+			'link_facebook' => array(
+				'title' => __( 'Facebook' ),
+				'url' => 'https://www.facebook.com/wordpress',
+			),
+			'link_twitter' => array(
+				'title' => __( 'Twitter' ),
+				'url' => 'https://twitter.com/wordpress',
+			),
+			'link_instagram' => array(
+				'title' => __( 'Instagram' ),
+				'url' => 'https://www.instagram.com/explore/tags/wordcamp/',
+			),
+			'link_email' => array(
+				'title' => __( 'Email' ),
+				'url' => 'mailto:wordpress@example.com',
+			),
+		),
+		'posts' => array(
+			'home' => array(
+				'post_type' => 'page',
+				'post_title' => __( 'Homepage' ),
+				'post_content' => __( 'Welcome home.' ),
+			),
+			'about-us' => array(
+				'post_type' => 'page',
+				'post_title' => __( 'About Us' ),
+				'post_content' => __( 'More than you ever wanted to know.' ),
+			),
+			'contact-us' => array(
+				'post_type' => 'page',
+				'post_title' => __( 'Contact Us' ),
+				'post_content' => __( 'Call us at 999-999-9999.' ),
+			),
+			'blog' => array(
+				'post_type' => 'page',
+				'post_title' => __( 'Blog' ),
+			),
+
+			'homepage-section' => array(
+				'post_type' => 'page',
+				'post_title' => __( 'A homepage section' ),
+				'post_content' => __( 'This is an example of a homepage section, which are managed in theme options.' ),
+			),
+		),
+	);
+
+	$content = array();
+
+	foreach ( $config as $type => $args ) {
+		switch( $type ) {
+			// Use options and theme_mods as-is
+			case 'options' :
+			case 'theme_mods' :
+				$content[ $type ] = $config[ $type ];
+				break;
+
+			// Widgets are an extra level down due to groupings
+			case 'widgets' :
+				foreach ( $config[ $type ] as $group => $items ) {
+					foreach ( $items as $id ) {
+						if ( ! empty( $core_content[ $type ] ) && ! empty( $core_content[ $type ][ $id ] ) ) {
+							$content[ $type ][ $group ][ $id ] = $core_content[ $type ][ $id ];
+						}
+					}
+				}
+				break;
+
+			// And nav menus are yet another level down
+			case 'nav_menus' :
+				foreach ( $config[ $type ] as $group => $args2 ) {
+					// Menu groups need a name
+					if ( empty( $args['name'] ) ) {
+						$args2['name'] = $group;
+					}
+
+					$content[ $type ][ $group ]['name'] = $args2['name'];
+
+					// Do we need to check if this is empty?
+					foreach ( $args2['items'] as $id ) {
+						if ( ! empty( $core_content[ $type ] ) && ! empty( $core_content[ $type ][ $id ] ) ) {
+							$content[ $type ][ $group ]['items'][ $id ] = $core_content[ $type ][ $id ];
+						}
+					}
+				}
+				break;
+
+
+			// Everything else should map at the next level
+			default :
+				foreach( $config[ $type ] as $id ) {
+					if ( ! empty( $core_content[ $type ] ) && ! empty( $core_content[ $type ][ $id ] ) ) {
+						$content[ $type ][ $id ] = $core_content[ $type ][ $id ];
+					}
+				}
+				break;
+		}
+	}
+
+	/**
+	 * Filters the expanded array of starter content.
+	 *
+	 * @since 4.7.0
+	 *
+	 * @param array $content Array of starter content.
+	 * @param array $config  Array of theme-specific starter content configuration.
+	 */
+	return apply_filters( 'get_theme_starter_content', $content, $config );
+}
+
+/**
  * Registers theme support for a given feature.
  *
  * Must be called in the theme's functions.php file to work.
@@ -1608,12 +1936,13 @@ function get_editor_stylesheets() {
  * @since 3.9.0 The `html5` feature now also accepts 'gallery' and 'caption'
  * @since 4.1.0 The `title-tag` feature was added
  * @since 4.5.0 The `customize-selective-refresh-widgets` feature was added
+ * @since 4.7.0 The `starter-content` feature was added
  *
  * @global array $_wp_theme_features
  *
  * @param string $feature  The feature being added. Likely core values include 'post-formats',
  *                         'post-thumbnails', 'html5', 'custom-logo', 'custom-header-uploads',
- *                         'custom-header', 'custom-background', 'title-tag', etc.
+ *                         'custom-header', 'custom-background', 'title-tag', 'starter-content', etc.
  * @param mixed  $args,... Optional extra arguments to pass along with certain features.
  * @return void|bool False on failure, void otherwise.
  */
@@ -1706,6 +2035,7 @@ function add_theme_support( $feature ) {
 				'wp-head-callback' => '',
 				'admin-head-callback' => '',
 				'admin-preview-callback' => '',
+				'video' => false,
 			);
 
 			$jit = isset( $args[0]['__jit'] );
@@ -1772,8 +2102,11 @@ function add_theme_support( $feature ) {
 
 			$defaults = array(
 				'default-image'          => '',
-				'default-repeat'         => 'repeat',
+				'default-preset'         => 'default',
 				'default-position-x'     => 'left',
+				'default-position-y'     => 'top',
+				'default-size'           => 'auto',
+				'default-repeat'         => 'repeat',
 				'default-attachment'     => 'scroll',
 				'default-color'          => '',
 				'wp-head-callback'       => '_custom_background_cb',
@@ -2041,7 +2374,8 @@ function current_theme_supports( $feature ) {
 	 *
 	 * The dynamic portion of the hook name, `$feature`, refers to the specific theme
 	 * feature. Possible values include 'post-formats', 'post-thumbnails', 'custom-background',
-	 * 'custom-header', 'menus', 'automatic-feed-links', 'html5', and `customize-selective-refresh-widgets`.
+	 * 'custom-header', 'menus', 'automatic-feed-links', 'html5',
+	 * 'starter-content', and 'customize-selective-refresh-widgets'.
 	 *
 	 * @since 3.4.0
 	 *

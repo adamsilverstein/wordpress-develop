@@ -1,18 +1,36 @@
 <?php
+/**
+ * REST API: WP_REST_Users_Controller class
+ *
+ * @package WordPress
+ * @subpackage REST_API
+ * @since 4.7.0
+ */
 
 /**
- * Access users
+ * Core class used to manage users via the REST API.
+ *
+ * @since 4.7.0
+ *
+ * @see WP_REST_Controller
  */
 class WP_REST_Users_Controller extends WP_REST_Controller {
 
 	/**
 	 * Instance of a user meta fields object.
 	 *
+	 * @since 4.7.0
 	 * @access protected
 	 * @var WP_REST_User_Meta_Fields
 	 */
 	protected $meta;
 
+	/**
+	 * Constructor.
+	 *
+	 * @since 4.7.0
+	 * @access public
+	 */
 	public function __construct() {
 		$this->namespace = 'wp/v2';
 		$this->rest_base = 'users';
@@ -21,45 +39,51 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 	}
 
 	/**
-	 * Register the routes for the objects of the controller.
+	 * Registers the routes for the objects of the controller.
+	 *
+	 * @since 4.7.0
+	 * @access public
+	 *
+	 * @see register_rest_route()
 	 */
 	public function register_routes() {
 
 		register_rest_route( $this->namespace, '/' . $this->rest_base, array(
 			array(
-				'methods'         => WP_REST_Server::READABLE,
-				'callback'        => array( $this, 'get_items' ),
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'get_items' ),
 				'permission_callback' => array( $this, 'get_items_permissions_check' ),
-				'args'            => $this->get_collection_params(),
+				'args'                => $this->get_collection_params(),
 			),
 			array(
-				'methods'         => WP_REST_Server::CREATABLE,
-				'callback'        => array( $this, 'create_item' ),
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'create_item' ),
 				'permission_callback' => array( $this, 'create_item_permissions_check' ),
-				'args'            => $this->get_endpoint_args_for_item_schema( WP_REST_Server::CREATABLE ),
+				'args'                => $this->get_endpoint_args_for_item_schema( WP_REST_Server::CREATABLE ),
 			),
 			'schema' => array( $this, 'get_public_item_schema' ),
 		) );
+
 		register_rest_route( $this->namespace, '/' . $this->rest_base . '/(?P<id>[\d]+)', array(
 			array(
-				'methods'         => WP_REST_Server::READABLE,
-				'callback'        => array( $this, 'get_item' ),
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'get_item' ),
 				'permission_callback' => array( $this, 'get_item_permissions_check' ),
-				'args'            => array(
-					'context'          => $this->get_context_param( array( 'default' => 'view' ) ),
+				'args'                => array(
+					'context' => $this->get_context_param( array( 'default' => 'view' ) ),
 				),
 			),
 			array(
-				'methods'         => WP_REST_Server::EDITABLE,
-				'callback'        => array( $this, 'update_item' ),
+				'methods'             => WP_REST_Server::EDITABLE,
+				'callback'            => array( $this, 'update_item' ),
 				'permission_callback' => array( $this, 'update_item_permissions_check' ),
-				'args'            => $this->get_endpoint_args_for_item_schema( WP_REST_Server::EDITABLE ),
+				'args'                => $this->get_endpoint_args_for_item_schema( WP_REST_Server::EDITABLE ),
 			),
 			array(
-				'methods' => WP_REST_Server::DELETABLE,
-				'callback' => array( $this, 'delete_item' ),
+				'methods'             => WP_REST_Server::DELETABLE,
+				'callback'            => array( $this, 'delete_item' ),
 				'permission_callback' => array( $this, 'delete_item_permissions_check' ),
-				'args' => array(
+				'args'                => array(
 					'force'    => array(
 						'default'     => false,
 						'description' => __( 'Required to be true, as resource does not support trashing.' ),
@@ -71,10 +95,30 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 		) );
 
 		register_rest_route( $this->namespace, '/' . $this->rest_base . '/me', array(
-			'methods'         => WP_REST_Server::READABLE,
-			'callback'        => array( $this, 'get_current_item' ),
-			'args'            => array(
-				'context'          => array(),
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'get_current_item' ),
+				'args'                => array(
+					'context'          => array(),
+				),
+			),
+			array(
+				'methods'             => WP_REST_Server::EDITABLE,
+				'callback'            => array( $this, 'update_current_item' ),
+				'permission_callback' => array( $this, 'update_current_item_permissions_check' ),
+				'args'                => $this->get_endpoint_args_for_item_schema( WP_REST_Server::EDITABLE ),
+			),
+			array(
+				'methods'             => WP_REST_Server::DELETABLE,
+				'callback'            => array( $this, 'delete_current_item' ),
+				'permission_callback' => array( $this, 'delete_current_item_permissions_check' ),
+				'args'                => array(
+					'force'    => array(
+						'default'     => false,
+						'description' => __( 'Required to be true, as resource does not support trashing.' ),
+					),
+					'reassign' => array(),
+				),
 			),
 			'schema' => array( $this, 'get_public_item_schema' ),
 		));
@@ -83,8 +127,11 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 	/**
 	 * Permissions check for getting all users.
 	 *
+	 * @since 4.7.0
+	 * @access public
+	 *
 	 * @param WP_REST_Request $request Full details about the request.
-	 * @return WP_Error|boolean
+	 * @return true|WP_Error True if the request has read access, otherwise WP_Error object.
 	 */
 	public function get_items_permissions_check( $request ) {
 		// Check if roles is specified in GET request and if user can list users.
@@ -104,20 +151,25 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 	}
 
 	/**
-	 * Get all users
+	 * Retrieves all users.
+	 *
+	 * @since 4.7.0
+	 * @access public
 	 *
 	 * @param WP_REST_Request $request Full details about the request.
-	 * @return WP_Error|WP_REST_Response
+	 * @return WP_REST_Response|WP_Error Response object on success, or WP_Error object on failure.
 	 */
 	public function get_items( $request ) {
 
 		// Retrieve the list of registered collection query parameters.
 		$registered = $this->get_collection_params();
 
-		// This array defines mappings between public API query parameters whose
-		// values are accepted as-passed, and their internal WP_Query parameter
-		// name equivalents (some are the same). Only values which are also
-		// present in $registered will be set.
+		/*
+		 * This array defines mappings between public API query parameters whose
+		 * values are accepted as-passed, and their internal WP_Query parameter
+		 * name equivalents (some are the same). Only values which are also
+		 * present in $registered will be set.
+		 */
 		$parameter_mappings = array(
 			'exclude'  => 'exclude',
 			'include'  => 'include',
@@ -129,8 +181,10 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 
 		$prepared_args = array();
 
-		// For each known parameter which is both registered and present in the request,
-		// set the parameter's value on the query $prepared_args.
+		/*
+		 * For each known parameter which is both registered and present in the request,
+		 * set the parameter's value on the query $prepared_args.
+		 */
 		foreach ( $parameter_mappings as $api_param => $wp_param ) {
 			if ( isset( $registered[ $api_param ], $request[ $api_param ] ) ) {
 				$prepared_args[ $wp_param ] = $request[ $api_param ];
@@ -170,9 +224,11 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 		}
 
 		/**
-		 * Filter arguments, before passing to WP_User_Query, when querying users via the REST API.
+		 * Filters WP_User_Query arguments when querying users via the REST API.
 		 *
-		 * @see https://developer.wordpress.org/reference/classes/wp_user_query/
+		 * @link https://developer.wordpress.org/reference/classes/wp_user_query/
+		 *
+		 * @since 4.7.0
 		 *
 		 * @param array           $prepared_args Array of arguments for WP_User_Query.
 		 * @param WP_REST_Request $request       The current request.
@@ -182,6 +238,7 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 		$query = new WP_User_Query( $prepared_args );
 
 		$users = array();
+
 		foreach ( $query->results as $user ) {
 			$data = $this->prepare_item_for_response( $user, $request );
 			$users[] = $this->prepare_response_for_collection( $data );
@@ -191,33 +248,40 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 
 		// Store pagination values for headers then unset for count query.
 		$per_page = (int) $prepared_args['number'];
-		$page = ceil( ( ( (int) $prepared_args['offset'] ) / $per_page ) + 1 );
+		$page     = ceil( ( ( (int) $prepared_args['offset'] ) / $per_page ) + 1 );
 
 		$prepared_args['fields'] = 'ID';
 
 		$total_users = $query->get_total();
+
 		if ( $total_users < 1 ) {
-			// Out-of-bounds, run the query again without LIMIT for total count
+			// Out-of-bounds, run the query again without LIMIT for total count.
 			unset( $prepared_args['number'], $prepared_args['offset'] );
 			$count_query = new WP_User_Query( $prepared_args );
 			$total_users = $count_query->get_total();
 		}
+
 		$response->header( 'X-WP-Total', (int) $total_users );
+
 		$max_pages = ceil( $total_users / $per_page );
+
 		$response->header( 'X-WP-TotalPages', (int) $max_pages );
 
 		$base = add_query_arg( $request->get_query_params(), rest_url( sprintf( '%s/%s', $this->namespace, $this->rest_base ) ) );
 		if ( $page > 1 ) {
 			$prev_page = $page - 1;
+
 			if ( $prev_page > $max_pages ) {
 				$prev_page = $max_pages;
 			}
+
 			$prev_link = add_query_arg( 'page', $prev_page, $base );
 			$response->link_header( 'prev', $prev_link );
 		}
 		if ( $max_pages > $page ) {
 			$next_page = $page + 1;
 			$next_link = add_query_arg( 'page', $next_page, $base );
+
 			$response->link_header( 'next', $next_link );
 		}
 
@@ -225,10 +289,13 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 	}
 
 	/**
-	 * Check if a given request has access to read a user
+	 * Checks if a given request has access to read a user.
 	 *
-	 * @param  WP_REST_Request $request Full details about the request.
-	 * @return WP_Error|boolean
+	 * @since 4.7.0
+	 * @access public
+	 *
+	 * @param WP_REST_Request $request Full details about the request.
+	 * @return true|WP_Error True if the request has read access for the item, otherwise WP_Error object.
 	 */
 	public function get_item_permissions_check( $request ) {
 
@@ -254,13 +321,16 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 	}
 
 	/**
-	 * Get a single user
+	 * Retrieves a single user.
+	 *
+	 * @since 4.7.0
+	 * @access public
 	 *
 	 * @param WP_REST_Request $request Full details about the request.
-	 * @return WP_Error|WP_REST_Response
+	 * @return WP_REST_Response|WP_Error Response object on success, or WP_Error object on failure.
 	 */
 	public function get_item( $request ) {
-		$id = (int) $request['id'];
+		$id   = (int) $request['id'];
 		$user = get_userdata( $id );
 
 		if ( empty( $id ) || empty( $user->ID ) ) {
@@ -274,31 +344,37 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 	}
 
 	/**
-	 * Get the current user
+	 * Retrieves the current user.
+	 *
+	 * @since 4.7.0
+	 * @access public
 	 *
 	 * @param WP_REST_Request $request Full details about the request.
-	 * @return WP_Error|WP_REST_Response
+	 * @return WP_REST_Response|WP_Error Response object on success, or WP_Error object on failure.
 	 */
 	public function get_current_item( $request ) {
 		$current_user_id = get_current_user_id();
+
 		if ( empty( $current_user_id ) ) {
 			return new WP_Error( 'rest_not_logged_in', __( 'You are not currently logged in.' ), array( 'status' => 401 ) );
 		}
 
-		$user = wp_get_current_user();
+		$user     = wp_get_current_user();
 		$response = $this->prepare_item_for_response( $user, $request );
 		$response = rest_ensure_response( $response );
-		$response->header( 'Location', rest_url( sprintf( '%s/%s/%d', $this->namespace, $this->rest_base, $current_user_id ) ) );
-		$response->set_status( 302 );
+
 
 		return $response;
 	}
 
 	/**
-	 * Check if a given request has access create users
+	 * Checks if a given request has access create users.
 	 *
-	 * @param  WP_REST_Request $request Full details about the request.
-	 * @return WP_Error|boolean
+	 * @since 4.7.0
+	 * @access public
+	 *
+	 * @param WP_REST_Request $request Full details about the request.
+	 * @return true|WP_Error True if the request has access to create items, WP_Error object otherwise.
 	 */
 	public function create_item_permissions_check( $request ) {
 
@@ -310,10 +386,13 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 	}
 
 	/**
-	 * Create a single user
+	 * Creates a single user.
+	 *
+	 * @since 4.7.0
+	 * @access public
 	 *
 	 * @param WP_REST_Request $request Full details about the request.
-	 * @return WP_Error|WP_REST_Response
+	 * @return WP_REST_Response|WP_Error Response object on success, or WP_Error object on failure.
 	 */
 	public function create_item( $request ) {
 		if ( ! empty( $request['id'] ) ) {
@@ -324,6 +403,7 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 
 		if ( ! empty( $request['roles'] ) && ! empty( $schema['properties']['roles'] ) ) {
 			$check_permission = $this->check_role_update( $request['id'], $request['roles'] );
+
 			if ( is_wp_error( $check_permission ) ) {
 				return $check_permission;
 			}
@@ -333,6 +413,7 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 
 		if ( is_multisite() ) {
 			$ret = wpmu_validate_user_signup( $user->user_login, $user->user_email );
+
 			if ( is_wp_error( $ret['errors'] ) && ! empty( $ret['errors']->errors ) ) {
 				return $ret['errors'];
 			}
@@ -340,50 +421,61 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 
 		if ( is_multisite() ) {
 			$user_id = wpmu_create_user( $user->user_login, $user->user_pass, $user->user_email );
+
 			if ( ! $user_id ) {
 				return new WP_Error( 'rest_user_create', __( 'Error creating new resource.' ), array( 'status' => 500 ) );
 			}
+
 			$user->ID = $user_id;
-			$user_id = wp_update_user( $user );
+			$user_id  = wp_update_user( $user );
+
 			if ( is_wp_error( $user_id ) ) {
 				return $user_id;
 			}
 		} else {
 			$user_id = wp_insert_user( $user );
+
 			if ( is_wp_error( $user_id ) ) {
 				return $user_id;
 			}
 		}
 
 		$user = get_user_by( 'id', $user_id );
+
 		if ( ! empty( $request['roles'] ) && ! empty( $schema['properties']['roles'] ) ) {
 			array_map( array( $user, 'add_role' ), $request['roles'] );
 		}
 
 		if ( ! empty( $schema['properties']['meta'] ) && isset( $request['meta'] ) ) {
 			$meta_update = $this->meta->update_value( $request['meta'], $user_id );
+
 			if ( is_wp_error( $meta_update ) ) {
 				return $meta_update;
 			}
 		}
 
 		$fields_update = $this->update_additional_fields_for_object( $user, $request );
+
 		if ( is_wp_error( $fields_update ) ) {
 			return $fields_update;
 		}
 
 		/**
-		 * Fires after a user is created or updated via the REST API.
+		 * Fires immediately after a user is created or updated via the REST API.
 		 *
-		 * @param WP_User         $user      Data used to create the user.
-		 * @param WP_REST_Request $request   Request object.
-		 * @param boolean         $creating  True when creating user, false when updating user.
+		 * @since 4.7.0
+		 *
+		 * @param WP_User         $user     Data used to create the user.
+		 * @param WP_REST_Request $request  Request object.
+		 * @param bool            $creating True when creating user, false when updating user.
 		 */
 		do_action( 'rest_insert_user', $user, $request, true );
 
 		$request->set_param( 'context', 'edit' );
+
 		$response = $this->prepare_item_for_response( $user, $request );
 		$response = rest_ensure_response( $response );
+
 		$response->set_status( 201 );
 		$response->header( 'Location', rest_url( sprintf( '%s/%s/%d', $this->namespace, $this->rest_base, $user_id ) ) );
 
@@ -391,10 +483,13 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 	}
 
 	/**
-	 * Check if a given request has access update a user
+	 * Checks if a given request has access to update a user.
 	 *
-	 * @param  WP_REST_Request $request Full details about the request.
-	 * @return WP_Error|boolean
+	 * @since 4.7.0
+	 * @access public
+	 *
+	 * @param WP_REST_Request $request Full details about the request.
+	 * @return true|WP_Error True if the request has access to update the item, WP_Error object otherwise.
 	 */
 	public function update_item_permissions_check( $request ) {
 
@@ -412,15 +507,18 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 	}
 
 	/**
-	 * Update a single user
+	 * Updates a single user.
+	 *
+	 * @since 4.7.0
+	 * @access public
 	 *
 	 * @param WP_REST_Request $request Full details about the request.
-	 * @return WP_Error|WP_REST_Response
+	 * @return WP_REST_Response|WP_Error Response object on success, or WP_Error object on failure.
 	 */
 	public function update_item( $request ) {
-		$id = (int) $request['id'];
-
+		$id   = (int) $request['id'];
 		$user = get_userdata( $id );
+
 		if ( ! $user ) {
 			return new WP_Error( 'rest_user_invalid_id', __( 'Invalid resource id.' ), array( 'status' => 404 ) );
 		}
@@ -439,6 +537,7 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 
 		if ( ! empty( $request['roles'] ) ) {
 			$check_permission = $this->check_role_update( $id, $request['roles'] );
+
 			if ( is_wp_error( $check_permission ) ) {
 				return $check_permission;
 			}
@@ -446,28 +545,33 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 
 		$user = $this->prepare_item_for_database( $request );
 
-		// Ensure we're operating on the same user we already checked
+		// Ensure we're operating on the same user we already checked.
 		$user->ID = $id;
 
 		$user_id = wp_update_user( $user );
+
 		if ( is_wp_error( $user_id ) ) {
 			return $user_id;
 		}
 
 		$user = get_user_by( 'id', $id );
+
 		if ( ! empty( $request['roles'] ) ) {
 			array_map( array( $user, 'add_role' ), $request['roles'] );
 		}
 
 		$schema = $this->get_item_schema();
+
 		if ( ! empty( $schema['properties']['meta'] ) && isset( $request['meta'] ) ) {
 			$meta_update = $this->meta->update_value( $request['meta'], $id );
+
 			if ( is_wp_error( $meta_update ) ) {
 				return $meta_update;
 			}
 		}
 
 		$fields_update = $this->update_additional_fields_for_object( $user, $request );
+
 		if ( is_wp_error( $fields_update ) ) {
 			return $fields_update;
 		}
@@ -476,16 +580,51 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 		do_action( 'rest_insert_user', $user, $request, false );
 
 		$request->set_param( 'context', 'edit' );
+
 		$response = $this->prepare_item_for_response( $user, $request );
 		$response = rest_ensure_response( $response );
+
 		return $response;
 	}
 
 	/**
-	 * Check if a given request has access delete a user
+	 * Checks if a given request has access to update the current user.
 	 *
-	 * @param  WP_REST_Request $request Full details about the request.
-	 * @return WP_Error|boolean
+	 * @since 4.7.0
+	 * @access public
+	 *
+	 * @param WP_REST_Request $request Full details about the request.
+	 * @return true|WP_Error True if the request has access to update the item, WP_Error object otherwise.
+	 */
+	public function update_current_item_permissions_check( $request ) {
+		$request['id'] = get_current_user_id();
+
+		return $this->update_item_permissions_check( $request );
+	}
+
+	/**
+	 * Updates the current user.
+	 *
+	 * @since 4.7.0
+	 * @access public
+	 *
+	 * @param WP_REST_Request $request Full details about the request.
+	 * @return WP_REST_Response|WP_Error Response object on success, or WP_Error object on failure.
+	 */
+	function update_current_item( $request ) {
+		$request['id'] = get_current_user_id();
+
+		return $this->update_item( $request );
+	}
+
+	/**
+	 * Checks if a given request has access delete a user.
+	 *
+	 * @since 4.7.0
+	 * @access public
+	 *
+	 * @param WP_REST_Request $request Full details about the request.
+	 * @return true|WP_Error True if the request has access to delete the item, WP_Error object otherwise.
 	 */
 	public function delete_item_permissions_check( $request ) {
 
@@ -499,22 +638,26 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 	}
 
 	/**
-	 * Delete a single user
+	 * Deletes a single user.
+	 *
+	 * @since 4.7.0
+	 * @access public
 	 *
 	 * @param WP_REST_Request $request Full details about the request.
-	 * @return WP_Error|WP_REST_Response
+	 * @return WP_REST_Response|WP_Error Response object on success, or WP_Error object on failure.
 	 */
 	public function delete_item( $request ) {
-		$id = (int) $request['id'];
+		$id       = (int) $request['id'];
 		$reassign = isset( $request['reassign'] ) ? absint( $request['reassign'] ) : null;
-		$force = isset( $request['force'] ) ? (bool) $request['force'] : false;
+		$force    = isset( $request['force'] ) ? (bool) $request['force'] : false;
 
-		// We don't support trashing for this type, error out
+		// We don't support trashing for this type, error out.
 		if ( ! $force ) {
 			return new WP_Error( 'rest_trash_not_supported', __( 'Users do not support trashing.' ), array( 'status' => 501 ) );
 		}
 
 		$user = get_userdata( $id );
+
 		if ( ! $user ) {
 			return new WP_Error( 'rest_user_invalid_id', __( 'Invalid resource id.' ), array( 'status' => 404 ) );
 		}
@@ -526,6 +669,7 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 		}
 
 		$request->set_param( 'context', 'edit' );
+
 		$response = $this->prepare_item_for_response( $user, $request );
 
 		/** Include admin user functions to get access to wp_delete_user() */
@@ -538,7 +682,9 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 		}
 
 		/**
-		 * Fires after a user is deleted via the REST API.
+		 * Fires immediately after a user is deleted via the REST API.
+		 *
+		 * @since 4.7.0
 		 *
 		 * @param WP_User          $user     The user data.
 		 * @param WP_REST_Response $response The response returned from the API.
@@ -550,16 +696,50 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 	}
 
 	/**
-	 * Prepare a single user output for response
+	 * Checks if a given request has access to delete the current user.
 	 *
-	 * @param object $user User object.
+	 * @since 4.7.0
+	 * @access public
+	 *
+	 * @param WP_REST_Request $request Full details about the request.
+	 * @return true|WP_Error True if the request has access to delete the item, WP_Error object otherwise.
+	 */
+	public function delete_current_item_permissions_check( $request ) {
+		$request['id'] = get_current_user_id();
+
+		return $this->delete_item_permissions_check( $request );
+	}
+
+	/**
+	 * Deletes the current user.
+	 *
+	 * @since 4.7.0
+	 * @access public
+	 *
+	 * @param WP_REST_Request $request Full details about the request.
+	 * @return WP_REST_Response|WP_Error Response object on success, or WP_Error object on failure.
+	 */
+	function delete_current_item( $request ) {
+		$request['id'] = get_current_user_id();
+
+		return $this->delete_item( $request );
+	}
+
+	/**
+	 * Prepares a single user output for response.
+	 *
+	 * @since 4.7.0
+	 * @access public
+	 *
+	 * @param WP_User         $user    User object.
 	 * @param WP_REST_Request $request Request object.
-	 * @return WP_REST_Response $response Response data.
+	 * @return WP_REST_Response Response object.
 	 */
 	public function prepare_item_for_response( $user, $request ) {
 
-		$data = array();
+		$data   = array();
 		$schema = $this->get_item_schema();
+
 		if ( ! empty( $schema['properties']['id'] ) ) {
 			$data['id'] = $user->ID;
 		}
@@ -594,6 +774,10 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 
 		if ( ! empty( $schema['properties']['link'] ) ) {
 			$data['link'] = get_author_posts_url( $user->ID, $user->user_nicename );
+		}
+
+		if ( ! empty( $schema['properties']['locale'] ) ) {
+			$data['locale'] = get_user_locale( $user );
 		}
 
 		if ( ! empty( $schema['properties']['nickname'] ) ) {
@@ -634,23 +818,28 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 		$data = $this->add_additional_fields_to_object( $data, $request );
 		$data = $this->filter_response_by_context( $data, $context );
 
-		// Wrap the data in a response object
+		// Wrap the data in a response object.
 		$response = rest_ensure_response( $data );
 
 		$response->add_links( $this->prepare_links( $user ) );
 
 		/**
-		 * Filter user data returned from the REST API.
+		 * Filters user data returned from the REST API.
 		 *
-		 * @param WP_REST_Response $response  The response object.
-		 * @param object           $user      User object used to create response.
-		 * @param WP_REST_Request  $request   Request object.
+		 * @since 4.7.0
+		 *
+		 * @param WP_REST_Response $response The response object.
+		 * @param object           $user     User object used to create response.
+		 * @param WP_REST_Request  $request  Request object.
 		 */
 		return apply_filters( 'rest_prepare_user', $response, $user, $request );
 	}
 
 	/**
-	 * Prepare links for the request.
+	 * Prepares links for the user request.
+	 *
+	 * @since 4.7.0
+	 * @access protected
 	 *
 	 * @param WP_Post $user User object.
 	 * @return array Links for the given user.
@@ -669,7 +858,10 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 	}
 
 	/**
-	 * Prepare a single user for create or update
+	 * Prepares a single user for creation or update.
+	 *
+	 * @since 4.7.0
+	 * @access protected
 	 *
 	 * @param WP_REST_Request $request Request object.
 	 * @return object $prepared_user User object.
@@ -683,9 +875,11 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 		if ( isset( $request['email'] ) && ! empty( $schema['properties']['email'] ) ) {
 			$prepared_user->user_email = $request['email'];
 		}
+
 		if ( isset( $request['username'] ) && ! empty( $schema['properties']['username'] ) ) {
 			$prepared_user->user_login = $request['username'];
 		}
+
 		if ( isset( $request['password'] ) && ! empty( $schema['properties']['password'] ) ) {
 			$prepared_user->user_pass = $request['password'];
 		}
@@ -694,21 +888,27 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 		if ( isset( $request['id'] ) ) {
 			$prepared_user->ID = absint( $request['id'] );
 		}
+
 		if ( isset( $request['name'] ) && ! empty( $schema['properties']['name'] ) ) {
 			$prepared_user->display_name = $request['name'];
 		}
+
 		if ( isset( $request['first_name'] ) && ! empty( $schema['properties']['first_name'] ) ) {
 			$prepared_user->first_name = $request['first_name'];
 		}
+
 		if ( isset( $request['last_name'] ) && ! empty( $schema['properties']['last_name'] ) ) {
 			$prepared_user->last_name = $request['last_name'];
 		}
+
 		if ( isset( $request['nickname'] ) && ! empty( $schema['properties']['nickname'] ) ) {
 			$prepared_user->nickname = $request['nickname'];
 		}
+
 		if ( isset( $request['slug'] ) && ! empty( $schema['properties']['slug'] ) ) {
 			$prepared_user->user_nicename = $request['slug'];
 		}
+
 		if ( isset( $request['description'] ) && ! empty( $schema['properties']['description'] ) ) {
 			$prepared_user->description = $request['description'];
 		}
@@ -717,13 +917,19 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 			$prepared_user->user_url = $request['url'];
 		}
 
+		if ( isset( $request['locale'] ) && ! empty( $schema['properties']['locale'] ) ) {
+			$prepared_user->locale = $request['locale'];
+		}
+
 		// setting roles will be handled outside of this function.
 		if ( isset( $request['roles'] ) ) {
 			$prepared_user->role = false;
 		}
 
 		/**
-		 * Filter user data before inserting user via the REST API.
+		 * Filters user data before insertion via the REST API.
+		 *
+		 * @since 4.7.0
 		 *
 		 * @param object          $prepared_user User object.
 		 * @param WP_REST_Request $request       Request object.
@@ -732,11 +938,15 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 	}
 
 	/**
-	 * Determine if the current user is allowed to make the desired roles change.
+	 * Determines if the current user is allowed to make the desired roles change.
+	 *
+	 * @since 4.7.0
+	 * @access protected
 	 *
 	 * @param integer $user_id User ID.
 	 * @param array   $roles   New user roles.
-	 * @return WP_Error|boolean
+	 * @return true|WP_Error True if the current user is allowed to make the role change,
+	 *                       otherwise a WP_Error object.
 	 */
 	protected function check_role_update( $user_id, $roles ) {
 		global $wp_roles;
@@ -748,31 +958,40 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 			}
 
 			$potential_role = $wp_roles->role_objects[ $role ];
-			// Don't let anyone with 'edit_users' (admins) edit their own role to something without it.
-			// Multisite super admins can freely edit their blog roles -- they possess all caps.
-			if ( ! ( is_multisite() && current_user_can( 'manage_sites' ) ) && get_current_user_id() === $user_id && ! $potential_role->has_cap( 'edit_users' ) ) {
+
+			/*
+			 * Don't let anyone with 'edit_users' (admins) edit their own role to something without it.
+			 * Multisite super admins can freely edit their blog roles -- they possess all caps.
+			 */
+			if ( ! ( is_multisite()
+				&& current_user_can( 'manage_sites' ) )
+				&& get_current_user_id() === $user_id
+				&& ! $potential_role->has_cap( 'edit_users' )
+			) {
 				return new WP_Error( 'rest_user_invalid_role', __( 'You cannot give resource that role.' ), array( 'status' => rest_authorization_required_code() ) );
 			}
-
-			// The new role must be editable by the logged-in user.
 
 			/** Include admin functions to get access to get_editable_roles() */
 			require_once ABSPATH . 'wp-admin/includes/admin.php';
 
+			// The new role must be editable by the logged-in user.
 			$editable_roles = get_editable_roles();
+
 			if ( empty( $editable_roles[ $role ] ) ) {
 				return new WP_Error( 'rest_user_invalid_role', __( 'You cannot give resource that role.' ), array( 'status' => 403 ) );
 			}
 		}
 
 		return true;
-
 	}
 
 	/**
-	 * Get the User's schema, conforming to JSON Schema
+	 * Retrieves the user's schema, conforming to JSON Schema.
 	 *
-	 * @return array
+	 * @since 4.7.0
+	 * @access public
+	 *
+	 * @return array Item schema data.
 	 */
 	public function get_item_schema() {
 		$schema = array(
@@ -847,6 +1066,12 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 					'context'     => array( 'embed', 'view', 'edit' ),
 					'readonly'    => true,
 				),
+				'locale'    => array(
+					'description' => __( 'Locale for the resource.' ),
+					'type'        => 'string',
+					'enum'        => get_available_languages(),
+					'context'     => array( 'edit' ),
+				),
 				'nickname'    => array(
 					'description' => __( 'The nickname for the resource.' ),
 					'type'        => 'string',
@@ -873,12 +1098,18 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 				'roles'           => array(
 					'description' => __( 'Roles assigned to the resource.' ),
 					'type'        => 'array',
+					'items'       => array(
+						'type'    => 'string',
+					),
 					'context'     => array( 'edit' ),
+					'arg_options' => array(
+						'sanitize_callback' => 'wp_parse_slug_list',
+					),
 				),
 				'password'        => array(
 					'description' => __( 'Password for the resource (never included).' ),
 					'type'        => 'string',
-					'context'     => array(), // Password is never displayed
+					'context'     => array(), // Password is never displayed.
 					'required'    => true,
 				),
 				'capabilities'    => array(
@@ -900,6 +1131,7 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 			$avatar_properties = array();
 
 			$avatar_sizes = rest_get_avatar_sizes();
+
 			foreach ( $avatar_sizes as $size ) {
 				$avatar_properties[ $size ] = array(
 					'description' => sprintf( __( 'Avatar URL with image size of %d pixels.' ), $size ),
@@ -924,9 +1156,12 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 	}
 
 	/**
-	 * Get the query params for collections
+	 * Retrieves the query params for collections.
 	 *
-	 * @return array
+	 * @since 4.7.0
+	 * @access public
+	 *
+	 * @return array Collection parameters.
 	 */
 	public function get_collection_params() {
 		$query_params = parent::get_collection_params();
@@ -939,18 +1174,21 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 			'default'            => array(),
 			'sanitize_callback'  => 'wp_parse_id_list',
 		);
+
 		$query_params['include'] = array(
 			'description'        => __( 'Limit result set to specific ids.' ),
 			'type'               => 'array',
 			'default'            => array(),
 			'sanitize_callback'  => 'wp_parse_id_list',
 		);
+
 		$query_params['offset'] = array(
 			'description'        => __( 'Offset the result set by a specific number of items.' ),
 			'type'               => 'integer',
 			'sanitize_callback'  => 'absint',
 			'validate_callback'  => 'rest_validate_request_arg',
 		);
+
 		$query_params['order'] = array(
 			'default'            => 'asc',
 			'description'        => __( 'Order sort attribute ascending or descending.' ),
@@ -959,6 +1197,7 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 			'type'               => 'string',
 			'validate_callback'  => 'rest_validate_request_arg',
 		);
+
 		$query_params['orderby'] = array(
 			'default'            => 'name',
 			'description'        => __( 'Sort collection by object attribute.' ),
@@ -975,16 +1214,19 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 			'type'               => 'string',
 			'validate_callback'  => 'rest_validate_request_arg',
 		);
+
 		$query_params['slug']    = array(
 			'description'        => __( 'Limit result set to resources with a specific slug.' ),
 			'type'               => 'string',
 			'validate_callback'  => 'rest_validate_request_arg',
 		);
+
 		$query_params['roles']   = array(
 			'description'        => __( 'Limit result set to resources matching at least one specific role provided. Accepts csv list or single role.' ),
 			'type'               => 'array',
 			'sanitize_callback'  => 'wp_parse_slug_list',
 		);
+
 		return $query_params;
 	}
 }

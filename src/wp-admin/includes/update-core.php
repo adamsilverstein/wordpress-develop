@@ -725,8 +725,9 @@ $_old_files = array(
  * Directories should be noted by suffixing it with a trailing slash (/)
  *
  * @since 3.2.0
- * @since 4.4.0 New themes are not automatically installed on upgrade.
- *              This can still be explicitly asked for by defining
+ * @since 4.7.0 New themes were not automatically installed for 4.4-4.6 on
+ *              upgrade. New themes are now installed again. To disable new
+ *              themes from being installed on upgrade, explicitly define
  *              CORE_UPGRADE_SKIP_NEW_BUNDLED as false.
  * @global array $_new_bundled_files
  * @var array
@@ -735,20 +736,16 @@ $_old_files = array(
 global $_new_bundled_files;
 
 $_new_bundled_files = array(
-	'plugins/akismet/'       => '2.0',
-	'themes/twentyten/'      => '3.0',
-	'themes/twentyeleven/'   => '3.2',
-	'themes/twentytwelve/'   => '3.5',
-	'themes/twentythirteen/' => '3.6',
-	'themes/twentyfourteen/' => '3.8',
-	'themes/twentyfifteen/'  => '4.1',
-	'themes/twentysixteen/'  => '4.4',
+	'plugins/akismet/'        => '2.0',
+	'themes/twentyten/'       => '3.0',
+	'themes/twentyeleven/'    => '3.2',
+	'themes/twentytwelve/'    => '3.5',
+	'themes/twentythirteen/'  => '3.6',
+	'themes/twentyfourteen/'  => '3.8',
+	'themes/twentyfifteen/'   => '4.1',
+	'themes/twentysixteen/'   => '4.4',
+	'themes/twentyseventeen/' => '4.7',
 );
-
-// If not explicitly defined as false, don't install new default themes.
-if ( ! defined( 'CORE_UPGRADE_SKIP_NEW_BUNDLED' ) || CORE_UPGRADE_SKIP_NEW_BUNDLED ) {
-	$_new_bundled_files = array( 'plugins/akismet/' => '2.0' );
-}
 
 /**
  * Upgrades the core of WordPress.

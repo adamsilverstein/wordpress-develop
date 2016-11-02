@@ -259,8 +259,9 @@ foreach ( get_object_taxonomies( $post ) as $tax_name ) {
 	add_meta_box( $tax_meta_box_id, $label, $taxonomy->meta_box_cb, null, 'side', 'core', array( 'taxonomy' => $tax_name ) );
 }
 
-if ( post_type_supports($post_type, 'page-attributes') )
-	add_meta_box('pageparentdiv', 'page' == $post_type ? __('Page Attributes') : __('Attributes'), 'page_attributes_meta_box', null, 'side', 'core');
+if ( post_type_supports( $post_type, 'page-attributes' ) || count( get_page_templates( null, $post_type ) ) > 0 ) {
+	add_meta_box( 'pageparentdiv', $post_type_object->labels->attributes, 'page_attributes_meta_box', null, 'side', 'core' );
+}
 
 if ( $thumbnail_support && current_user_can( 'upload_files' ) )
 	add_meta_box('postimagediv', esc_html( $post_type_object->labels->featured_image ), 'post_thumbnail_meta_box', null, 'side', 'low');
@@ -473,11 +474,18 @@ require_once( ABSPATH . 'wp-admin/admin-header.php' );
 ?>
 
 <div class="wrap">
-<h1><?php
+<h1 class="wp-heading-inline"><?php
 echo esc_html( $title );
-if ( isset( $post_new_file ) && current_user_can( $post_type_object->cap->create_posts ) )
-	echo ' <a href="' . esc_url( admin_url( $post_new_file ) ) . '" class="page-title-action">' . esc_html( $post_type_object->labels->add_new ) . '</a>';
 ?></h1>
+
+<?php
+if ( isset( $post_new_file ) && current_user_can( $post_type_object->cap->create_posts ) ) {
+	echo ' <a href="' . esc_url( admin_url( $post_new_file ) ) . '" class="page-title-action">' . esc_html( $post_type_object->labels->add_new ) . '</a>';
+}
+?>
+
+<hr class="wp-header-end">
+
 <?php if ( $notice ) : ?>
 <div id="notice" class="notice notice-warning"><p id="has-newer-autosave"><?php echo $notice ?></p></div>
 <?php endif; ?>
