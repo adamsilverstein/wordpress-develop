@@ -363,6 +363,9 @@ final class WP_Customize_Manager {
 		add_action( 'customize_controls_print_footer_scripts', array( $this, 'render_section_templates' ), 1 );
 		add_action( 'customize_controls_print_footer_scripts', array( $this, 'render_control_templates' ), 1 );
 
+		// Export header video settings with the partial response.
+		add_filter( 'customize_render_partials_response', array( $this, 'export_header_video_settings' ), 10, 3 );
+
 		// Export the settings to JS via the _wpCustomizeSettings variable.
 		add_action( 'customize_controls_print_footer_scripts', array( $this, 'customize_pane_settings' ), 1000 );
 
@@ -526,6 +529,11 @@ final class WP_Customize_Manager {
 			if ( ! $this->theme()->is_allowed() ) {
 				$this->wp_die( -1, __( 'The requested theme does not exist.' ) );
 			}
+		}
+
+		// Import theme starter content for fresh installs when landing in the customizer and no existing changeset loaded.
+		if ( get_option( 'fresh_site' ) && 'customize.php' === $pagenow && ! $this->changeset_post_id() ) {
+			add_action( 'after_setup_theme', array( $this, 'import_theme_starter_content' ), 100 );
 		}
 
 		$this->start_previewing_theme();
@@ -882,6 +890,135 @@ final class WP_Customize_Manager {
 			}
 		}
 		return $this->_changeset_data;
+	}
+
+	/**
+	 * Import theme starter content into post values.
+	 *
+	 * @since 4.7.0
+	 * @access public
+	 *
+	 * @param array $starter_content Starter content. Defaults to `get_theme_starter_content()`.
+	 */
+	function import_theme_starter_content( $starter_content = array() ) {
+		if ( empty( $starter_content ) ) {
+			$starter_content = get_theme_starter_content();
+		}
+
+		$sidebars_widgets = isset( $starter_content['widgets'] ) && ! empty( $this->widgets ) ? $starter_content['widgets'] : array();
+		$posts = isset( $starter_content['posts'] ) && ! empty( $this->nav_menus ) ? $starter_content['posts'] : array();
+		$options = isset( $starter_content['options'] ) ? $starter_content['options'] : array();
+		$nav_menus = isset( $starter_content['nav_menus'] ) && ! empty( $this->nav_menus ) ? $starter_content['nav_menus'] : array();
+		$theme_mods = isset( $starter_content['theme_mods'] ) ? $starter_content['theme_mods'] : array();
+
+		// Widgets.
+		$max_widget_numbers = array();
+		foreach ( $sidebars_widgets as $sidebar_id => $widgets ) {
+			$sidebar_widget_ids = array();
+			foreach ( $widgets as $widget ) {
+				list( $id_base, $instance ) = $widget;
+
+				if ( ! isset( $max_widget_numbers[ $id_base ] ) ) {
+
+					// When $settings is an array-like object, get an intrinsic array for use with array_keys().
+					$settings = get_option( "widget_{$id_base}", array() );
+					if ( $settings instanceof ArrayObject || $settings instanceof ArrayIterator ) {
+						$settings = $settings->getArrayCopy();
+					}
+
+					// Find the max widget number for this type.
+					$widget_numbers = array_keys( $settings );
+					$widget_numbers[] = 1;
+					$max_widget_numbers[ $id_base ] = call_user_func_array( 'max', $widget_numbers );
+				}
+				$max_widget_numbers[ $id_base ] += 1;
+
+				$widget_id = sprintf( '%s-%d', $id_base, $max_widget_numbers[ $id_base ] );
+				$setting_id = sprintf( 'widget_%s[%d]', $id_base, $max_widget_numbers[ $id_base ] );
+
+				$class = 'WP_Customize_Setting';
+
+				/** This filter is documented in wp-includes/class-wp-customize-manager.php */
+				$args = apply_filters( 'customize_dynamic_setting_args', false, $setting_id );
+
+				if ( false !== $args ) {
+
+					/** This filter is documented in wp-includes/class-wp-customize-manager.php */
+					$class = apply_filters( 'customize_dynamic_setting_class', $class, $setting_id, $args );
+
+					$setting = new $class( $this, $setting_id, $args );
+					$setting_value = call_user_func( $setting->sanitize_js_callback, $instance, $setting );
+					$this->set_post_value( $setting_id, $setting_value );
+					$sidebar_widget_ids[] = $widget_id;
+				}
+			}
+
+			$this->set_post_value( sprintf( 'sidebars_widgets[%s]', $sidebar_id ), $sidebar_widget_ids );
+		}
+
+		// Posts & pages.
+		if ( ! empty( $posts ) ) {
+			foreach ( array_keys( $posts ) as $post_symbol ) {
+				$r = $this->nav_menus->insert_auto_draft_post( $posts[ $post_symbol ] );
+				if ( $r instanceof WP_Post ) {
+					$posts[ $post_symbol ]['ID'] = $r->ID;
+				}
+			}
+			$this->set_post_value( 'nav_menus_created_posts', wp_list_pluck( $posts, 'ID' ) ); // This is why nav_menus component is dependency for adding posts.
+		}
+
+		// Nav menus.
+		$placeholder_id = -1;
+		foreach ( $nav_menus as $nav_menu_location => $nav_menu ) {
+			$nav_menu_term_id = $placeholder_id--;
+			$nav_menu_setting_id = sprintf( 'nav_menu[%d]', $nav_menu_term_id );
+			$this->set_post_value( $nav_menu_setting_id, array(
+				'name' => isset( $nav_menu['name'] ) ? $nav_menu['name'] : $nav_menu_location,
+			) );
+
+			// @todo Add support for menu_item_parent.
+			$position = 0;
+			foreach ( $nav_menu['items'] as $nav_menu_item ) {
+				$nav_menu_item_setting_id = sprintf( 'nav_menu_item[%d]', $placeholder_id-- );
+				if ( ! isset( $nav_menu_item['position'] ) ) {
+					$nav_menu_item['position'] = $position++;
+				}
+				$nav_menu_item['nav_menu_term_id'] = $nav_menu_term_id;
+
+				if ( isset( $nav_menu_item['object_id'] ) ) {
+					if ( 'post_type' === $nav_menu_item['type'] && preg_match( '/^{{(?P<symbol>.+)}}$/', $nav_menu_item['object_id'], $matches ) && isset( $posts[ $matches['symbol'] ] ) ) {
+						$nav_menu_item['object_id'] = $posts[ $matches['symbol'] ]['ID'];
+						if ( empty( $nav_menu_item['title'] ) ) {
+							$original_object = get_post( $nav_menu_item['object_id'] );
+							$nav_menu_item['title'] = $original_object->post_title;
+						}
+					} else {
+						continue;
+					}
+				} else {
+					$nav_menu_item['object_id'] = 0;
+				}
+				$this->set_post_value( $nav_menu_item_setting_id, $nav_menu_item );
+			}
+
+			$this->set_post_value( sprintf( 'nav_menu_locations[%s]', $nav_menu_location ), $nav_menu_term_id );
+		}
+
+		// Options.
+		foreach ( $options as $name => $value ) {
+			if ( preg_match( '/^{{(?P<symbol>.+)}}$/', $value, $matches ) && isset( $posts[ $matches['symbol'] ] ) ) {
+				$value = $posts[ $matches['symbol'] ]['ID'];
+			}
+			$this->set_post_value( $name, $value );
+		}
+
+		// Theme mods.
+		foreach ( $theme_mods as $name => $value ) {
+			if ( preg_match( '/^{{(?P<symbol>.+)}}$/', $value, $matches ) && isset( $posts[ $matches['symbol'] ] ) ) {
+				$value = $posts[ $matches['symbol'] ]['ID'];
+			}
+			$this->set_post_value( $name, $value );
+		}
 	}
 
 	/**
@@ -3249,10 +3386,52 @@ final class WP_Customize_Manager {
 
 		/* Custom Header */
 
+		if ( current_theme_supports( 'custom-header', 'video' ) ) {
+			$title = __( 'Header Visuals' );
+			$description = __( 'If you add a video, the image will be used as a fallback while the video loads.' );
+			$width = absint( get_theme_support( 'custom-header', 'width' ) );
+			$height = absint( get_theme_support( 'custom-header', 'height' ) );
+			if ( $width && $height ) {
+				/* translators: %s: header size in pixels */
+				$control_description = sprintf( __( 'Upload your video in <code>.mp4</code> format and minimize its file size for best results. Your theme recommends dimensions of %s pixels.' ),
+					sprintf( '<strong>%s &times; %s</strong>', $width, $height )
+				);
+			} elseif ( $width ) {
+				/* translators: %s: header width in pixels */
+				$control_description = sprintf( __( 'Upload your video in <code>.mp4</code> format and minimize its file size for best results. Your theme recommends a width of %s pixels.' ),
+					sprintf( '<strong>%s</strong>', $width )
+				);
+			} else {
+				/* translators: %s: header height in pixels */
+				$control_description = sprintf( __( 'Upload your video in <code>.mp4</code> format and minimize its file size for best results. Your theme recommends a height of %s pixels.' ),
+					sprintf( '<strong>%s</strong>', $height )
+				);
+			}
+		} else {
+			$title = __( 'Header Image' );
+			$description = '';
+			$control_description = '';
+		}
+
 		$this->add_section( 'header_image', array(
-			'title'          => __( 'Header Image' ),
+			'title'          => $title,
+			'description'    => $description,
 			'theme_supports' => 'custom-header',
 			'priority'       => 60,
+		) );
+
+		$this->add_setting( 'header_video', array(
+			'theme_supports'    => array( 'custom-header', 'video' ),
+			'transport'         => 'postMessage',
+			'sanitize_callback' => 'absint',
+			'validate_callback' => array( $this, '_validate_header_video' ),
+		) );
+
+		$this->add_setting( 'external_header_video', array(
+			'theme_supports'    => array( 'custom-header', 'video' ),
+			'transport'         => 'postMessage',
+			'sanitize_callback' => 'esc_url',
+			'validate_callback' => array( $this, '_validate_external_header_video' ),
 		) );
 
 		$this->add_setting( new WP_Customize_Filter_Setting( $this, 'header_image', array(
@@ -3265,7 +3444,29 @@ final class WP_Customize_Manager {
 			'theme_supports' => 'custom-header',
 		) ) );
 
+		$this->add_control( new WP_Customize_Media_Control( $this, 'header_video', array(
+			'theme_supports' => array( 'custom-header', 'video' ),
+			'label'          => __( 'Header Video' ),
+			'description'    => $control_description,
+			'section'        => 'header_image',
+			'mime_type'      => 'video',
+		) ) );
+
+		$this->add_control( 'external_header_video', array(
+			'theme_supports' => array( 'custom-header', 'video' ),
+			'type'           => 'url',
+			'description'    => __( 'Or, enter a YouTube or Vimeo URL:' ),
+			'section'        => 'header_image',
+		) );
+
 		$this->add_control( new WP_Customize_Header_Image_Control( $this ) );
+
+		$this->selective_refresh->add_partial( 'custom_header', array(
+			'selector'            => '#wp-custom-header',
+			'render_callback'     => 'the_custom_header_markup',
+			'settings'            => array( 'header_video', 'external_header_video', 'header_image' ), // The image is used as a video fallback here.
+			'container_inclusive' => true,
+		) );
 
 		/* Custom Background */
 
@@ -3434,7 +3635,7 @@ final class WP_Customize_Manager {
 		/* Custom CSS */
 		$this->add_section( 'custom_css', array(
 			'title'              => __( 'Additional CSS' ),
-			'priority'           => 140,
+			'priority'           => 200,
 			'description_hidden' => true,
 			'description'        => sprintf( '%s<br /><a href="%s" class="external-link" target="_blank">%s<span class="screen-reader-text">%s</span></a>',
 				__( 'CSS allows you to customize the appearance and layout of your site with code. Separate CSS is saved for each of your themes.' ),
@@ -3702,6 +3903,71 @@ final class WP_Customize_Manager {
 			return new WP_Error( 'unrecognized_setting', __( 'Unrecognized background setting.' ) );
 		}
 		return $value;
+	}
+
+	/**
+	 * Export header video settings to facilitate selective refresh.
+	 *
+	 * @since 4.7.0
+	 *
+	 * @param array $response Response.
+	 * @param WP_Customize_Selective_Refresh $selective_refresh Selective refresh component.
+	 * @param array $partials Array of partials.
+	 * @return array
+	 */
+	public function export_header_video_settings( $response, $selective_refresh, $partials ) {
+		if ( isset( $partials['custom_header'] ) ) {
+			$response['custom_header_settings'] = get_header_video_settings();
+		}
+
+		return $response;
+	}
+
+	/**
+	 * Callback for validating the header_video value.
+	 *
+	 * Ensures that the selected video is less than 8MB and provides an error message.
+	 *
+	 * @since 4.7.0
+	 *
+	 * @param WP_Error $validity
+	 * @param mixed $value
+	 * @return mixed
+	 */
+	public function _validate_header_video( $validity, $value ) {
+		$video = get_attached_file( absint( $value ) );
+		if ( $video ) {
+			$size = filesize( $video );
+			if ( 8 < $size / pow( 1024, 2 ) ) { // Check whether the size is larger than 8MB.
+				$validity->add( 'size_too_large', __( 'This video file is too large to use as a header video. Try a shorter video or optimize the compression settings and re-upload a file that is less than 8MB. Or, upload your video to YouTube and link it with the option below.' ) );
+			}
+			if ( '.mp4' !== substr( $video, -4 ) && '.mov' !== substr( $video, -4 ) ) { // Check for .mp4 or .mov format, which (assuming h.264 encoding) are the only cross-browser-supported formats.
+				$validity->add( 'invalid_file_type', __( 'Only <code>.mp4</code> or <code>.mov</code> files may be used for header video. Please convert your video file and try again, or, upload your video to YouTube and link it with the option below.' ) );
+			}
+		}
+		return $validity;
+	}
+
+	/**
+	 * Callback for validating the external_header_video value.
+	 *
+	 * Ensures that the provided URL is for YouTube or Vimeo.
+	 *
+	 * @since 4.7.0
+	 *
+	 * @param WP_Error $validity
+	 * @param mixed $value
+	 * @return mixed
+	 */
+	public function _validate_external_header_video( $validity, $value ) {
+		$video = esc_url( $value );
+		if ( $video ) {
+			if ( ! preg_match( '#^https?://(?:www\.)?(?:youtube\.com/watch|youtu\.be/)#', $video )
+			     && ! preg_match( '#^https?://(.+\.)?vimeo\.com/.*#', $video ) ) {
+				$validity->add( 'invalid_url', __( 'Please enter a valid YouTube or Vimeo video URL.' ) );
+			}
+		}
+		return $validity;
 	}
 
 	/**

@@ -28,7 +28,7 @@
  * @return string The locale of the blog or from the {@see 'locale'} hook.
  */
 function get_locale() {
-	global $locale, $wp_local_package, $wpdb;
+	global $locale, $wp_local_package;
 
 	if ( isset( $locale ) ) {
 		/**
@@ -48,16 +48,6 @@ function get_locale() {
 	// WPLANG was defined in wp-config.
 	if ( defined( 'WPLANG' ) ) {
 		$locale = WPLANG;
-	}
-
-	// If $wpdb hasn't been initialised yet, we can only return what we have.
-	if ( ! $wpdb ) {
-		if ( ! $locale ) {
-			$locale = 'en_US';
-		}
-
-		/** This filter is documented in wp-includes/l10n.php */
-		return apply_filters( 'locale', $locale );
 	}
 
 	// If multisite, check options.

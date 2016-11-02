@@ -16,6 +16,8 @@ class WP_Test_REST_Posts_Controller extends WP_Test_REST_Post_Type_Controller_Te
 	protected static $author_id;
 	protected static $contributor_id;
 
+	protected static $supported_formats;
+
 	public static function wpSetUpBeforeClass( $factory ) {
 		self::$post_id = $factory->post->create();
 
@@ -28,9 +30,20 @@ class WP_Test_REST_Posts_Controller extends WP_Test_REST_Post_Type_Controller_Te
 		self::$contributor_id = $factory->user->create( array(
 			'role' => 'contributor',
 		) );
+
+		// Only support 'post' and 'gallery'
+		self::$supported_formats = get_theme_support( 'post-formats' );
+		add_theme_support( 'post-formats', array( 'post', 'gallery' ) );
 	}
 
 	public static function wpTearDownAfterClass() {
+		// Restore theme support for formats.
+		if ( self::$supported_formats ) {
+			add_theme_support( 'post-formats', self::$supported_formats );
+		} else {
+			remove_theme_support( 'post-formats' );
+		}
+
 		wp_delete_post( self::$post_id, true );
 
 		self::delete_user( self::$editor_id );
@@ -199,7 +212,14 @@ class WP_Test_REST_Posts_Controller extends WP_Test_REST_Post_Type_Controller_Te
 		$data = $response->get_data();
 		$this->assertTrue( in_array( $id1, wp_list_pluck( $data, 'id' ), true ) );
 		$this->assertTrue( in_array( $id2, wp_list_pluck( $data, 'id' ), true ) );
+
 		$request->set_param( 'exclude', array( $id2 ) );
+		$response = $this->server->dispatch( $request );
+		$data = $response->get_data();
+		$this->assertTrue( in_array( $id1, wp_list_pluck( $data, 'id' ), true ) );
+		$this->assertFalse( in_array( $id2, wp_list_pluck( $data, 'id' ), true ) );
+
+		$request->set_param( 'exclude', "$id2" );
 		$response = $this->server->dispatch( $request );
 		$data = $response->get_data();
 		$this->assertTrue( in_array( $id1, wp_list_pluck( $data, 'id' ), true ) );
@@ -232,6 +252,42 @@ class WP_Test_REST_Posts_Controller extends WP_Test_REST_Post_Type_Controller_Te
 		$data = $response->get_data();
 		$this->assertEquals( 1, count( $data ) );
 		$this->assertEquals( 'Apple', $data[0]['title']['rendered'] );
+	}
+
+	public function test_get_items_multiple_slugs_array_query() {
+		$this->factory->post->create( array( 'post_title' => 'Apple', 'post_status' => 'publish' ) );
+		$this->factory->post->create( array( 'post_title' => 'Banana', 'post_status' => 'publish' ) );
+		$this->factory->post->create( array( 'post_title' => 'Peach', 'post_status' => 'publish' ) );
+		$request = new WP_REST_Request( 'GET', '/wp/v2/posts' );
+		$request->set_param( 'slug', array( 'banana', 'peach' ) );
+		$response = $this->server->dispatch( $request );
+		$this->assertEquals( 200, $response->get_status() );
+		$data = $response->get_data();
+		$this->assertEquals( 2, count( $data ) );
+		$titles = array(
+			$data[0]['title']['rendered'],
+			$data[1]['title']['rendered'],
+		);
+		sort( $titles );
+		$this->assertEquals( array( 'Banana', 'Peach' ), $titles );
+	}
+
+	public function test_get_items_multiple_slugs_string_query() {
+		$this->factory->post->create( array( 'post_title' => 'Apple', 'post_status' => 'publish' ) );
+		$this->factory->post->create( array( 'post_title' => 'Banana', 'post_status' => 'publish' ) );
+		$this->factory->post->create( array( 'post_title' => 'Peach', 'post_status' => 'publish' ) );
+		$request = new WP_REST_Request( 'GET', '/wp/v2/posts' );
+		$request->set_param( 'slug', 'apple,banana' );
+		$response = $this->server->dispatch( $request );
+		$this->assertEquals( 200, $response->get_status() );
+		$data = $response->get_data();
+		$this->assertEquals( 2, count( $data ) );
+		$titles = array(
+			$data[0]['title']['rendered'],
+			$data[1]['title']['rendered'],
+		);
+		sort( $titles );
+		$this->assertEquals( array( 'Apple', 'Banana' ), $titles );
 	}
 
 	public function test_get_items_status_query() {
@@ -770,7 +826,9 @@ class WP_Test_REST_Posts_Controller extends WP_Test_REST_Post_Type_Controller_Te
 		$this->check_get_post_response( $response, 'view' );
 
 		$data = $response->get_data();
+		$this->assertEquals( '', $data['content']['rendered'] );
 		$this->assertTrue( $data['content']['protected'] );
+		$this->assertEquals( '', $data['excerpt']['rendered'] );
 		$this->assertTrue( $data['excerpt']['protected'] );
 	}
 
@@ -790,7 +848,9 @@ class WP_Test_REST_Posts_Controller extends WP_Test_REST_Post_Type_Controller_Te
 
 		$data = $response->get_data();
 		$this->assertEquals( wpautop( $post->post_content ), $data['content']['rendered'] );
+		$this->assertTrue( $data['content']['protected'] );
 		$this->assertEquals( wpautop( $post->post_excerpt ), $data['excerpt']['rendered'] );
+		$this->assertTrue( $data['excerpt']['protected'] );
 	}
 
 	public function test_get_post_with_password_using_incorrect_password() {
@@ -817,8 +877,9 @@ class WP_Test_REST_Posts_Controller extends WP_Test_REST_Post_Type_Controller_Te
 		$data = $response->get_data();
 		$this->check_get_post_response( $response, 'view' );
 		$this->assertEquals( '', $data['content']['rendered'] );
+		$this->assertTrue( $data['content']['protected'] );
 		$this->assertEquals( '', $data['excerpt']['rendered'] );
-
+		$this->assertTrue( $data['excerpt']['protected'] );
 	}
 
 	public function test_get_item_read_permission_custom_post_status() {
@@ -1066,6 +1127,24 @@ class WP_Test_REST_Posts_Controller extends WP_Test_REST_Post_Type_Controller_Te
 		$this->assertErrorResponse( 'rest_invalid_param', $response, 400 );
 	}
 
+	/**
+	 * Test with a valid format, but one unsupported by the theme.
+	 *
+	 * https://core.trac.wordpress.org/ticket/38610
+	 */
+	public function test_create_post_with_unsupported_format() {
+		wp_set_current_user( self::$editor_id );
+
+		$request = new WP_REST_Request( 'POST', '/wp/v2/posts' );
+		$params = $this->set_post_data( array(
+			'format' => 'link',
+		) );
+		$request->set_body_params( $params );
+		$response = $this->server->dispatch( $request );
+
+		$this->assertErrorResponse( 'rest_invalid_param', $response, 400 );
+	}
+
 	public function test_create_update_post_with_featured_media() {
 
 		$file = DIR_TESTDATA . '/images/canola.jpg';
@@ -1299,6 +1378,21 @@ class WP_Test_REST_Posts_Controller extends WP_Test_REST_Post_Type_Controller_Te
 		$this->assertEquals( array( $category['term_id'] ), $data['categories'] );
 	}
 
+	public function test_create_post_with_categories_as_csv() {
+		wp_set_current_user( self::$editor_id );
+		$category = wp_insert_term( 'Chicken', 'category' );
+		$category2 = wp_insert_term( 'Ribs', 'category' );
+		$request = new WP_REST_Request( 'POST', '/wp/v2/posts' );
+		$params = $this->set_post_data( array(
+			'categories' => $category['term_id'] . ',' . $category2['term_id'],
+		) );
+		$request->set_body_params( $params );
+		$response = $this->server->dispatch( $request );
+
+		$data = $response->get_data();
+		$this->assertEquals( array( $category['term_id'], $category2['term_id'] ), $data['categories'] );
+	}
+
 	public function test_create_post_with_invalid_categories() {
 		wp_set_current_user( self::$editor_id );
 		$request = new WP_REST_Request( 'POST', '/wp/v2/posts' );
@@ -1463,6 +1557,24 @@ class WP_Test_REST_Posts_Controller extends WP_Test_REST_Post_Type_Controller_Te
 		$request = new WP_REST_Request( 'PUT', sprintf( '/wp/v2/posts/%d', self::$post_id ) );
 		$params = $this->set_post_data( array(
 			'format' => 'testformat',
+		) );
+		$request->set_body_params( $params );
+		$response = $this->server->dispatch( $request );
+
+		$this->assertErrorResponse( 'rest_invalid_param', $response, 400 );
+	}
+
+	/**
+	 * Test with a valid format, but one unsupported by the theme.
+	 *
+	 * https://core.trac.wordpress.org/ticket/38610
+	 */
+	public function test_update_post_with_unsupported_format() {
+		wp_set_current_user( self::$editor_id );
+
+		$request = new WP_REST_Request( 'PUT', sprintf( '/wp/v2/posts/%d', self::$post_id ) );
+		$params = $this->set_post_data( array(
+			'format' => 'link',
 		) );
 		$request->set_body_params( $params );
 		$response = $this->server->dispatch( $request );
