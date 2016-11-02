@@ -703,6 +703,13 @@ $_old_files = array(
 'wp-includes/js/tinymce/plugins/wpfullscreen',
 // 4.5
 'wp-includes/theme-compat/comments-popup.php',
+// 4.6
+'wp-admin/includes/class-wp-automatic-upgrader.php', // Wrong file name, see #37628.
+// 4.7
+'wp-admin/includes/class-wp-upgrader-skins.php',
+'wp-includes/class-feed.php',
+'wp-includes/locale.php',
+'wp-includes/session.php',
 );
 
 /**
@@ -900,6 +907,8 @@ function update_core($from, $to) {
 					continue;
 				if ( ! file_exists( $working_dir_local . $file ) )
 					continue;
+				if ( '.' === dirname( $file ) && in_array( pathinfo( $file, PATHINFO_EXTENSION ), array( 'html', 'txt' ) ) )
+					continue;
 				if ( md5_file( ABSPATH . $file ) === $checksum )
 					$skip[] = $file;
 				else
@@ -961,6 +970,10 @@ function update_core($from, $to) {
 				continue;
 			if ( ! file_exists( $working_dir_local . $file ) )
 				continue;
+			if ( '.' === dirname( $file ) && in_array( pathinfo( $file, PATHINFO_EXTENSION ), array( 'html', 'txt' ) ) ) {
+				$skip[] = $file;
+				continue;
+			}
 			if ( file_exists( ABSPATH . $file ) && md5_file( ABSPATH . $file ) == $checksum )
 				$skip[] = $file;
 			else

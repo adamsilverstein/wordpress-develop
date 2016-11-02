@@ -63,8 +63,8 @@ if ( 'grid' === $mode ) {
 
 	get_current_screen()->set_help_sidebar(
 		'<p><strong>' . __( 'For more information:' ) . '</strong></p>' .
-		'<p>' . __( '<a href="https://codex.wordpress.org/Media_Library_Screen" target="_blank">Documentation on Media Library</a>' ) . '</p>' .
-		'<p>' . __( '<a href="https://wordpress.org/support/" target="_blank">Support Forums</a>' ) . '</p>'
+		'<p>' . __( '<a href="https://codex.wordpress.org/Media_Library_Screen">Documentation on Media Library</a>' ) . '</p>' .
+		'<p>' . __( '<a href="https://wordpress.org/support/">Support Forums</a>' ) . '</p>'
 	);
 
 	$title = __('Media Library');
@@ -163,6 +163,20 @@ if ( $doaction ) {
 			}
 			$location = add_query_arg( 'deleted', count( $post_ids ), $location );
 			break;
+		default:
+			/**
+			 * Fires when a custom bulk action should be handled.
+			 *
+			 * The redirect link should be modified with success or failure feedback
+			 * from the action to be used to display feedback to the user.
+			 *
+			 * @since 4.7.0
+			 *
+			 * @param string $location The redirect URL.
+			 * @param string $doaction The action being taken.
+			 * @param array  $post_ids The posts to take the action on.
+			 */
+			$location = apply_filters( 'handle_bulk_actions-' . get_current_screen()->id, $location, $doaction, $post_ids );
 	}
 
 	wp_redirect( $location );
@@ -204,8 +218,8 @@ get_current_screen()->add_help_tab( array(
 
 get_current_screen()->set_help_sidebar(
 	'<p><strong>' . __( 'For more information:' ) . '</strong></p>' .
-	'<p>' . __( '<a href="https://codex.wordpress.org/Media_Library_Screen" target="_blank">Documentation on Media Library</a>' ) . '</p>' .
-	'<p>' . __( '<a href="https://wordpress.org/support/" target="_blank">Support Forums</a>' ) . '</p>'
+	'<p>' . __( '<a href="https://codex.wordpress.org/Media_Library_Screen">Documentation on Media Library</a>' ) . '</p>' .
+	'<p>' . __( '<a href="https://wordpress.org/support/">Support Forums</a>' ) . '</p>'
 );
 
 get_current_screen()->set_screen_reader_content( array(

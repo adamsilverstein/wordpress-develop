@@ -12,8 +12,8 @@
  *
  * @since 3.0.0
  *
- * @param string $menu Menu ID, slug, or name - or the menu object.
- * @return object|false False if $menu param isn't supplied or term does not exist, menu object if successful.
+ * @param int|string|WP_Term $menu Menu ID, slug, or name - or the menu object.
+ * @return WP_Term|false False if $menu param isn't supplied or term does not exist, menu object if successful.
  */
 function wp_get_nav_menu_object( $menu ) {
 	$menu_obj = false;
@@ -744,6 +744,10 @@ function wp_setup_nav_menu_item( $menu_item ) {
 					$menu_item->type_label = $object->labels->singular_name;
 				} else {
 					$menu_item->type_label = $menu_item->object;
+					$menu_item->_invalid = true;
+				}
+
+				if ( 'trash' === get_post_status( $menu_item->object_id ) ) {
 					$menu_item->_invalid = true;
 				}
 

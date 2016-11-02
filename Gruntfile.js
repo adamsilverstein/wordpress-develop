@@ -312,7 +312,9 @@ module.exports = function(grunt) {
 					'twenty*/**/*.js',
 					'!twenty{eleven,twelve,thirteen}/**',
 					// Third party scripts
-					'!twenty{fourteen,fifteen,sixteen}/js/html5.js'
+					'!twenty{fourteen,fifteen,sixteen}/js/html5.js',
+					'!twentyseventeen/assets/js/html5.js',
+					'!twentyseventeen/assets/js/jquery.scrollTo.js'
 				]
 			},
 			media: {
@@ -514,8 +516,17 @@ module.exports = function(grunt) {
 				},
 				src: SOURCE_DIR + 'wp-admin/js/bookmarklet.js',
 				dest: SOURCE_DIR + 'wp-admin/js/bookmarklet.min.js'
+			},
+			masonry: {
+				options: {
+					// Preserve comments that start with a bang.
+					preserveComments: /^!/
+				},
+				src: SOURCE_DIR + 'wp-includes/js/jquery/jquery.masonry.js',
+				dest: SOURCE_DIR + 'wp-includes/js/jquery/jquery.masonry.min.js'
 			}
 		},
+
 		concat: {
 			tinymce: {
 				options: {
@@ -634,6 +645,15 @@ module.exports = function(grunt) {
 		}
 	});
 
+	// Allow builds to be minimal
+	if( grunt.option( 'minimal-copy' ) ) {
+		var copyFilesOptions = grunt.config.get( 'copy.files.files' );
+		copyFilesOptions[0].src.push( '!wp-content/plugins/**' );
+		copyFilesOptions[0].src.push( '!wp-content/themes/!(twenty*)/**' );
+		grunt.config.set( 'copy.files.files', copyFilesOptions );
+	}
+
+
 	// Register tasks.
 
 	// RTL task.
@@ -676,6 +696,7 @@ module.exports = function(grunt) {
 		'browserify',
 		'jshint:corejs',
 		'uglify:bookmarklet',
+		'uglify:masonry',
 		'qunit:compiled'
 	] );
 

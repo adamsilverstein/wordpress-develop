@@ -2015,7 +2015,7 @@ function sanitize_url( $url, $protocols = null ) {
  *
  * @since 1.2.0
  * @deprecated 3.0.0 Use esc_url()
- * @see Alias for esc_url()
+ * @see esc_url()
  *
  * @param string $url The URL to be cleaned.
  * @param array $protocols Optional. An array of acceptable protocols.
@@ -2357,7 +2357,6 @@ function update_usermeta( $user_id, $meta_key, $meta_value ) {
  * @see get_users()
  *
  * @global wpdb $wpdb    WordPress database abstraction object.
- * @global int  $blog_id The site ID of the site for those that use more than one site.
  *
  * @param int $id Site ID.
  * @return array List of users that are part of that site ID
@@ -2365,9 +2364,10 @@ function update_usermeta( $user_id, $meta_key, $meta_value ) {
 function get_users_of_blog( $id = '' ) {
 	_deprecated_function( __FUNCTION__, '3.1.0', 'get_users()' );
 
-	global $wpdb, $blog_id;
-	if ( empty($id) )
-		$id = (int) $blog_id;
+	global $wpdb;
+	if ( empty( $id ) ) {
+		$id = get_current_blog_id();
+	}
 	$blog_prefix = $wpdb->get_blog_prefix($id);
 	$users = $wpdb->get_results( "SELECT user_id, user_id AS ID, user_login, display_name, user_email, meta_value FROM $wpdb->users, $wpdb->usermeta WHERE {$wpdb->users}.ID = {$wpdb->usermeta}.user_id AND meta_key = '{$blog_prefix}capabilities' ORDER BY {$wpdb->usermeta}.user_id" );
 	return $users;
@@ -3169,8 +3169,10 @@ function wp_load_image( $file ) {
 	if ( is_numeric( $file ) )
 		$file = get_attached_file( $file );
 
-	if ( ! is_file( $file ) )
-		return sprintf(__('File &#8220;%s&#8221; doesn&#8217;t exist?'), $file);
+	if ( ! is_file( $file ) ) {
+		/* translators: %s: file name */
+		return sprintf( __( 'File &#8220;%s&#8221; doesn&#8217;t exist?' ), $file );
+	}
 
 	if ( ! function_exists('imagecreatefromstring') )
 		return __('The GD image library is not installed.');
@@ -3180,8 +3182,10 @@ function wp_load_image( $file ) {
 
 	$image = imagecreatefromstring( file_get_contents( $file ) );
 
-	if ( !is_resource( $image ) )
-		return sprintf(__('File &#8220;%s&#8221; is not an image.'), $file);
+	if ( ! is_resource( $image ) ) {
+		/* translators: %s: file name */
+		return sprintf( __( 'File &#8220;%s&#8221; is not an image.' ), $file );
+	}
 
 	return $image;
 }
@@ -3753,4 +3757,44 @@ function wp_embed_handler_googlevideo( $matches, $attr, $url, $rawattr ) {
 	_deprecated_function( __FUNCTION__, '4.6.0' );
 
 	return '';
+}
+
+/**
+ * Retrieve path of paged template in current or parent template.
+ *
+ * @since 1.5.0
+ * @deprecated 4.7.0 The paged.php template is no longer part of the theme template heirarchy.
+ *
+ * @return string Full path to paged template file.
+ */
+function get_paged_template() {
+	_deprecated_function( __FUNCTION__, '4.7.0' );
+
+	return get_query_template( 'paged' );
+}
+
+/**
+ * Removes the HTML JavaScript entities found in early versions of Netscape 4.
+ *
+ * Previously, this function was pulled in from the original
+ * import of kses and removed a specific vulnerability only
+ * existent in early version of Netscape 4. However, this
+ * vulnerability never affected any other browsers and can
+ * be considered safe for the modern web.
+ *
+ * The regular expression which sanitized this vulnerability
+ * has been removed in consideration of the performance and
+ * energy demands it placed, now merely passing through its
+ * input to the return.
+ *
+ * @since 1.0.0
+ * @deprecated deprecated since 4.7
+ *
+ * @param string $string
+ * @return string
+ */
+function wp_kses_js_entities( $string ) {
+	_deprecated_function( __FUNCTION__, '4.7.0' );
+
+	return preg_replace( '%&\s*\{[^}]*(\}\s*;?|$)%', '', $string );
 }

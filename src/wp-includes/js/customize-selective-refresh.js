@@ -11,8 +11,7 @@ wp.customize.selectiveRefresh = ( function( $, api ) {
 			renderQueryVar: '',
 			l10n: {
 				shiftClickToEdit: ''
-			},
-			refreshBuffer: 250
+			}
 		},
 		currentRequest: null
 	};
@@ -485,8 +484,9 @@ wp.customize.selectiveRefresh = ( function( $, api ) {
 		return {
 			wp_customize: 'on',
 			nonce: api.settings.nonce.preview,
-			theme: api.settings.theme.stylesheet,
-			customized: JSON.stringify( dirtyCustomized )
+			customize_theme: api.settings.theme.stylesheet,
+			customized: JSON.stringify( dirtyCustomized ),
+			customize_changeset_uuid: api.settings.changeset.uuid
 		};
 	};
 
@@ -668,7 +668,7 @@ wp.customize.selectiveRefresh = ( function( $, api ) {
 					self._pendingPartialRequests = {};
 				} );
 			},
-			self.data.refreshBuffer
+			api.settings.timeouts.selectiveRefresh
 		);
 
 		return partialRequest.deferred.promise();
@@ -744,11 +744,6 @@ wp.customize.selectiveRefresh = ( function( $, api ) {
 
 	api.bind( 'preview-ready', function() {
 		var handleSettingChange, watchSettingChange, unwatchSettingChange;
-
-		// Polyfill for IE8 to support the document.head attribute.
-		if ( ! document.head ) {
-			document.head = $( 'head:first' )[0];
-		}
 
 		_.extend( self.data, _customizePartialRefreshExports );
 

@@ -427,7 +427,7 @@ function wp_network_dashboard_right_now() {
 		<p>
 			<label class="screen-reader-text" for="search-users"><?php _e( 'Search Users' ); ?></label>
 			<input type="search" name="s" value="" size="30" autocomplete="off" id="search-users"/>
-			<?php submit_button( __( 'Search Users' ), 'button', false, false, array( 'id' => 'submit_users' ) ); ?>
+			<?php submit_button( __( 'Search Users' ), '', false, false, array( 'id' => 'submit_users' ) ); ?>
 		</p>
 	</form>
 
@@ -435,7 +435,7 @@ function wp_network_dashboard_right_now() {
 		<p>
 			<label class="screen-reader-text" for="search-sites"><?php _e( 'Search Sites' ); ?></label>
 			<input type="search" name="s" value="" size="30" autocomplete="off" id="search-sites"/>
-			<?php submit_button( __( 'Search Sites' ), 'button', false, false, array( 'id' => 'submit_sites' ) ); ?>
+			<?php submit_button( __( 'Search Sites' ), '', false, false, array( 'id' => 'submit_sites' ) ); ?>
 		</p>
 	</form>
 <?php
@@ -491,33 +491,26 @@ function wp_dashboard_quick_press( $error_msg = false ) {
 	$post_ID = (int) $post->ID;
 ?>
 
-	<form name="post" action="<?php echo esc_url( admin_url( 'post.php' ) ); ?>" method="post" id="quick-press" class="initial-form hide-if-no-js">
-
-		<?php if ( $error_msg ) : ?>
-		<div class="error"><?php echo $error_msg; ?></div>
-		<?php endif; ?>
+	<form name="post" method="post" id="quick-press" class="initial-form hide-if-no-js">
 
 		<div class="input-text-wrap" id="title-wrap">
-			<label class="screen-reader-text prompt" for="title" id="title-prompt-text">
+			<label class="prompt" for="title" id="title-prompt-text">
 
 				<?php
 				/** This filter is documented in wp-admin/edit-form-advanced.php */
 				echo apply_filters( 'enter_title_here', __( 'Title' ), $post );
 				?>
 			</label>
-			<input type="text" name="post_title" id="title" autocomplete="off" />
+			<input type="text" name="title" id="title" autocomplete="off" />
 		</div>
 
 		<div class="textarea-wrap" id="description-wrap">
-			<label class="screen-reader-text prompt" for="content" id="content-prompt-text"><?php _e( 'What&#8217;s on your mind?' ); ?></label>
+			<label class="prompt" for="content" id="content-prompt-text"><?php _e( 'What&#8217;s on your mind?' ); ?></label>
 			<textarea name="content" id="content" class="mceEditor" rows="3" cols="15" autocomplete="off"></textarea>
 		</div>
-
 		<p class="submit">
-			<input type="hidden" name="action" id="quickpost-action" value="post-quickdraft-save" />
-			<input type="hidden" name="post_ID" value="<?php echo $post_ID; ?>" />
-			<input type="hidden" name="post_type" value="post" />
-			<?php wp_nonce_field( 'add-post' ); ?>
+			<div class="error inline" style="display: none;"><p></p></div>
+			<div class="spinner no-float"></div>
 			<?php submit_button( __( 'Save Draft' ), 'primary', 'save', false, array( 'id' => 'save-post' ) ); ?>
 			<br class="clear" />
 		</p>
@@ -531,54 +524,21 @@ function wp_dashboard_quick_press( $error_msg = false ) {
  * Show recent drafts of the user on the dashboard.
  *
  * @since 2.7.0
- *
- * @param array $drafts
  */
-function wp_dashboard_recent_drafts( $drafts = false ) {
-	if ( ! $drafts ) {
-		$query_args = array(
-			'post_type'      => 'post',
-			'post_status'    => 'draft',
-			'author'         => get_current_user_id(),
-			'posts_per_page' => 4,
-			'orderby'        => 'modified',
-			'order'          => 'DESC'
-		);
-
-		/**
-		 * Filters the post query arguments for the 'Recent Drafts' dashboard widget.
-		 *
-		 * @since 4.4.0
-		 *
-		 * @param array $query_args The query arguments for the 'Recent Drafts' dashboard widget.
-		 */
-		$query_args = apply_filters( 'dashboard_recent_drafts_query_args', $query_args );
-
-		$drafts = get_posts( $query_args );
-		if ( ! $drafts ) {
-			return;
- 		}
- 	}
-
-	echo '<div class="drafts">';
-	if ( count( $drafts ) > 3 ) {
-		echo '<p class="view-all"><a href="' . esc_url( admin_url( 'edit.php?post_status=draft' ) ) . '" aria-label="' . __( 'View all drafts' ) . '">' . _x( 'View all', 'drafts' ) . "</a></p>\n";
- 	}
-	echo '<h2 class="hide-if-no-js">' . __( 'Drafts' ) . "</h2>\n<ul>";
-
-	$drafts = array_slice( $drafts, 0, 3 );
-	foreach ( $drafts as $draft ) {
-		$url = get_edit_post_link( $draft->ID );
-		$title = _draft_or_post_title( $draft->ID );
-		echo "<li>\n";
-		/* translators: %s: post title */
-		echo '<div class="draft-title"><a href="' . esc_url( $url ) . '" aria-label="' . esc_attr( sprintf( __( 'Edit &#8220;%s&#8221;' ), $title ) ) . '">' . esc_html( $title ) . '</a>';
-		echo '<time datetime="' . get_the_time( 'c', $draft ) . '">' . get_the_time( __( 'F j, Y' ), $draft ) . '</time></div>';
-		if ( $the_content = wp_trim_words( $draft->post_content, 10 ) ) {
-			echo '<p>' . $the_content . '</p>';
- 		}
-		echo "</li>\n";
- 	}
+function wp_dashboard_recent_drafts() {
+	echo '<div id="quick-press-drafts" class="drafts">';
+	echo '<p class="view-all" style="display: none;"><a href="' . esc_url( admin_url( 'edit.php?post_status=draft' ) ) . '" aria-label="' . __( 'View all drafts' ) . '">' . _x( 'View all', 'drafts' ) . "</a></p>\n";
+	echo '<h2 class="hide-if-no-js">' . __( 'Drafts' ) . "</h2>\n";
+	echo '<script id="tmpl-item-quick-press-draft" type="text/template">';
+	/* translators: %s: post title */
+	echo '<div class="draft-title"><a href="post.php?post={{ data.id }}&action=edit" aria-label="' . esc_attr( __( 'Edit Post' ) ) . '">{{ data.title }}</a>';
+	echo '<time datetime="{{ data.date }}">{{ data.formattedDate }}</time></div>';
+	echo '{{{ data.formattedContent }}}';
+	echo '</script>';
+	echo '<ul class="drafts-list is-placeholder">';
+	for ( $i = 0; $i < 4; $i++ ) {
+		echo '<li><span class="screen-reader-text">' . esc_html( __( 'Loading…' ) ) . '</span></li>';
+	}
 	echo "</ul>\n</div>";
 }
 
@@ -777,7 +737,7 @@ function wp_dashboard_site_activity() {
 
 	if ( !$future_posts && !$recent_posts && !$recent_comments ) {
 		echo '<div class="no-activity">';
-		echo '<p class="smiley"></p>';
+		echo '<p class="smiley" aria-hidden="true"></p>';
 		echo '<p>' . __( 'No activity yet!' ) . '</p>';
 		echo '</div>';
 	}
@@ -966,7 +926,7 @@ function wp_dashboard_rss_output( $widget_id ) {
  */
 function wp_dashboard_cached_rss_widget( $widget_id, $callback, $check_urls = array() ) {
 	$loading = '<p class="widget-loading hide-if-no-js">' . __( 'Loading&#8230;' ) . '</p><p class="hide-if-js">' . __( 'This widget requires JavaScript.' ) . '</p>';
-	$doing_ajax = ( defined('DOING_AJAX') && DOING_AJAX );
+	$doing_ajax = wp_doing_ajax();
 
 	if ( empty($check_urls) ) {
 		$widgets = get_option( 'dashboard_widget_options' );
@@ -1149,7 +1109,7 @@ function wp_dashboard_primary() {
 		)
 	);
 
-	if ( ( ! is_multisite() && is_blog_admin() && current_user_can( 'install_plugins' ) ) || ( is_network_admin() && current_user_can( 'manage_network_plugins' ) && current_user_can( 'install_plugins' ) ) ) {
+	if ( ( ! defined( 'DISALLOW_FILE_MODS' ) || ! DISALLOW_FILE_MODS ) && ( ! is_multisite() && is_blog_admin() && current_user_can( 'install_plugins' ) ) || ( is_network_admin() && current_user_can( 'manage_network_plugins' ) && current_user_can( 'install_plugins' ) ) ) {
 		$feeds['plugins'] = array(
 			'link'         => '',
 			'url'          => array(
@@ -1353,7 +1313,7 @@ function wp_dashboard_browser_nag() {
 		$notice .= "<p class='browser-update-nag{$browser_nag_class}'>{$msg}</p>";
 
 		$browsehappy = 'http://browsehappy.com/';
-		$locale = get_locale();
+		$locale = get_user_locale();
 		if ( 'en_US' !== $locale )
 			$browsehappy = add_query_arg( 'locale', $locale, $browsehappy );
 
@@ -1393,8 +1353,6 @@ function dashboard_browser_nag_class( $classes ) {
  *
  * @since 3.2.0
  *
- * @global string $wp_version
- *
  * @return array|bool False on failure, array of browser data on success.
  */
 function wp_check_browser_version() {
@@ -1404,11 +1362,9 @@ function wp_check_browser_version() {
 	$key = md5( $_SERVER['HTTP_USER_AGENT'] );
 
 	if ( false === ($response = get_site_transient('browser_' . $key) ) ) {
-		global $wp_version;
-
 		$options = array(
 			'body'			=> array( 'useragent' => $_SERVER['HTTP_USER_AGENT'] ),
-			'user-agent'	=> 'WordPress/' . $wp_version . '; ' . home_url()
+			'user-agent'	=> 'WordPress/' . get_bloginfo( 'version' ) . '; ' . home_url()
 		);
 
 		$response = wp_remote_post( 'http://api.wordpress.org/core/browse-happy/1.1/', $options );

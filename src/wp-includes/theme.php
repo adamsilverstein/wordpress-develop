@@ -902,7 +902,7 @@ function set_theme_mod( $name, $value ) {
 	 * @param string $value     The new value of the theme mod.
 	 * @param string $old_value The current value of the theme mod.
 	 */
-	$mods[ $name ] = apply_filters( "pre_set_theme_mod_$name", $value, $old_value );
+	$mods[ $name ] = apply_filters( "pre_set_theme_mod_{$name}", $value, $old_value );
 
 	$theme = get_option( 'stylesheet' );
 	update_option( "theme_mods_$theme", $mods );
@@ -1398,6 +1398,89 @@ function _custom_background_cb() {
 body.custom-background { <?php echo trim( $style ); ?> }
 </style>
 <?php
+}
+
+/**
+ * Render the Custom CSS style element.
+ *
+ * @since 4.7.0
+ * @access public
+ */
+function wp_custom_css_cb() {
+	$styles = wp_get_custom_css();
+	if ( $styles || is_customize_preview() ) : ?>
+		<style type="text/css" id="wp-custom-css">
+			<?php echo strip_tags( $styles ); // Note that esc_html() cannot be used because `div &gt; span` is not interpreted properly. ?>
+		</style>
+	<?php endif;
+}
+
+/**
+ * Fetch the saved Custom CSS content.
+ *
+ * Gets the content of a Custom CSS post that matches the
+ * current theme.
+ *
+ * @since 4.7.0
+ * @access public
+ *
+ * @param string $stylesheet Optional. A theme object stylesheet name. Defaults to the current theme.
+ *
+ * @return string The Custom CSS Post content.
+ */
+function wp_get_custom_css( $stylesheet = '' ) {
+	$css = '';
+
+	if ( empty( $stylesheet ) ) {
+		$stylesheet = get_stylesheet();
+	}
+
+	$custom_css_query_vars = array(
+		'post_type' => 'custom_css',
+		'post_status' => get_post_stati(),
+		'name' => sanitize_title( $stylesheet ),
+		'number' => 1,
+		'no_found_rows' => true,
+		'cache_results' => true,
+		'update_post_meta_cache' => false,
+		'update_term_meta_cache' => false,
+	);
+
+	$post = null;
+	if ( get_stylesheet() === $stylesheet ) {
+		$post_id = get_theme_mod( 'custom_css_post_id' );
+		if ( ! $post_id ) {
+			$query = new WP_Query( $custom_css_query_vars );
+			$post = $query->post;
+
+			/*
+			 * Cache the lookup. See WP_Customize_Custom_CSS_Setting::update().
+			 * @todo This should get cleared if a custom_css post is added/removed.
+			 */
+			set_theme_mod( 'custom_css_post_id', $post ? $post->ID : -1 );
+		} elseif ( $post_id > 0 ) {
+			$post = get_post( $post_id );
+		}
+	} else {
+		$query = new WP_Query( $custom_css_query_vars );
+		$post = $query->post;
+	}
+
+	if ( $post ) {
+		$css = $post->post_content;
+	}
+
+	/**
+	 * Modify the Custom CSS Output into the <head>.
+	 *
+	 * @since 4.7.0
+	 *
+	 * @param string $css        CSS pulled in from the Custom CSS CPT.
+	 * @param string $stylesheet The theme stylesheet name.
+	 */
+	$css = apply_filters( 'wp_get_custom_css', $css, $stylesheet );
+
+	return $css;
 }
 
 /**
@@ -2066,9 +2149,9 @@ function check_theme_switched() {
  * Includes and instantiates the WP_Customize_Manager class.
  *
  * Loads the Customizer at plugins_loaded when accessing the customize.php admin
- * page or when any request includes a wp_customize=on param, either as a GET
- * query var or as POST data. This param is a signal for whether to bootstrap
- * the Customizer when WordPress is loading, especially in the Customizer preview
+ * page or when any request includes a wp_customize=on param or a customize_changeset
+ * param (a UUID). This param is a signal for whether to bootstrap the Customizer when
+ * WordPress is loading, especially in the Customizer preview
  * or when making Customizer Ajax requests for widgets or menus.
  *
  * @since 3.4.0
@@ -2076,14 +2159,140 @@ function check_theme_switched() {
  * @global WP_Customize_Manager $wp_customize
  */
 function _wp_customize_include() {
-	if ( ! ( ( isset( $_REQUEST['wp_customize'] ) && 'on' == $_REQUEST['wp_customize'] )
-		|| ( is_admin() && 'customize.php' == basename( $_SERVER['PHP_SELF'] ) )
-	) ) {
+
+	$is_customize_admin_page = ( is_admin() && 'customize.php' == basename( $_SERVER['PHP_SELF'] ) );
+	$should_include = (
+		$is_customize_admin_page
+		||
+		( isset( $_REQUEST['wp_customize'] ) && 'on' == $_REQUEST['wp_customize'] )
+		||
+		( ! empty( $_GET['customize_changeset_uuid'] ) || ! empty( $_POST['customize_changeset_uuid'] ) )
+	);
+
+	if ( ! $should_include ) {
 		return;
 	}
 
+	/*
+	 * Note that wp_unslash() is not being used on the input vars because it is
+	 * called before wp_magic_quotes() gets called. Besides this fact, none of
+	 * the values should contain any characters needing slashes anyway.
+	 */
+	$keys = array( 'changeset_uuid', 'customize_changeset_uuid', 'customize_theme', 'theme', 'customize_messenger_channel' );
+	$input_vars = array_merge(
+		wp_array_slice_assoc( $_GET, $keys ),
+		wp_array_slice_assoc( $_POST, $keys )
+	);
+
+	$theme = null;
+	$changeset_uuid = null;
+	$messenger_channel = null;
+
+	if ( $is_customize_admin_page && isset( $input_vars['changeset_uuid'] ) ) {
+		$changeset_uuid = sanitize_key( $input_vars['changeset_uuid'] );
+	} elseif ( ! empty( $input_vars['customize_changeset_uuid'] ) ) {
+		$changeset_uuid = sanitize_key( $input_vars['customize_changeset_uuid'] );
+	}
+
+	// Note that theme will be sanitized via WP_Theme.
+	if ( $is_customize_admin_page && isset( $input_vars['theme'] ) ) {
+		$theme = $input_vars['theme'];
+	} elseif ( isset( $input_vars['customize_theme'] ) ) {
+		$theme = $input_vars['customize_theme'];
+	}
+	if ( isset( $input_vars['customize_messenger_channel'] ) ) {
+		$messenger_channel = sanitize_key( $input_vars['customize_messenger_channel'] );
+	}
+
 	require_once ABSPATH . WPINC . '/class-wp-customize-manager.php';
-	$GLOBALS['wp_customize'] = new WP_Customize_Manager();
+	$GLOBALS['wp_customize'] = new WP_Customize_Manager( compact( 'changeset_uuid', 'theme', 'messenger_channel' ) );
+}
+
+/**
+ * Publish a snapshot's changes.
+ *
+ * @param string  $new_status     New post status.
+ * @param string  $old_status     Old post status.
+ * @param WP_Post $changeset_post Changeset post object.
+ */
+function _wp_customize_publish_changeset( $new_status, $old_status, $changeset_post ) {
+	global $wp_customize;
+
+	$is_publishing_changeset = (
+		'customize_changeset' === $changeset_post->post_type
+		&&
+		'publish' === $new_status
+		&&
+		'publish' !== $old_status
+	);
+	if ( ! $is_publishing_changeset ) {
+		return;
+	}
+
+	if ( empty( $wp_customize ) ) {
+		require_once ABSPATH . WPINC . '/class-wp-customize-manager.php';
+		$wp_customize = new WP_Customize_Manager( $changeset_post->post_name );
+	}
+
+	if ( ! did_action( 'customize_register' ) ) {
+		/*
+		 * When running from CLI or Cron, the customize_register action will need
+		 * to be triggered in order for core, themes, and plugins to register their
+		 * settings. Normally core will add_action( 'customize_register' ) at
+		 * priority 10 to register the core settings, and if any themes/plugins
+		 * also add_action( 'customize_register' ) at the same priority, they
+		 * will have a $wp_customize with those settings registered since they
+		 * call add_action() afterward, normally. However, when manually doing
+		 * the customize_register action after the setup_theme, then the order
+		 * will be reversed for two actions added at priority 10, resulting in
+		 * the core settings no longer being available as expected to themes/plugins.
+		 * So the following manually calls the method that registers the core
+		 * settings up front before doing the action.
+		 */
+		remove_action( 'customize_register', array( $wp_customize, 'register_controls' ) );
+		$wp_customize->register_controls();
+
+		/** This filter is documented in /wp-includes/class-wp-customize-manager.php */
+		do_action( 'customize_register', $wp_customize );
+	}
+	$wp_customize->_publish_changeset_values( $changeset_post->ID ) ;
+
+	/*
+	 * Trash the changeset post if revisions are not enabled. Unpublished
+	 * changesets by default get garbage collected due to the auto-draft status.
+	 * When a changeset post is published, however, it would no longer get cleaned
+	 * out. Ths is a problem when the changeset posts are never displayed anywhere,
+	 * since they would just be endlessly piling up. So here we use the revisions
+	 * feature to indicate whether or not a published changeset should get trashed
+	 * and thus garbage collected.
+	 */
+	if ( ! wp_revisions_enabled( $changeset_post ) ) {
+		wp_trash_post( $changeset_post->ID );
+	}
+}
+
+/**
+ * Filters changeset post data upon insert to ensure post_name is intact.
+ *
+ * This is needed to prevent the post_name from being dropped when the post is
+ * transitioned into pending status by a contributor.
+ *
+ * @since 4.7.0
+ * @see wp_insert_post()
+ *
+ * @param array $post_data          An array of slashed post data.
+ * @param array $supplied_post_data An array of sanitized, but otherwise unmodified post data.
+ * @returns array Filtered data.
+ */
+function _wp_customize_changeset_filter_insert_post_data( $post_data, $supplied_post_data ) {
+	if ( isset( $post_data['post_type'] ) && 'customize_changeset' === $post_data['post_type'] ) {
+
+		// Prevent post_name from being dropped, such as when contributor saves a changeset post as pending.
+		if ( empty( $post_data['post_name'] ) && ! empty( $supplied_post_data['post_name'] ) ) {
+			$post_data['post_name'] = $supplied_post_data['post_name'];
+		}
+	}
+	return $post_data;
 }
 
 /**
@@ -2151,6 +2360,7 @@ function wp_customize_url( $stylesheet = null ) {
  * to the body tag by default.
  *
  * @since 3.4.0
+ * @since 4.7.0 Support for IE8 and below is explicitly removed via conditional comments.
  */
 function wp_customize_support_script() {
 	$admin_origin = parse_url( admin_url() );
@@ -2158,20 +2368,28 @@ function wp_customize_support_script() {
 	$cross_domain = ( strtolower( $admin_origin[ 'host' ] ) != strtolower( $home_origin[ 'host' ] ) );
 
 	?>
-	<script type="text/javascript">
-		(function() {
-			var request, b = document.body, c = 'className', cs = 'customize-support', rcs = new RegExp('(^|\\s+)(no-)?'+cs+'(\\s+|$)');
+	<!--[if lte IE 8]>
+		<script type="text/javascript">
+			document.body.className = document.body.className.replace( /(^|\s)(no-)?customize-support(?=\s|$)/, '' ) + ' no-customize-support';
+		</script>
+	<![endif]-->
+	<!--[if gte IE 9]><!-->
+		<script type="text/javascript">
+			(function() {
+				var request, b = document.body, c = 'className', cs = 'customize-support', rcs = new RegExp('(^|\\s+)(no-)?'+cs+'(\\s+|$)');
 
-<?php		if ( $cross_domain ): ?>
-			request = (function(){ var xhr = new XMLHttpRequest(); return ('withCredentials' in xhr); })();
-<?php		else: ?>
-			request = true;
-<?php		endif; ?>
+		<?php	if ( $cross_domain ) : ?>
+				request = (function(){ var xhr = new XMLHttpRequest(); return ('withCredentials' in xhr); })();
+		<?php	else : ?>
+				request = true;
+		<?php	endif; ?>
 
-			b[c] = b[c].replace( rcs, ' ' );
-			b[c] += ( window.postMessage && request ? ' ' : ' no-' ) + cs;
-		}());
-	</script>
+				b[c] = b[c].replace( rcs, ' ' );
+				// The customizer requires postMessage and CORS (if the site is cross domain)
+				b[c] += ( window.postMessage && request ? ' ' : ' no-' ) + cs;
+			}());
+		</script>
+	<!--<![endif]-->
 	<?php
 }
 

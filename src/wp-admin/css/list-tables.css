@@ -656,6 +656,7 @@ th.asc a:focus span.sorting-indicator {
 	margin-left: 2px;
 }
 
+.tablenav a.button,
 .tablenav a.button-secondary {
 	display: block;
 	margin: 3px 8px 0 0;
@@ -1350,7 +1351,8 @@ ul.cat-checklist {
 	padding: 0;
 }
 
-.plugins .plugin-update-tr .notice {
+.plugins .plugin-update-tr .notice,
+.plugins .plugin-update-tr div[class="update-message"] { /* back-compat for pre-4.6 */
 	margin: 5px 20px 15px 40px;
 }
 

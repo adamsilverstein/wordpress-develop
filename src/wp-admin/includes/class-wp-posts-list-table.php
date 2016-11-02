@@ -459,6 +459,7 @@ class WP_Posts_List_Table extends WP_List_Table {
 		<div class="alignleft actions">
 <?php
 		if ( 'top' === $which && !is_singular() ) {
+			ob_start();
 
 			$this->months_dropdown( $this->screen->post_type );
 			$this->categories_dropdown( $this->screen->post_type );
@@ -479,7 +480,12 @@ class WP_Posts_List_Table extends WP_List_Table {
 			 */
 			do_action( 'restrict_manage_posts', $this->screen->post_type, $which );
 
-			submit_button( __( 'Filter' ), 'button', 'filter_action', false, array( 'id' => 'post-query-submit' ) );
+			$output = ob_get_clean();
+
+			if ( ! empty( $output ) ) {
+				echo $output;
+				submit_button( __( 'Filter' ), '', 'filter_action', false, array( 'id' => 'post-query-submit' ) );
+			}
 		}
 
 		if ( $this->is_trash && current_user_can( get_post_type_object( $this->screen->post_type )->cap->edit_others_posts ) ) {
@@ -1550,10 +1556,13 @@ class WP_Posts_List_Table extends WP_List_Table {
 	<?php if ( count( $flat_taxonomies ) && !$bulk ) : ?>
 
 	<?php foreach ( $flat_taxonomies as $taxonomy ) : ?>
-		<?php if ( current_user_can( $taxonomy->cap->assign_terms ) ) : ?>
+		<?php if ( current_user_can( $taxonomy->cap->assign_terms ) ) :
+			$taxonomy_name = esc_attr( $taxonomy->name );
+
+			?>
 			<label class="inline-edit-tags">
 				<span class="title"><?php echo esc_html( $taxonomy->labels->name ) ?></span>
-				<textarea cols="22" rows="1" name="tax_input[<?php echo esc_attr( $taxonomy->name )?>]" class="tax_input_<?php echo esc_attr( $taxonomy->name )?>"></textarea>
+				<textarea data-wp-taxonomy="<?php echo $taxonomy_name; ?>" cols="22" rows="1" name="tax_input[<?php echo $taxonomy_name; ?>]" class="tax_input_<?php echo $taxonomy_name; ?>"></textarea>
 			</label>
 		<?php endif; ?>
 
@@ -1713,14 +1722,14 @@ class WP_Posts_List_Table extends WP_List_Table {
 		}
 	?>
 		<p class="submit inline-edit-save">
-			<button type="button" class="button-secondary cancel alignleft"><?php _e( 'Cancel' ); ?></button>
+			<button type="button" class="button cancel alignleft"><?php _e( 'Cancel' ); ?></button>
 			<?php if ( ! $bulk ) {
 				wp_nonce_field( 'inlineeditnonce', '_inline_edit', false );
 				?>
-				<button type="button" class="button-primary save alignright"><?php _e( 'Update' ); ?></button>
+				<button type="button" class="button button-primary save alignright"><?php _e( 'Update' ); ?></button>
 				<span class="spinner"></span>
 			<?php } else {
-				submit_button( __( 'Update' ), 'button-primary alignright', 'bulk_edit', false );
+				submit_button( __( 'Update' ), 'primary alignright', 'bulk_edit', false );
 			} ?>
 			<input type="hidden" name="post_view" value="<?php echo esc_attr( $m ); ?>" />
 			<input type="hidden" name="screen" value="<?php echo esc_attr( $screen->id ); ?>" />

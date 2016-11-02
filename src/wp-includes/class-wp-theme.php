@@ -48,15 +48,16 @@ final class WP_Theme implements ArrayAccess {
 	 * @var array
 	 */
 	private static $default_themes = array(
-		'classic'        => 'WordPress Classic',
-		'default'        => 'WordPress Default',
-		'twentyten'      => 'Twenty Ten',
-		'twentyeleven'   => 'Twenty Eleven',
-		'twentytwelve'   => 'Twenty Twelve',
-		'twentythirteen' => 'Twenty Thirteen',
-		'twentyfourteen' => 'Twenty Fourteen',
-		'twentyfifteen'  => 'Twenty Fifteen',
-		'twentysixteen'  => 'Twenty Sixteen',
+		'classic'         => 'WordPress Classic',
+		'default'         => 'WordPress Default',
+		'twentyten'       => 'Twenty Ten',
+		'twentyeleven'    => 'Twenty Eleven',
+		'twentytwelve'    => 'Twenty Twelve',
+		'twentythirteen'  => 'Twenty Thirteen',
+		'twentyfourteen'  => 'Twenty Fourteen',
+		'twentyfifteen'   => 'Twenty Fifteen',
+		'twentysixteen'   => 'Twenty Sixteen',
+		'twentyseventeen' => 'Twenty Seventeen',
 	);
 
 	/**
@@ -1331,12 +1332,11 @@ final class WP_Theme implements ArrayAccess {
 	}
 
 	/**
-	 * Enable a theme for all sites on the current network.
+	 * Enables a theme for all sites on the current network.
 	 *
 	 * @since 4.6.0
-	 *
-	 * @static
 	 * @access public
+	 * @static
 	 *
 	 * @param string|array $stylesheets Stylesheet name or array of stylesheet names.
 	 */
@@ -1358,12 +1358,11 @@ final class WP_Theme implements ArrayAccess {
 	}
 
 	/**
-	 * Disable a theme for all sites on the current network.
+	 * Disables a theme for all sites on the current network.
 	 *
 	 * @since 4.6.0
-	 *
-	 * @static
 	 * @access public
+	 * @static
 	 *
 	 * @param string|array $stylesheets Stylesheet name or array of stylesheet names.
 	 */
@@ -1397,7 +1396,7 @@ final class WP_Theme implements ArrayAccess {
 	 * @param array $themes Array of themes to sort, passed by reference.
 	 */
 	public static function sort_by_name( &$themes ) {
-		if ( 0 === strpos( get_locale(), 'en_' ) ) {
+		if ( 0 === strpos( get_user_locale(), 'en_' ) ) {
 			uasort( $themes, array( 'WP_Theme', '_name_sort' ) );
 		} else {
 			uasort( $themes, array( 'WP_Theme', '_name_sort_i18n' ) );

@@ -13,7 +13,7 @@
  * @param array    $args {
  *     Array of arguments for building the post submit meta box.
  *
- *     @type string   $id       Meta box ID.
+ *     @type string   $id       Meta box 'id' attribute.
  *     @type string   $title    Meta box title.
  *     @type callable $callback Meta box display callback.
  *     @type array    $args     Extra meta box arguments.
@@ -32,7 +32,7 @@ function post_submit_meta_box( $post, $args = array() ) {
 
 <?php // Hidden submit button early on so that the browser chooses the right button when form is submitted with Return key ?>
 <div style="display:none;">
-<?php submit_button( __( 'Save' ), 'button', 'save' ); ?>
+<?php submit_button( __( 'Save' ), '', 'save' ); ?>
 </div>
 
 <div id="minor-publishing-actions">
@@ -74,9 +74,9 @@ do_action( 'post_submitbox_minor_actions', $post );
 
 <div id="misc-publishing-actions">
 
-<div class="misc-pub-section misc-pub-post-status"><label for="post_status"><?php _e('Status:') ?></label>
-<span id="post-status-display">
-<?php
+<div class="misc-pub-section misc-pub-post-status">
+<?php _e( 'Status:' ) ?> <span id="post-status-display"><?php
+
 switch ( $post->post_status ) {
 	case 'private':
 		_e('Privately Published');
@@ -98,11 +98,12 @@ switch ( $post->post_status ) {
 ?>
 </span>
 <?php if ( 'publish' == $post->post_status || 'private' == $post->post_status || $can_publish ) { ?>
-<a href="#post_status" <?php if ( 'private' == $post->post_status ) { ?>style="display:none;" <?php } ?>class="edit-post-status hide-if-no-js"><span aria-hidden="true"><?php _e( 'Edit' ); ?></span> <span class="screen-reader-text"><?php _e( 'Edit status' ); ?></span></a>
+<a href="#post_status" <?php if ( 'private' == $post->post_status ) { ?>style="display:none;" <?php } ?>class="edit-post-status hide-if-no-js" role="button"><span aria-hidden="true"><?php _e( 'Edit' ); ?></span> <span class="screen-reader-text"><?php _e( 'Edit status' ); ?></span></a>
 
 <div id="post-status-select" class="hide-if-js">
 <input type="hidden" name="hidden_post_status" id="hidden_post_status" value="<?php echo esc_attr( ('auto-draft' == $post->post_status ) ? 'draft' : $post->post_status); ?>" />
-<select name='post_status' id='post_status'>
+<label for="post_status" class="screen-reader-text"><?php _e( 'Set status' ) ?></label>
+<select name="post_status" id="post_status">
 <?php if ( 'publish' == $post->post_status ) : ?>
 <option<?php selected( $post->post_status, 'publish' ); ?> value='publish'><?php _e('Published') ?></option>
 <?php elseif ( 'private' == $post->post_status ) : ?>
@@ -144,7 +145,7 @@ if ( 'private' == $post->post_status ) {
 
 echo esc_html( $visibility_trans ); ?></span>
 <?php if ( $can_publish ) { ?>
-<a href="#visibility" class="edit-visibility hide-if-no-js"><span aria-hidden="true"><?php _e( 'Edit' ); ?></span> <span class="screen-reader-text"><?php _e( 'Edit visibility' ); ?></span></a>
+<a href="#visibility" class="edit-visibility hide-if-no-js" role="button"><span aria-hidden="true"><?php _e( 'Edit' ); ?></span> <span class="screen-reader-text"><?php _e( 'Edit visibility' ); ?></span></a>
 
 <div id="post-visibility-select" class="hide-if-js">
 <input type="hidden" name="hidden_post_password" id="hidden-post-password" value="<?php echo esc_attr($post->post_password); ?>" />
@@ -157,7 +158,7 @@ echo esc_html( $visibility_trans ); ?></span>
 <span id="sticky-span"><input id="sticky" name="sticky" type="checkbox" value="sticky" <?php checked( is_sticky( $post->ID ) ); ?> /> <label for="sticky" class="selectit"><?php _e( 'Stick this post to the front page' ); ?></label><br /></span>
 <?php endif; ?>
 <input type="radio" name="visibility" id="visibility-radio-password" value="password" <?php checked( $visibility, 'password' ); ?> /> <label for="visibility-radio-password" class="selectit"><?php _e('Password protected'); ?></label><br />
-<span id="password-span"><label for="post_password"><?php _e('Password:'); ?></label> <input type="text" name="post_password" id="post_password" value="<?php echo esc_attr($post->post_password); ?>"  maxlength="20" /><br /></span>
+<span id="password-span"><label for="post_password"><?php _e('Password:'); ?></label> <input type="text" name="post_password" id="post_password" value="<?php echo esc_attr($post->post_password); ?>"  maxlength="255" /><br /></span>
 <input type="radio" name="visibility" id="visibility-radio-private" value="private" <?php checked( $visibility, 'private' ); ?> /> <label for="visibility-radio-private" class="selectit"><?php _e('Private'); ?></label><br />
 
 <p>
@@ -201,7 +202,7 @@ if ( $can_publish ) : // Contributors don't get to choose the date of publish ?>
 <div class="misc-pub-section curtime misc-pub-curtime">
 	<span id="timestamp">
 	<?php printf($stamp, $date); ?></span>
-	<a href="#edit_timestamp" class="edit-timestamp hide-if-no-js"><span aria-hidden="true"><?php _e( 'Edit' ); ?></span> <span class="screen-reader-text"><?php _e( 'Edit date and time' ); ?></span></a>
+	<a href="#edit_timestamp" class="edit-timestamp hide-if-no-js" role="button"><span aria-hidden="true"><?php _e( 'Edit' ); ?></span> <span class="screen-reader-text"><?php _e( 'Edit date and time' ); ?></span></a>
 	<fieldset id="timestampdiv" class="hide-if-js">
 	<legend class="screen-reader-text"><?php _e( 'Date and time' ); ?></legend>
 	<?php touch_time( ( $action === 'edit' ), 1 ); ?>
@@ -252,14 +253,14 @@ if ( !in_array( $post->post_status, array('publish', 'future', 'private') ) || 0
 	if ( $can_publish ) :
 		if ( !empty($post->post_date_gmt) && time() < strtotime( $post->post_date_gmt . ' +0000' ) ) : ?>
 		<input name="original_publish" type="hidden" id="original_publish" value="<?php esc_attr_e('Schedule') ?>" />
-		<?php submit_button( __( 'Schedule' ), 'primary button-large', 'publish', false ); ?>
+		<?php submit_button( __( 'Schedule' ), 'primary large', 'publish', false ); ?>
 <?php	else : ?>
 		<input name="original_publish" type="hidden" id="original_publish" value="<?php esc_attr_e('Publish') ?>" />
-		<?php submit_button( __( 'Publish' ), 'primary button-large', 'publish', false ); ?>
+		<?php submit_button( __( 'Publish' ), 'primary large', 'publish', false ); ?>
 <?php	endif;
 	else : ?>
 		<input name="original_publish" type="hidden" id="original_publish" value="<?php esc_attr_e('Submit for Review') ?>" />
-		<?php submit_button( __( 'Submit for Review' ), 'primary button-large', 'publish', false ); ?>
+		<?php submit_button( __( 'Submit for Review' ), 'primary large', 'publish', false ); ?>
 <?php
 	endif;
 } else { ?>
@@ -290,7 +291,7 @@ function attachment_submit_meta_box( $post ) {
 
 <?php // Hidden submit button early on so that the browser chooses the right button when form is submitted with Return key ?>
 <div style="display:none;">
-<?php submit_button( __( 'Save' ), 'button', 'save' ); ?>
+<?php submit_button( __( 'Save' ), '', 'save' ); ?>
 </div>
 
 
@@ -334,7 +335,7 @@ function attachment_submit_meta_box( $post ) {
 	<div id="publishing-action">
 		<span class="spinner"></span>
 		<input name="original_publish" type="hidden" id="original_publish" value="<?php esc_attr_e('Update') ?>" />
-		<input name="save" type="submit" class="button-primary button-large" id="publish" value="<?php esc_attr_e( 'Update' ) ?>" />
+		<input name="save" type="submit" class="button button-primary button-large" id="publish" value="<?php esc_attr_e( 'Update' ) ?>" />
 	</div>
 	<div class="clear"></div>
 </div><!-- #major-publishing-actions -->
@@ -353,7 +354,7 @@ function attachment_submit_meta_box( $post ) {
  * @param array   $box {
  *     Post formats meta box arguments.
  *
- *     @type string   $id       Meta box ID.
+ *     @type string   $id       Meta box 'id' attribute.
  *     @type string   $title    Meta box title.
  *     @type callable $callback Meta box display callback.
  *     @type array    $args     Extra meta box arguments.
@@ -394,7 +395,7 @@ function post_format_meta_box( $post, $box ) {
  * @param array   $box {
  *     Tags meta box arguments.
  *
- *     @type string   $id       Meta box ID.
+ *     @type string   $id       Meta box 'id' attribute.
  *     @type string   $title    Meta box title.
  *     @type callable $callback Meta box display callback.
  *     @type array    $args {
@@ -430,16 +431,18 @@ function post_tags_meta_box( $post, $box ) {
  	<?php if ( $user_can_assign_terms ) : ?>
 	<div class="ajaxtag hide-if-no-js">
 		<label class="screen-reader-text" for="new-tag-<?php echo $tax_name; ?>"><?php echo $taxonomy->labels->add_new_item; ?></label>
-		<p><input type="text" id="new-tag-<?php echo $tax_name; ?>" name="newtag[<?php echo $tax_name; ?>]" class="newtag form-input-tip" size="16" autocomplete="off" aria-describedby="new-tag-<?php echo $tax_name; ?>-desc" value="" />
+		<p><input data-wp-taxonomy="<?php echo $tax_name; ?>" type="text" id="new-tag-<?php echo $tax_name; ?>" name="newtag[<?php echo $tax_name; ?>]" class="newtag form-input-tip" size="16" autocomplete="off" aria-describedby="new-tag-<?php echo $tax_name; ?>-desc" value="" />
 		<input type="button" class="button tagadd" value="<?php esc_attr_e('Add'); ?>" /></p>
 	</div>
 	<p class="howto" id="new-tag-<?php echo $tax_name; ?>-desc"><?php echo $taxonomy->labels->separate_items_with_commas; ?></p>
+	<?php elseif ( empty( $terms_to_edit ) ): ?>
+		<p><?php echo $taxonomy->labels->no_terms; ?></p>
 	<?php endif; ?>
 	</div>
 	<div class="tagchecklist"></div>
 </div>
 <?php if ( $user_can_assign_terms ) : ?>
-<p class="hide-if-no-js"><a href="#titlediv" class="tagcloud-link" id="link-<?php echo $tax_name; ?>"><?php echo $taxonomy->labels->choose_from_most_used; ?></a></p>
+<p class="hide-if-no-js"><button type="button" class="button-link tagcloud-link" id="link-<?php echo $tax_name; ?>" aria-expanded="false"><?php echo $taxonomy->labels->choose_from_most_used; ?></button></p>
 <?php endif; ?>
 <?php
 }
@@ -455,7 +458,7 @@ function post_tags_meta_box( $post, $box ) {
  * @param array   $box {
  *     Categories meta box arguments.
  *
- *     @type string   $id       Meta box ID.
+ *     @type string   $id       Meta box 'id' attribute.
  *     @type string   $title    Meta box title.
  *     @type callable $callback Meta box display callback.
  *     @type array    $args {
@@ -875,7 +878,7 @@ function link_submit_meta_box($link) {
 
 <?php // Hidden submit button early on so that the browser chooses the right button when form is submitted with Return key ?>
 <div style="display:none;">
-<?php submit_button( __( 'Save' ), 'button', 'save', false ); ?>
+<?php submit_button( __( 'Save' ), '', 'save', false ); ?>
 </div>
 
 <div id="minor-publishing-actions">
@@ -909,9 +912,9 @@ if ( !empty($_GET['action']) && 'edit' == $_GET['action'] && current_user_can('m
 
 <div id="publishing-action">
 <?php if ( !empty($link->link_id) ) { ?>
-	<input name="save" type="submit" class="button-large button-primary" id="publish" value="<?php esc_attr_e( 'Update Link' ) ?>" />
+	<input name="save" type="submit" class="button button-primary button-large" id="publish" value="<?php esc_attr_e( 'Update Link' ) ?>" />
 <?php } else { ?>
-	<input name="save" type="submit" class="button-large button-primary" id="publish" value="<?php esc_attr_e( 'Add Link' ) ?>" />
+	<input name="save" type="submit" class="button button-primary button-large" id="publish" value="<?php esc_attr_e( 'Add Link' ) ?>" />
 <?php } ?>
 </div>
 <div class="clear"></div>

@@ -20,7 +20,7 @@
 function create_initial_post_types() {
 	register_post_type( 'post', array(
 		'labels' => array(
-			'name_admin_bar' => _x( 'Post', 'add new on admin bar' ),
+			'name_admin_bar' => _x( 'Post', 'add new from admin bar' ),
 		),
 		'public'  => true,
 		'_builtin' => true, /* internal use only. don't use this when registering your own post type. */
@@ -33,11 +33,14 @@ function create_initial_post_types() {
 		'query_var' => false,
 		'delete_with_user' => true,
 		'supports' => array( 'title', 'editor', 'author', 'thumbnail', 'excerpt', 'trackbacks', 'custom-fields', 'comments', 'revisions', 'post-formats' ),
+		'show_in_rest' => true,
+		'rest_base' => 'posts',
+		'rest_controller_class' => 'WP_REST_Posts_Controller',
 	) );
 
 	register_post_type( 'page', array(
 		'labels' => array(
-			'name_admin_bar' => _x( 'Page', 'add new on admin bar' ),
+			'name_admin_bar' => _x( 'Page', 'add new from admin bar' ),
 		),
 		'public' => true,
 		'publicly_queryable' => false,
@@ -51,6 +54,9 @@ function create_initial_post_types() {
 		'query_var' => false,
 		'delete_with_user' => true,
 		'supports' => array( 'title', 'editor', 'author', 'thumbnail', 'page-attributes', 'custom-fields', 'comments', 'revisions' ),
+		'show_in_rest' => true,
+		'rest_base' => 'pages',
+		'rest_controller_class' => 'WP_REST_Posts_Controller',
 	) );
 
 	register_post_type( 'attachment', array(
@@ -76,6 +82,9 @@ function create_initial_post_types() {
 		'show_in_nav_menus' => false,
 		'delete_with_user' => true,
 		'supports' => array( 'title', 'author', 'comments' ),
+		'show_in_rest' => true,
+		'rest_base' => 'media',
+		'rest_controller_class' => 'WP_REST_Attachments_Controller',
 	) );
 	add_post_type_support( 'attachment:audio', 'thumbnail' );
 	add_post_type_support( 'attachment:video', 'thumbnail' );
@@ -109,6 +118,80 @@ function create_initial_post_types() {
 		'rewrite' => false,
 		'delete_with_user' => false,
 		'query_var' => false,
+	) );
+
+	register_post_type( 'custom_css', array(
+		'labels' => array(
+			'name'          => __( 'Custom CSS' ),
+			'singular_name' => __( 'Custom CSS' ),
+		),
+		'public'           => false,
+		'hierarchical'     => false,
+		'rewrite'          => false,
+		'query_var'        => false,
+		'delete_with_user' => false,
+		'can_export'       => true,
+		'_builtin'         => true, /* internal use only. don't use this when registering your own post type. */
+		'supports'         => array( 'title' ),
+		'capabilities'     => array(
+			'delete_posts'           => 'edit_theme_options',
+			'delete_post'            => 'edit_theme_options',
+			'delete_published_posts' => 'edit_theme_options',
+			'delete_private_posts'   => 'edit_theme_options',
+			'delete_others_posts'    => 'edit_theme_options',
+			'edit_post'              => 'unfiltered_css',
+			'edit_posts'             => 'unfiltered_css',
+			'edit_others_posts'      => 'unfiltered_css',
+			'edit_published_posts'   => 'unfiltered_css',
+			'read_post'              => 'read',
+			'read_private_posts'     => 'read',
+			'publish_posts'          => 'edit_theme_options',
+		),
+	) );
+
+	register_post_type( 'customize_changeset', array(
+		'labels' => array(
+			'name'               => _x( 'Changesets', 'post type general name' ),
+			'singular_name'      => _x( 'Changeset', 'post type singular name' ),
+			'menu_name'          => _x( 'Changesets', 'admin menu' ),
+			'name_admin_bar'     => _x( 'Changeset', 'add new on admin bar' ),
+			'add_new'            => _x( 'Add New', 'Customize Changeset' ),
+			'add_new_item'       => __( 'Add New Changeset' ),
+			'new_item'           => __( 'New Changeset' ),
+			'edit_item'          => __( 'Edit Changeset' ),
+			'view_item'          => __( 'View Changeset' ),
+			'all_items'          => __( 'All Changesets' ),
+			'search_items'       => __( 'Search Changesets' ),
+			'not_found'          => __( 'No changesets found.' ),
+			'not_found_in_trash' => __( 'No changesets found in Trash.' ),
+		),
+		'public' => false,
+		'_builtin' => true, /* internal use only. don't use this when registering your own post type. */
+		'map_meta_cap' => true,
+		'hierarchical' => false,
+		'rewrite' => false,
+		'query_var' => false,
+		'can_export' => false,
+		'delete_with_user' => false,
+		'supports' => array( 'title', 'author' ),
+		'capability_type' => 'customize_changeset',
+		'capabilities' => array(
+			'create_posts' => 'customize',
+			'delete_others_posts' => 'customize',
+			'delete_post' => 'customize',
+			'delete_posts' => 'customize',
+			'delete_private_posts' => 'customize',
+			'delete_published_posts' => 'customize',
+			'edit_others_posts' => 'customize',
+			'edit_post' => 'customize',
+			'edit_posts' => 'customize',
+			'edit_private_posts' => 'customize',
+			'edit_published_posts' => 'do_not_allow',
+			'publish_posts' => 'customize',
+			'read' => 'read',
+			'read_post' => 'customize',
+			'read_private_posts' => 'customize',
+		),
 	) );
 
 	register_post_status( 'publish', array(
@@ -837,6 +920,7 @@ function get_post_type( $post = null ) {
  * Retrieves a post type object by name.
  *
  * @since 3.0.0
+ * @since 4.6.0 Object returned is now an instance of WP_Post_Type.
  *
  * @global array $wp_post_types List of post types.
  *
@@ -899,7 +983,7 @@ function get_post_types( $args = array(), $output = 'names', $operator = 'and' )
  * @since 3.0.0 The `show_ui` argument is now enforced on the new post screen.
  * @since 4.4.0 The `show_ui` argument is now enforced on the post type listing
  *              screen and post editing screen.
- * @since 4.6.0 Converted to use `WP_Post_Type`.
+ * @since 4.6.0 Post type object returned is now an instance of WP_Post_Type.
  *
  * @global array $wp_post_types List of post types.
  *
@@ -1041,6 +1125,7 @@ function register_post_type( $post_type, $args = array() ) {
 	 * Fires after a post type is registered.
 	 *
 	 * @since 3.3.0
+	 * @since 4.6.0 Converted the `$post_type` parameter to accept a WP_Post_Type object.
 	 *
 	 * @param string       $post_type        Post type.
 	 * @param WP_Post_Type $post_type_object Arguments used to register the post type.
@@ -1056,7 +1141,6 @@ function register_post_type( $post_type, $args = array() ) {
  * Can not be used to unregister built-in post types.
  *
  * @since 4.5.0
- * @since 4.6.0 Converted to use `WP_Post_Type`.
  *
  * @global array $wp_post_types List of post types.
  *
@@ -1067,7 +1151,7 @@ function unregister_post_type( $post_type ) {
 	global $wp_post_types;
 
 	if ( ! post_type_exists( $post_type ) ) {
-		return new WP_Error( 'invalid_post_type', __( 'Invalid post type' ) );
+		return new WP_Error( 'invalid_post_type', __( 'Invalid post type.' ) );
 	}
 
 	$post_type_object = get_post_type_object( $post_type );
@@ -1233,6 +1317,7 @@ function _post_type_meta_capabilities( $capabilities = null ) {
  * - `edit_item` - Label for editing a singular item. Default is 'Edit Post' / 'Edit Page'.
  * - `new_item` - Label for the new item page title. Default is 'New Post' / 'New Page'.
  * - `view_item` - Label for viewing a singular item. Default is 'View Post' / 'View Page'.
+ * - `view_items` - Label for viewing post type archives. Default is 'View Posts' / 'View Pages'.
  * - `search_items` - Label for searching plural items. Default is 'Search Posts' / 'Search Pages'.
  * - `not_found` - Label used when no items are found. Default is 'No posts found' / 'No pages found'.
  * - `not_found_in_trash` - Label used when no items are in the trash. Default is 'No posts found in Trash' /
@@ -1265,6 +1350,8 @@ function _post_type_meta_capabilities( $capabilities = null ) {
  *              and `use_featured_image` labels.
  * @since 4.4.0 Added the `insert_into_item`, `uploaded_to_this_item`, `filter_items_list`,
  *              `items_list_navigation`, and `items_list` labels.
+ * @since 4.6.0 Converted the `$post_type` parameter to accept a WP_Post_Type object.
+ * @since 4.7.0 Added the `view_items` label.
  *
  * @access private
  *
@@ -1280,6 +1367,7 @@ function get_post_type_labels( $post_type_object ) {
 		'edit_item' => array( __('Edit Post'), __('Edit Page') ),
 		'new_item' => array( __('New Post'), __('New Page') ),
 		'view_item' => array( __('View Post'), __('View Page') ),
+		'view_items' => array( __('View Posts'), __('View Pages') ),
 		'search_items' => array( __('Search Posts'), __('Search Pages') ),
 		'not_found' => array( __('No posts found.'), __('No pages found.') ),
 		'not_found_in_trash' => array( __('No posts found in Trash.'), __('No pages found in Trash.') ),
@@ -1522,6 +1610,7 @@ function set_post_type( $post_id = 0, $post_type = 'post' ) {
  *
  * @since 4.4.0
  * @since 4.5.0 Added the ability to pass a post type name in addition to object.
+ * @since 4.6.0 Converted the `$post_type` parameter to accept a WP_Post_Type object.
  *
  * @param string|WP_Post_Type $post_type Post type name or object.
  * @return bool Whether the post type should be considered viewable.
@@ -2863,7 +2952,7 @@ function wp_get_recent_posts( $args = array(), $output = ARRAY_A ) {
  *     @type array  $tax_input             Array of taxonomy terms keyed by their taxonomy name. Default empty.
  *     @type array  $meta_input            Array of post meta values keyed by their post meta key. Default empty.
  * }
- * @param bool  $wp_error Optional. Whether to allow return of WP_Error on failure. Default false.
+ * @param bool  $wp_error Optional. Whether to return a WP_Error on failure. Default false.
  * @return int|WP_Error The post ID on success. The value 0 or WP_Error on failure.
  */
 function wp_insert_post( $postarr, $wp_error = false ) {
@@ -3276,6 +3365,27 @@ function wp_insert_post( $postarr, $wp_error = false ) {
 
 		if ( ! empty( $postarr['context'] ) ) {
 			add_post_meta( $post_ID, '_wp_attachment_context', $postarr['context'], true );
+		}
+	}
+
+	// Set or remove featured image.
+	if ( isset( $postarr['_thumbnail_id'] ) ) {
+		$thumbnail_support = current_theme_supports( 'post-thumbnails', $post_type ) && post_type_supports( $post_type, 'thumbnail' ) || 'revision' === $post_type;
+		if ( ! $thumbnail_support && 'attachment' === $post_type && $post_mime_type ) {
+			if ( wp_attachment_is( 'audio', $post_ID ) ) {
+				$thumbnail_support = post_type_supports( 'attachment:audio', 'thumbnail' ) || current_theme_supports( 'post-thumbnails', 'attachment:audio' );
+			} elseif ( wp_attachment_is( 'video', $post_ID ) ) {
+				$thumbnail_support = post_type_supports( 'attachment:video', 'thumbnail' ) || current_theme_supports( 'post-thumbnails', 'attachment:video' );
+			}
+		}
+
+		if ( $thumbnail_support ) {
+			$thumbnail_id = intval( $postarr['_thumbnail_id'] );
+			if ( -1 === $thumbnail_id ) {
+				delete_post_thumbnail( $post_ID );
+			} else {
+				set_post_thumbnail( $post_ID, $thumbnail_id );
+			}
 		}
 	}
 
@@ -3881,19 +3991,32 @@ function wp_transition_post_status( $new_status, $old_status, $post ) {
  * Add a URL to those already pinged.
  *
  * @since 1.5.0
+ * @since 4.7.0 $post_id can be a WP_Post object.
+ * @since 4.7.0 $uri can be an array of URIs.
  *
  * @global wpdb $wpdb WordPress database abstraction object.
  *
- * @param int    $post_id Post ID.
- * @param string $uri     Ping URI.
+ * @param int|WP_Post  $post_id Post object or ID.
+ * @param string|array $uri     Ping URI or array of URIs.
  * @return int|false How many rows were updated.
  */
 function add_ping( $post_id, $uri ) {
 	global $wpdb;
-	$pung = $wpdb->get_var( $wpdb->prepare( "SELECT pinged FROM $wpdb->posts WHERE ID = %d", $post_id ));
-	$pung = trim($pung);
-	$pung = preg_split('/\s/', $pung);
-	$pung[] = $uri;
+
+	$post = get_post( $post_id );
+	if ( ! $post ) {
+		return false;
+	}
+
+	$pung = trim( $post->pinged );
+	$pung = preg_split( '/\s/', $pung );
+
+	if ( is_array( $uri ) ) {
+		$pung = array_merge( $pung, $uri );
+	}
+	else {
+		$pung[] = $uri;
+	}
 	$new = implode("\n", $pung);
 
 	/**
@@ -3905,9 +4028,9 @@ function add_ping( $post_id, $uri ) {
 	 */
 	$new = apply_filters( 'add_ping', $new );
 
-	// expected_slashed ($new).
-	$new = wp_unslash($new);
-	return $wpdb->update( $wpdb->posts, array( 'pinged' => $new ), array( 'ID' => $post_id ) );
+	$return = $wpdb->update( $wpdb->posts, array( 'pinged' => $new ), array( 'ID' => $post->ID ) );
+	clean_post_cache( $post->ID );
+	return $return;
 }
 
 /**
@@ -3949,16 +4072,19 @@ function get_enclosed( $post_id ) {
  *
  * @since 1.5.0
  *
- * @global wpdb $wpdb WordPress database abstraction object.
+ * @since 4.7.0 $post_id can be a WP_Post object.
  *
- * @param int $post_id Post ID.
+ * @param int|WP_Post $post_id Post ID or object.
  * @return array
  */
 function get_pung( $post_id ) {
-	global $wpdb;
-	$pung = $wpdb->get_var( $wpdb->prepare( "SELECT pinged FROM $wpdb->posts WHERE ID = %d", $post_id ));
-	$pung = trim($pung);
-	$pung = preg_split('/\s/', $pung);
+	$post = get_post( $post_id );
+	if ( ! $post ) {
+		return false;
+	}
+
+	$pung = trim( $post->pinged );
+	$pung = preg_split( '/\s/', $pung );
 
 	/**
 	 * Filters the list of already-pinged URLs for the given post.
@@ -3974,16 +4100,19 @@ function get_pung( $post_id ) {
  * Retrieve URLs that need to be pinged.
  *
  * @since 1.5.0
+ * @since 4.7.0 $post_id can be a WP_Post object.
  *
- * @global wpdb $wpdb WordPress database abstraction object.
- *
- * @param int $post_id Post ID
+ * @param int|WP_Post $post_id Post Object or ID
  * @return array
  */
 function get_to_ping( $post_id ) {
-	global $wpdb;
-	$to_ping = $wpdb->get_var( $wpdb->prepare( "SELECT to_ping FROM $wpdb->posts WHERE ID = %d", $post_id ));
-	$to_ping = sanitize_trackback_urls( $to_ping );
+	$post = get_post( $post_id );
+
+	if ( ! $post ) {
+		return false;
+	}
+
+	$to_ping = sanitize_trackback_urls( $post->to_ping );
 	$to_ping = preg_split('/\s/', $to_ping, -1, PREG_SPLIT_NO_EMPTY);
 
 	/**
@@ -4084,11 +4213,7 @@ function get_page( $page, $output = OBJECT, $filter = 'raw') {
 function get_page_by_path( $page_path, $output = OBJECT, $post_type = 'page' ) {
 	global $wpdb;
 
-	$last_changed = wp_cache_get( 'last_changed', 'posts' );
-	if ( false === $last_changed ) {
-		$last_changed = microtime();
-		wp_cache_set( 'last_changed', $last_changed, 'posts' );
-	}
+	$last_changed = wp_cache_get_last_changed( 'posts' );
 
 	$hash = md5( $page_path . serialize( $post_type ) );
 	$cache_key = "get_page_by_path:$hash:$last_changed";
@@ -4302,7 +4427,7 @@ function _page_traverse_name( $page_id, &$children, &$result ){
  * Sub pages will be in the "directory" under the parent page post name.
  *
  * @since 1.5.0
- * @since 4.6.0 The $page parameter is optional.
+ * @since 4.6.0 Converted the `$page` parameter to optional.
  *
  * @param WP_Post|object|int $page Optional. Page ID or WP_Post object. Default is global $post.
  * @return string|false Page URI, false on error.
@@ -4319,7 +4444,7 @@ function get_page_uri( $page = 0 ) {
 
 	foreach ( $page->ancestors as $parent ) {
 		$parent = get_post( $parent );
-		if ( $parent ) {
+		if ( $parent && $parent->post_name ) {
 			$uri = $parent->post_name . '/' . $uri;
 		}
 	}
@@ -4372,7 +4497,7 @@ function get_page_uri( $page = 0 ) {
  *     @type int          $offset       The number of pages to skip before returning. Requires `$number`.
  *                                      Default 0.
  *     @type string       $post_type    The post type to query. Default 'page'.
- *     @type string       $post_status  A comma-separated list of post status types to include.
+ *     @type string|array $post_status  A comma-separated list or array of post statuses to include.
  *                                      Default 'publish'.
  * }
  * @return array|false List of pages matching defaults or `$args`.
@@ -4381,13 +4506,21 @@ function get_pages( $args = array() ) {
 	global $wpdb;
 
 	$defaults = array(
-		'child_of' => 0, 'sort_order' => 'ASC',
-		'sort_column' => 'post_title', 'hierarchical' => 1,
-		'exclude' => array(), 'include' => array(),
-		'meta_key' => '', 'meta_value' => '',
-		'authors' => '', 'parent' => -1, 'exclude_tree' => array(),
-		'number' => '', 'offset' => 0,
-		'post_type' => 'page', 'post_status' => 'publish',
+		'child_of'     => 0,
+		'sort_order'   => 'ASC',
+		'sort_column'  => 'post_title',
+		'hierarchical' => 1,
+		'exclude'      => array(),
+		'include'      => array(),
+		'meta_key'     => '',
+		'meta_value'   => '',
+		'authors'      => '',
+		'parent'       => -1,
+		'exclude_tree' => array(),
+		'number'       => '',
+		'offset'       => 0,
+		'post_type'    => 'page',
+		'post_status'  => 'publish',
 	);
 
 	$r = wp_parse_args( $args, $defaults );
@@ -4422,11 +4555,7 @@ function get_pages( $args = array() ) {
 
 	// $args can be whatever, only use the args defined in defaults to compute the key.
 	$key = md5( serialize( wp_array_slice_assoc( $r, array_keys( $defaults ) ) ) );
-	$last_changed = wp_cache_get( 'last_changed', 'posts' );
-	if ( ! $last_changed ) {
-		$last_changed = microtime();
-		wp_cache_set( 'last_changed', $last_changed, 'posts' );
-	}
+	$last_changed = wp_cache_get_last_changed( 'posts' );
 
 	$cache_key = "get_pages:$key:$last_changed";
 	if ( $cache = wp_cache_get( $cache_key, 'posts' ) ) {
@@ -4670,15 +4799,17 @@ function is_local_attachment($url) {
  * setting the value for the 'comment_status' key.
  *
  * @since 2.0.0
+ * @since 4.7.0 Added the `$wp_error` parameter to allow a WP_Error to be returned on failure.
  *
  * @see wp_insert_post()
  *
- * @param string|array $args   Arguments for inserting an attachment.
- * @param string       $file   Optional. Filename.
- * @param int          $parent Optional. Parent post ID.
- * @return int Attachment ID.
+ * @param string|array $args     Arguments for inserting an attachment.
+ * @param string       $file     Optional. Filename.
+ * @param int          $parent   Optional. Parent post ID.
+ * @param bool         $wp_error Optional. Whether to return a WP_Error on failure. Default false.
+ * @return int|WP_Error The attachment ID on success. The value 0 or WP_Error on failure.
  */
-function wp_insert_attachment( $args, $file = false, $parent = 0 ) {
+function wp_insert_attachment( $args, $file = false, $parent = 0, $wp_error = false ) {
 	$defaults = array(
 		'file'        => $file,
 		'post_parent' => 0
@@ -4692,7 +4823,7 @@ function wp_insert_attachment( $args, $file = false, $parent = 0 ) {
 
 	$data['post_type'] = 'attachment';
 
-	return wp_insert_post( $data );
+	return wp_insert_post( $data, $wp_error );
 }
 
 /**
@@ -4941,7 +5072,7 @@ function wp_get_attachment_url( $post_id = 0 ) {
  *
  * @since 4.6.0
  *
- * @param int $post_id Optional. Attachment ID. Default 0.
+ * @param int $post_id Optional. Attachment ID. Default is the ID of the global `$post`.
  * @return string|false False on failure. Attachment caption on success.
  */
 function wp_get_attachment_caption( $post_id = 0 ) {
@@ -5038,12 +5169,12 @@ function wp_get_attachment_thumb_url( $post_id = 0 ) {
  *
  * @since 4.2.0
  *
- * @param string      $type    Attachment type. Accepts 'image', 'audio', or 'video'.
- * @param int|WP_Post $post_id Optional. Attachment ID. Default 0.
+ * @param string      $type Attachment type. Accepts 'image', 'audio', or 'video'.
+ * @param int|WP_Post $post Optional. Attachment ID or object. Default is global $post.
  * @return bool True if one of the accepted types, false otherwise.
  */
-function wp_attachment_is( $type, $post_id = 0 ) {
-	if ( ! $post = get_post( $post_id ) ) {
+function wp_attachment_is( $type, $post = null ) {
+	if ( ! $post = get_post( $post ) ) {
 		return false;
 	}
 
@@ -5089,10 +5220,10 @@ function wp_attachment_is( $type, $post_id = 0 ) {
  * @since 4.2.0 Modified into wrapper for wp_attachment_is() and
  *              allowed WP_Post object to be passed.
  *
- * @param int|WP_Post $post Optional. Attachment ID. Default 0.
+ * @param int|WP_Post $post Optional. Attachment ID or object. Default is global $post.
  * @return bool Whether the attachment is an image.
  */
-function wp_attachment_is_image( $post = 0 ) {
+function wp_attachment_is_image( $post = null ) {
 	return wp_attachment_is( 'image', $post );
 }
 

@@ -10,7 +10,7 @@
 require_once( dirname( __FILE__ ) . '/admin.php' );
 
 if ( ! $typenow )
-	wp_die( __( 'Invalid post type' ) );
+	wp_die( __( 'Invalid post type.' ) );
 
 if ( ! in_array( $typenow, get_post_types( array( 'show_ui' => true ) ) ) ) {
 	wp_die( __( 'Sorry, you are not allowed to edit posts in this post type.' ) );
@@ -32,7 +32,7 @@ $post_type = $typenow;
 $post_type_object = get_post_type_object( $post_type );
 
 if ( ! $post_type_object )
-	wp_die( __( 'Invalid post type' ) );
+	wp_die( __( 'Invalid post type.' ) );
 
 if ( ! current_user_can( $post_type_object->cap->edit_posts ) ) {
 	wp_die(
@@ -162,6 +162,21 @@ if ( $doaction ) {
 				}
 			}
 			break;
+		default:
+			/**
+			 * Fires when a custom bulk action should be handled.
+			 *
+			 * The sendback link should be modified with success or failure feedback
+			 * from the action to be used to display feedback to the user.
+			 *
+			 * @since 4.7.0
+			 *
+			 * @param string $sendback The redirect URL.
+			 * @param string $doaction The action being taken.
+			 * @param array  $post_ids The post IDs to take the action on.
+			 */
+			$sendback = apply_filters( 'handle_bulk_actions-' . get_current_screen()->id, $sendback, $doaction, $post_ids );
+			break;
 	}
 
 	$sendback = remove_query_arg( array('action', 'action2', 'tags_input', 'post_author', 'comment_status', 'ping_status', '_status', 'post', 'bulk_edit', 'post_view'), $sendback );
@@ -221,8 +236,8 @@ if ( 'post' == $post_type ) {
 
 	get_current_screen()->set_help_sidebar(
 	'<p><strong>' . __('For more information:') . '</strong></p>' .
-	'<p>' . __('<a href="https://codex.wordpress.org/Posts_Screen" target="_blank">Documentation on Managing Posts</a>') . '</p>' .
-	'<p>' . __('<a href="https://wordpress.org/support/" target="_blank">Support Forums</a>') . '</p>'
+	'<p>' . __('<a href="https://codex.wordpress.org/Posts_Screen">Documentation on Managing Posts</a>') . '</p>' .
+	'<p>' . __('<a href="https://wordpress.org/support/">Support Forums</a>') . '</p>'
 	);
 
 } elseif ( 'page' == $post_type ) {
@@ -242,8 +257,8 @@ if ( 'post' == $post_type ) {
 
 	get_current_screen()->set_help_sidebar(
 	'<p><strong>' . __('For more information:') . '</strong></p>' .
-	'<p>' . __('<a href="https://codex.wordpress.org/Pages_Screen" target="_blank">Documentation on Managing Pages</a>') . '</p>' .
-	'<p>' . __('<a href="https://wordpress.org/support/" target="_blank">Support Forums</a>') . '</p>'
+	'<p>' . __('<a href="https://codex.wordpress.org/Pages_Screen">Documentation on Managing Pages</a>') . '</p>' .
+	'<p>' . __('<a href="https://wordpress.org/support/">Support Forums</a>') . '</p>'
 	);
 
 }

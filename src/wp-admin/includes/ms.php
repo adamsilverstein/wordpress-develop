@@ -40,7 +40,7 @@ function check_upload_size( $file ) {
 		$file['error'] = __( 'You have used your space quota. Please delete files before uploading.' );
 	}
 
-	if ( $file['error'] != '0' && ! isset( $_POST['html-upload'] ) && ( ! defined( 'DOING_AJAX' ) || ! DOING_AJAX ) ) {
+	if ( $file['error'] != '0' && ! isset( $_POST['html-upload'] ) && ! wp_doing_ajax() ) {
 		wp_die( $file['error'] . ' <a href="javascript:history.go(-1)">' . __( 'Back' ) . '</a>' );
 	}
 
@@ -66,7 +66,7 @@ function wpmu_delete_blog( $blog_id, $drop = false ) {
 		switch_to_blog( $blog_id );
 	}
 
-	$blog = get_blog_details( $blog_id );
+	$blog = get_site( $blog_id );
 	/**
 	 * Fires before a site is deleted.
 	 *
@@ -88,7 +88,7 @@ function wpmu_delete_blog( $blog_id, $drop = false ) {
 
 	update_blog_status( $blog_id, 'deleted', 1 );
 
-	$current_site = get_current_site();
+	$current_network = get_network();
 
 	// If a full blog object is not available, do not destroy anything.
 	if ( $drop && ! $blog ) {
@@ -96,7 +96,7 @@ function wpmu_delete_blog( $blog_id, $drop = false ) {
 	}
 
 	// Don't destroy the initial, main, or root blog.
-	if ( $drop && ( 1 == $blog_id || is_main_site( $blog_id ) || ( $blog->path == $current_site->path && $blog->domain == $current_site->domain ) ) ) {
+	if ( $drop && ( 1 == $blog_id || is_main_site( $blog_id ) || ( $blog->path == $current_network->path && $blog->domain == $current_network->domain ) ) ) {
 		$drop = false;
 	}
 
@@ -388,7 +388,7 @@ All at ###SITENAME###
 		$content = apply_filters( 'new_user_email_content', $email_text, $new_user_email );
 
 		$content = str_replace( '###USERNAME###', $current_user->user_login, $content );
-		$content = str_replace( '###ADMIN_URL###', esc_url( admin_url( 'profile.php?newuseremail='.$hash ) ), $content );
+		$content = str_replace( '###ADMIN_URL###', esc_url( self_admin_url( 'profile.php?newuseremail=' . $hash ) ), $content );
 		$content = str_replace( '###EMAIL###', $_POST['email'], $content);
 		$content = str_replace( '###SITENAME###', get_site_option( 'site_name' ), $content );
 		$content = str_replace( '###SITEURL###', network_home_url(), $content );

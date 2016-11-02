@@ -23,13 +23,16 @@ function delete_theme($stylesheet, $redirect = '') {
 	if ( empty($stylesheet) )
 		return false;
 
-	ob_start();
-	if ( empty( $redirect ) )
+	if ( empty( $redirect ) ) {
 		$redirect = wp_nonce_url('themes.php?action=delete&stylesheet=' . urlencode( $stylesheet ), 'delete-theme_' . $stylesheet);
-	if ( false === ($credentials = request_filesystem_credentials($redirect)) ) {
-		$data = ob_get_clean();
+	}
 
-		if ( ! empty($data) ){
+	ob_start();
+	$credentials = request_filesystem_credentials( $redirect );
+	$data = ob_get_clean();
+
+	if ( false === $credentials ) {
+		if ( ! empty( $data ) ){
 			include_once( ABSPATH . 'wp-admin/admin-header.php');
 			echo $data;
 			include( ABSPATH . 'wp-admin/admin-footer.php');
@@ -38,8 +41,9 @@ function delete_theme($stylesheet, $redirect = '') {
 		return;
 	}
 
-	if ( ! WP_Filesystem($credentials) ) {
-		request_filesystem_credentials($redirect, '', true); // Failed to connect, Error and request again
+	if ( ! WP_Filesystem( $credentials ) ) {
+		ob_start();
+		request_filesystem_credentials( $redirect, '', true ); // Failed to connect, Error and request again.
 		$data = ob_get_clean();
 
 		if ( ! empty($data) ) {
@@ -171,35 +175,43 @@ function get_theme_update_available( $theme ) {
 
 		if ( !is_multisite() ) {
 			if ( ! current_user_can('update_themes') ) {
-				/* translators: 1: theme name, 2: theme details URL, 3: accessibility text, 4: version number */
-				$html = sprintf( '<p><strong>' . __( 'There is a new version of %1$s available. <a href="%2$s" class="thickbox open-plugin-details-modal" aria-label="%3$s">View version %4$s details</a>.' ) . '</strong></p>',
+				/* translators: 1: theme name, 2: theme details URL, 3: additional link attributes, 4: version number */
+				$html = sprintf( '<p><strong>' . __( 'There is a new version of %1$s available. <a href="%2$s" %3$s>View version %4$s details</a>.' ) . '</strong></p>',
 					$theme_name,
 					esc_url( $details_url ),
-					/* translators: 1: theme name, 2: version number */
-					esc_attr( sprintf( __( 'View %1$s version %2$s details' ), $theme_name, $update['new_version'] ) ),
+					sprintf( 'class="thickbox open-plugin-details-modal" aria-label="%s"',
+						/* translators: 1: theme name, 2: version number */
+						esc_attr( sprintf( __( 'View %1$s version %2$s details' ), $theme_name, $update['new_version'] ) )
+					),
 					$update['new_version']
 				);
 			} elseif ( empty( $update['package'] ) ) {
-				/* translators: 1: theme name, 2: theme details URL, 3: accessibility text, 4: version number */
-				$html = sprintf( '<p><strong>' . __( 'There is a new version of %1$s available. <a href="%2$s" class="thickbox open-plugin-details-modal" aria-label="%3$s">View version %4$s details</a>. <em>Automatic update is unavailable for this theme.</em>' ) . '</strong></p>',
+				/* translators: 1: theme name, 2: theme details URL, 3: additional link attributes, 4: version number */
+				$html = sprintf( '<p><strong>' . __( 'There is a new version of %1$s available. <a href="%2$s" %3$s>View version %4$s details</a>. <em>Automatic update is unavailable for this theme.</em>' ) . '</strong></p>',
 					$theme_name,
 					esc_url( $details_url ),
-					/* translators: 1: theme name, 2: version number */
-					esc_attr( sprintf( __( 'View %1$s version %2$s details' ), $theme_name, $update['new_version'] ) ),
+					sprintf( 'class="thickbox open-plugin-details-modal" aria-label="%s"',
+						/* translators: 1: theme name, 2: version number */
+						esc_attr( sprintf( __( 'View %1$s version %2$s details' ), $theme_name, $update['new_version'] ) )
+					),
 					$update['new_version']
 				);
 			} else {
-				/* translators: 1: theme name, 2: theme details URL, 3: accessibility text, 4: version number, 5: update URL, 6: accessibility text */
-				$html = sprintf( '<p><strong>' . __( 'There is a new version of %1$s available. <a href="%2$s" class="thickbox open-plugin-details-modal" aria-label="%3$s">View version %4$s details</a> or <a href="%5$s" aria-label="%6$s" id="update-theme" data-slug="%7$s">update now</a>.' ) . '</strong></p>',
+				/* translators: 1: theme name, 2: theme details URL, 3: additional link attributes, 4: version number, 5: update URL, 6: additional link attributes */
+				$html = sprintf( '<p><strong>' . __( 'There is a new version of %1$s available. <a href="%2$s" %3$s>View version %4$s details</a> or <a href="%5$s" %6$s>update now</a>.' ) . '</strong></p>',
 					$theme_name,
 					esc_url( $details_url ),
-					/* translators: 1: theme name, 2: version number */
-					esc_attr( sprintf( __( 'View %1$s version %2$s details' ), $theme_name, $update['new_version'] ) ),
+					sprintf( 'class="thickbox open-plugin-details-modal" aria-label="%s"',
+						/* translators: 1: theme name, 2: version number */
+						esc_attr( sprintf( __( 'View %1$s version %2$s details' ), $theme_name, $update['new_version'] ) )
+					),
 					$update['new_version'],
 					$update_url,
-					/* translators: %s: theme name */
-					esc_attr( sprintf( __( 'Update %s now' ), $theme_name ) ),
-					$stylesheet
+					sprintf( 'aria-label="%s" id="update-theme" data-slug="%s"',
+						/* translators: %s: theme name */
+						esc_attr( sprintf( __( 'Update %s now' ), $theme_name ) ),
+						$stylesheet
+					)
 				);
 			}
 		}
@@ -348,9 +360,9 @@ function get_theme_feature_list( $api = true ) {
  * @param string       $action API action to perform: 'query_themes', 'theme_information',
  *                             'hot_tags' or 'feature_list'.
  * @param array|object $args   {
- *     Optional. Array or object of arguments to serialize for the Plugin Info API.
+ *     Optional. Array or object of arguments to serialize for the Themes API.
  *
- *     @type string  $slug     The plugin slug. Default empty.
+ *     @type string  $slug     The theme slug. Default empty.
  *     @type int     $per_page Number of themes per page. Default 24.
  *     @type int     $page     Number of current page. Default 1.
  *     @type int     $number   Number of tags to be queried.
@@ -400,7 +412,7 @@ function themes_api( $action, $args = array() ) {
 	}
 
 	if ( ! isset( $args->locale ) ) {
-		$args->locale = get_locale();
+		$args->locale = get_user_locale();
 	}
 
 	/**
@@ -447,7 +459,7 @@ function themes_api( $action, $args = array() ) {
 		$request = wp_remote_post( $url, $http_args );
 
 		if ( $ssl && is_wp_error( $request ) ) {
-			if ( ! defined( 'DOING_AJAX' ) || ! DOING_AJAX ) {
+			if ( ! wp_doing_ajax() ) {
 				trigger_error( __( 'An unexpected error occurred. Something may be wrong with WordPress.org or this server&#8217;s configuration. If you continue to have problems, please try the <a href="https://wordpress.org/support/">support forums</a>.' ) . ' ' . __( '(WordPress could not establish a secure connection to WordPress.org. Please contact your server administrator.)' ), headers_sent() || WP_DEBUG ? E_USER_WARNING : E_USER_NOTICE );
 			}
 			$request = wp_remote_post( $http_url, $http_args );
@@ -560,6 +572,7 @@ function wp_prepare_themes_for_js( $themes = null ) {
 			'parent'       => $parent,
 			'active'       => $slug === $current_theme,
 			'hasUpdate'    => isset( $updates[ $slug ] ),
+			'hasPackage'   => isset( $updates[ $slug ] ) && ! empty( $updates[ $slug ][ 'package' ] ),
 			'update'       => get_theme_update_available( $theme ),
 			'actions'      => array(
 				'activate' => current_user_can( 'switch_themes' ) ? wp_nonce_url( admin_url( 'themes.php?action=activate&amp;stylesheet=' . $encoded_slug ), 'switch-theme_' . $slug ) : null,
@@ -594,8 +607,6 @@ function wp_prepare_themes_for_js( $themes = null ) {
  * @since 4.2.0
  */
 function customize_themes_print_templates() {
-	$preview_url = esc_url( add_query_arg( 'theme', '__THEME__' ) ); // Token because esc_url() strips curly braces.
-	$preview_url = str_replace( '__THEME__', '{{ data.id }}', $preview_url );
 	?>
 	<script type="text/html" id="tmpl-customize-themes-details-view">
 		<div class="theme-backdrop"></div>
@@ -607,7 +618,7 @@ function customize_themes_print_templates() {
 			</div>
 			<div class="theme-about wp-clearfix">
 				<div class="theme-screenshots">
-				<# if ( data.screenshot[0] ) { #>
+				<# if ( data.screenshot && data.screenshot[0] ) { #>
 					<div class="screenshot"><img src="{{ data.screenshot[0] }}" alt="" /></div>
 				<# } else { #>
 					<div class="screenshot blank"></div>
@@ -620,25 +631,47 @@ function customize_themes_print_templates() {
 					<# } #>
 					<h2 class="theme-name">{{{ data.name }}}<span class="theme-version"><?php printf( __( 'Version: %s' ), '{{ data.version }}' ); ?></span></h2>
 					<h3 class="theme-author"><?php printf( __( 'By %s' ), '{{{ data.authorAndUri }}}' ); ?></h3>
+
+					<# if ( data.stars && 0 != data.num_ratings ) { #>
+						<div class="theme-rating">
+							{{{ data.stars }}}
+							<span class="num-ratings"><?php echo sprintf( __( '(%s ratings)' ), '{{ data.num_ratings }}' ); ?></span>
+						</div>
+					<# } #>
+
+					<# if ( data.hasUpdate ) { #>
+						<div class="notice notice-warning notice-alt notice-large" data-slug="{{ data.id }}">
+							<h3 class="notice-title"><?php _e( 'Update Available' ); ?></h3>
+							{{{ data.update }}}
+						</div>
+					<# } #>
+
 					<p class="theme-description">{{{ data.description }}}</p>
 
 					<# if ( data.parent ) { #>
 						<p class="parent-theme"><?php printf( __( 'This is a child theme of %s.' ), '<strong>{{{ data.parent }}}</strong>' ); ?></p>
 					<# } #>
-
 					<# if ( data.tags ) { #>
-						<p class="theme-tags"><span><?php _e( 'Tags:' ); ?></span> {{ data.tags }}</p>
+						<p class="theme-tags"><span><?php _e( 'Tags:' ); ?></span> {{{ data.tags }}}</p>
 					<# } #>
 				</div>
 			</div>
 
-			<# if ( ! data.active ) { #>
-				<div class="theme-actions">
-					<div class="inactive-theme">
-						<a href="<?php echo $preview_url; ?>" target="_top" class="button button-primary"><?php _e( 'Live Preview' ); ?></a>
-					</div>
-				</div>
-			<# } #>
+			<div class="theme-actions">
+				<# if ( data.active ) { #>
+					<button type="button" class="button button-primary customize-theme"><?php _e( 'Customize' ); ?></a>
+				<# } else if ( 'installed' === data.type ) { #>
+					<?php if ( current_user_can( 'delete_themes' ) ) { ?>
+						<# if ( data.actions && data.actions['delete'] ) { #>
+							<a href="{{{ data.actions['delete'] }}}" data-slug="{{ data.id }}" class="button button-secondary delete-theme"><?php _e( 'Delete' ); ?></a>
+						<# } #>
+					<?php } ?>
+					<button type="button" class="button button-primary preview-theme" data-slug="{{ data.id }}"><?php _e( 'Live Preview' ); ?></span>
+				<# } else { #>
+					<button type="button" class="button theme-install" data-slug="{{ data.id }}"><?php _e( 'Install' ); ?></button>
+					<button type="button" class="button button-primary theme-install preview" data-slug="{{ data.id }}"><?php _e( 'Install & Preview' ); ?></button>
+				<# } #>
+			</div>
 		</div>
 	</script>
 	<?php

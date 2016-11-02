@@ -18,13 +18,13 @@ if ( ! current_user_can( 'delete_site' ) )
 if ( isset( $_GET['h'] ) && $_GET['h'] != '' && get_option( 'delete_blog_hash' ) != false ) {
 	if ( hash_equals( get_option( 'delete_blog_hash' ), $_GET['h'] ) ) {
 		wpmu_delete_blog( $wpdb->blogid );
-		wp_die( sprintf( __( 'Thank you for using %s, your site has been deleted. Happy trails to you until we meet again.' ), $current_site->site_name ) );
+		wp_die( sprintf( __( 'Thank you for using %s, your site has been deleted. Happy trails to you until we meet again.' ), get_network()->site_name ) );
 	} else {
 		wp_die( __( "I'm sorry, the link you clicked is stale. Please select another option." ) );
 	}
 }
 
-$blog = get_blog_details();
+$blog = get_site();
 $user = wp_get_current_user();
 
 $title = __( 'Delete Site' );
@@ -70,7 +70,7 @@ Webmaster
 
 	$content = str_replace( '###USERNAME###', $user->user_login, $content );
 	$content = str_replace( '###URL_DELETE###', $url_delete, $content );
-	$content = str_replace( '###SITE_NAME###', $current_site->site_name, $content );
+	$content = str_replace( '###SITE_NAME###', get_network()->site_name, $content );
 
 	wp_mail( get_option( 'admin_email' ), "[ " . wp_specialchars_decode( get_option( 'blogname' ) ) . " ] ".__( 'Delete My Site' ), $content );
 	?>
@@ -79,13 +79,19 @@ Webmaster
 
 <?php } else {
 	?>
-	<p><?php printf( __( 'If you do not want to use your %s site any more, you can delete it using the form below. When you click <strong>Delete My Site Permanently</strong> you will be sent an email with a link in it. Click on this link to delete your site.'), $current_site->site_name); ?></p>
+	<p><?php printf( __( 'If you do not want to use your %s site any more, you can delete it using the form below. When you click <strong>Delete My Site Permanently</strong> you will be sent an email with a link in it. Click on this link to delete your site.'), get_network()->site_name); ?></p>
 	<p><?php _e( 'Remember, once deleted your site cannot be restored.' ) ?></p>
 
 	<form method="post" name="deletedirect">
 		<?php wp_nonce_field( 'delete-blog' ) ?>
 		<input type="hidden" name="action" value="deleteblog" />
-		<p><input id="confirmdelete" type="checkbox" name="confirmdelete" value="1" /> <label for="confirmdelete"><strong><?php printf( __( "I'm sure I want to permanently disable my site, and I am aware I can never get it back or use %s again." ), is_subdomain_install() ? $blog->domain : $blog->domain . $blog->path ); ?></strong></label></p>
+		<p><input id="confirmdelete" type="checkbox" name="confirmdelete" value="1" /> <label for="confirmdelete"><strong><?php
+			printf(
+				/* translators: %s: site address */
+				__( "I'm sure I want to permanently disable my site, and I am aware I can never get it back or use %s again." ),
+				$blog->domain . $blog->path
+			);
+		?></strong></label></p>
 		<?php submit_button( __( 'Delete My Site Permanently' ) ); ?>
 	</form>
  	<?php
