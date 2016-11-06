@@ -33,15 +33,6 @@ textarea {
 	padding-right: 3px;
 }
 
-ol {
-	counter-reset: item;
-}
-
-ol li:before {
-	left: auto;
-	right: -1.5em;
-}
-
 li > ul,
 li > ol {
 	margin-left: 0;
@@ -123,7 +114,7 @@ input[type="checkbox"] {
 	margin-right: 0;
 }
 
-.sticky .icon-pinned {
+.sticky .icon-thumb-tack {
 	left: auto;
 	right: -1.5em;
 }
@@ -376,23 +367,24 @@ input[type="checkbox"] {
 
 	/* Blog, Archive, Search */
 
-	.sticky .icon-pinned {
+	.sticky .icon-thumb-tack {
 		left: auto;
 		right: -2.5em;
 	}
 
-	body:not(.has-sidebar) .page-header,
+	body:not(.has-sidebar):not(.page-one-column) .page-header,
 	body.has-sidebar.error404 #primary .page-header,
-	body.page-two-column #primary .entry-header {
+	body.page-two-column:not(.archive) #primary .entry-header,
+	body.page-two-column.archive:not(.has-sidebar) #primary .page-header {
 		float: right;
 	}
 
 	.blog:not(.has-sidebar) #primary article,
-	.archive:not(.has-sidebar) #primary article,
+	.archive:not(.has-sidebar):not(.page-one-column) #primary article,
 	.search:not(.has-sidebar) #primary article,
 	.has-sidebar.error404 #primary .page-content,
 	.error404.has-sidebar #primary .page-content,
-	body.page-two-column #primary .entry-content,
+	body.page-two-column:not(.archive) #primary .entry-content,
 	body.page-two-column #comments {
 		float: left;
 	}
@@ -451,7 +443,8 @@ input[type="checkbox"] {
 		float: left;
 	}
 
-	.has-sidebar .navigation.pagination {
+	.has-sidebar .navigation.pagination,
+	.archive.page-one-column:not(.has-sidebar) .navigation.pagination {
 		float: none;
 	}
 
@@ -512,7 +505,7 @@ input[type="checkbox"] {
 
 	/* Sticky posts */
 
-	.sticky .icon-pinned {
+	.sticky .icon-thumb-tack {
 		left: auto;
 		right: -1.25em;
 	}

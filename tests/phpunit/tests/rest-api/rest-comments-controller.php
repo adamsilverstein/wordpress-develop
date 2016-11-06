@@ -300,6 +300,15 @@ class WP_Test_REST_Comments_Controller extends WP_Test_REST_Controller_Testcase 
 		$data = $response->get_data();
 		$this->assertEquals( 2, count( $data ) );
 		$this->assertEquals( $id3, $data[0]['id'] );
+		// Orderby=>invalid should fail.
+		$request->set_param( 'orderby', 'invalid' );
+		$response = $this->server->dispatch( $request );
+		$this->assertErrorResponse( 'rest_invalid_param', $response, 400 );
+		// fails on invalid id.
+		$request->set_param( 'orderby', array( 'include' ) );
+		$request->set_param( 'include', array( 'invalid' ) );
+		$response = $this->server->dispatch( $request );
+		$this->assertErrorResponse( 'rest_invalid_param', $response, 400 );
 	}
 
 	public function test_get_items_exclude_query() {
@@ -320,6 +329,11 @@ class WP_Test_REST_Comments_Controller extends WP_Test_REST_Controller_Testcase 
 		$data = $response->get_data();
 		$this->assertTrue( in_array( $id1, wp_list_pluck( $data, 'id' ), true ) );
 		$this->assertFalse( in_array( $id2, wp_list_pluck( $data, 'id' ), true ) );
+
+		// fails on invalid id.
+		$request->set_param( 'exclude', array( 'invalid' ) );
+		$response = $this->server->dispatch( $request );
+		$this->assertErrorResponse( 'rest_invalid_param', $response, 400 );
 	}
 
 	public function test_get_items_offset_query() {
@@ -343,6 +357,10 @@ class WP_Test_REST_Comments_Controller extends WP_Test_REST_Controller_Testcase 
 		$request->set_param( 'page', 3 );
 		$response = $this->server->dispatch( $request );
 		$this->assertCount( 2, $response->get_data() );
+		// 'offset' with invalid value errors.
+		$request->set_param( 'offset', 'moreplease' );
+		$response = $this->server->dispatch( $request );
+		$this->assertErrorResponse( 'rest_invalid_param', $response, 400 );
 	}
 
 	public function test_get_items_order_query() {
@@ -364,6 +382,10 @@ class WP_Test_REST_Comments_Controller extends WP_Test_REST_Controller_Testcase 
 		$response = $this->server->dispatch( $request );
 		$data = $response->get_data();
 		$this->assertEquals( self::$approved_id, $data[0]['id'] );
+		// order=>asc,id should fail
+		$request->set_param( 'order', 'asc,id' );
+		$response = $this->server->dispatch( $request );
+		$this->assertErrorResponse( 'rest_invalid_param', $response, 400 );
 	}
 
 	public function test_get_items_private_post_no_permissions() {
@@ -402,8 +424,13 @@ class WP_Test_REST_Comments_Controller extends WP_Test_REST_Controller_Testcase 
 		$this->assertEquals( 200, $response->get_status() );
 		$comments = $response->get_data();
 		$this->assertCount( 2, $comments );
+		// Invalid author param errors
+		$request->set_param( 'author', 'skippy' );
+		$response = $this->server->dispatch( $request );
+		$this->assertErrorResponse( 'rest_invalid_param', $response, 400 );
 		// Unavailable to unauthenticated; defaults to error
 		wp_set_current_user( 0 );
+		$request->set_param( 'author', array( self::$author_id, self::$subscriber_id ) );
 		$response = $this->server->dispatch( $request );
 		$this->assertErrorResponse( 'rest_forbidden_param', $response, 401 );
 	}
@@ -441,8 +468,14 @@ class WP_Test_REST_Comments_Controller extends WP_Test_REST_Controller_Testcase 
 		$this->assertEquals( 200, $response->get_status() );
 		$comments = $response->get_data();
 		$this->assertCount( 2, $comments );
+		// 'author_exclude' for both invalid author
+		$request = new WP_REST_Request( 'GET', '/wp/v2/comments' );
+		$request->set_param( 'author_exclude', 'skippy' );
+		$response = $this->server->dispatch( $request );
+		$this->assertErrorResponse( 'rest_invalid_param', $response, 400 );
 		// Unavailable to unauthenticated; defaults to error
 		wp_set_current_user( 0 );
+		$request->set_param( 'author_exclude', array( self::$author_id, self::$subscriber_id ) );
 		$response = $this->server->dispatch( $request );
 		$this->assertErrorResponse( 'rest_forbidden_param', $response, 401 );
 	}
@@ -470,6 +503,10 @@ class WP_Test_REST_Comments_Controller extends WP_Test_REST_Controller_Testcase 
 		$request->set_param( 'parent', array( $parent_id, $parent_id2 ) );
 		$response = $this->server->dispatch( $request );
 		$this->assertCount( 2, $response->get_data() );
+		// Invalid parent should error
+		$request->set_param( 'parent', 'invalid' );
+		$response = $this->server->dispatch( $request );
+		$this->assertErrorResponse( 'rest_invalid_param', $response, 400 );
 	}
 
 	public function test_get_items_parent_exclude_arg() {
@@ -495,6 +532,10 @@ class WP_Test_REST_Comments_Controller extends WP_Test_REST_Controller_Testcase 
 		$request->set_param( 'parent_exclude', array( $parent_id, $parent_id2 ) );
 		$response = $this->server->dispatch( $request );
 		$this->assertCount( 3, $response->get_data() );
+		// Invalid parent id should error
+		$request->set_param( 'parent_exclude', 'invalid' );
+		$response = $this->server->dispatch( $request );
+		$this->assertErrorResponse( 'rest_invalid_param', $response, 400 );
 	}
 
 	public function test_get_items_search_query() {
@@ -957,6 +998,28 @@ class WP_Test_REST_Comments_Controller extends WP_Test_REST_Controller_Testcase 
 		$this->assertEquals( $comment_id, $collection_data[0]['id'] );
 	}
 
+	public function test_create_comment_invalid_email() {
+		$post_id = $this->factory->post->create();
+		wp_set_current_user( self::$admin_id );
+
+		$params = array(
+			'post'	=> $post_id,
+			'author'	   => self::$admin_id,
+			'author_name'  => 'Comic Book Guy',
+			'author_email' => 'hello:)',
+			'author_url'   => 'http://androidsdungeon.com',
+			'content' => 'Worst Comment Ever!',
+			'date'	=> '2014-11-07T10:14:25',
+		);
+
+		$request = new WP_REST_Request( 'POST', '/wp/v2/comments' );
+		$request->add_header( 'content-type', 'application/json' );
+		$request->set_body( wp_json_encode( $params ) );
+
+		$response = $this->server->dispatch( $request );
+		$this->assertErrorResponse( 'rest_invalid_param', $response, 400 );
+	}
+
 	public function test_create_item_current_user() {
 		$user_id = $this->factory->user->create( array(
 			'role' => 'subscriber',
@@ -1055,6 +1118,47 @@ class WP_Test_REST_Comments_Controller extends WP_Test_REST_Controller_Testcase 
 		$response = $this->server->dispatch( $request );
 
 		$this->assertErrorResponse( 'rest_comment_invalid_karma', $response, 403 );
+	}
+
+	public function test_create_comment_invalid_post() {
+		wp_set_current_user( self::$subscriber_id );
+
+		$params = array(
+			'post'		   => 'some-slug',
+			'author_name'  => 'Homer Jay Simpson',
+			'author_email' => 'chunkylover53@aol.com',
+			'author_url'   => 'http://compuglobalhypermeganet.com',
+			'content'	   => 'Here\’s to alcohol: the cause of, and solution to, all of life\’s problems.',
+			'author'	   => self::$subscriber_id,
+		);
+
+		$request = new WP_REST_Request( 'POST', '/wp/v2/comments' );
+		$request->add_header( 'content-type', 'application/json' );
+		$request->set_body( wp_json_encode( $params ) );
+		$response = $this->server->dispatch( $request );
+
+		$this->assertErrorResponse( 'rest_invalid_param', $response, 400 );
+	}
+
+	public function test_create_comment_karma_invalid_value() {
+		wp_set_current_user( self::$subscriber_id );
+
+		$params = array(
+			'post'		 => self::$post_id,
+			'author_name'  => 'Homer Jay Simpson',
+			'author_email' => 'chunkylover53@aol.com',
+			'author_url'   => 'http://compuglobalhypermeganet.com',
+			'content'	  => 'Here\’s to alcohol: the cause of, and solution to, all of life\’s problems.',
+			'author'	   => self::$subscriber_id,
+			'karma'		=> 'themostkarmaever',
+		);
+
+		$request = new WP_REST_Request( 'POST', '/wp/v2/comments' );
+		$request->add_header( 'content-type', 'application/json' );
+		$request->set_body( wp_json_encode( $params ) );
+		$response = $this->server->dispatch( $request );
+
+		$this->assertErrorResponse( 'rest_invalid_param', $response, 400 );
 	}
 
 	public function test_create_comment_status_without_permission() {
@@ -1352,6 +1456,98 @@ class WP_Test_REST_Comments_Controller extends WP_Test_REST_Controller_Testcase 
 		$this->assertEquals( 400, $response->get_status() );
 	}
 
+	/**
+	 * @ticket 38477
+	 */
+	public function test_create_comment_author_name_too_long() {
+		wp_set_current_user( 0 );
+
+		$params = array(
+			'post'         => self::$post_id,
+			'author_name'  => rand_long_str( 246 ),
+			'author_email' => 'murphy@gingivitis.com',
+			'author_url'   => 'http://jazz.gingivitis.com',
+			'content'      => 'This isn\'t a saxophone. It\'s an umbrella.',
+			'date'         => '1995-04-30T10:22:00',
+		);
+		$request = new WP_REST_Request( 'POST', '/wp/v2/comments' );
+
+		$request->add_header( 'content-type', 'application/json' );
+		$request->set_body( wp_json_encode( $params ) );
+		$response = $this->server->dispatch( $request );
+
+		$this->assertErrorResponse( 'comment_author_column_length', $response, 400 );
+	}
+
+	/**
+	 * @ticket 38477
+	 */
+	public function test_create_comment_author_email_too_long() {
+		wp_set_current_user( 0 );
+
+		$params = array(
+			'post'         => self::$post_id,
+			'author_name'  => 'Bleeding Gums Murphy',
+			'author_email' => 'murphy@' . rand_long_str( 190 ) . '.com',
+			'author_url'   => 'http://jazz.gingivitis.com',
+			'content'      => 'This isn\'t a saxophone. It\'s an umbrella.',
+			'date'         => '1995-04-30T10:22:00',
+		);
+		$request = new WP_REST_Request( 'POST', '/wp/v2/comments' );
+
+		$request->add_header( 'content-type', 'application/json' );
+		$request->set_body( wp_json_encode( $params ) );
+		$response = $this->server->dispatch( $request );
+
+		$this->assertErrorResponse( 'comment_author_email_column_length', $response, 400 );
+	}
+
+	/**
+	 * @ticket 38477
+	 */
+	public function test_create_comment_author_url_too_long() {
+		wp_set_current_user( 0 );
+
+		$params = array(
+			'post'         => self::$post_id,
+			'author_name'  => 'Bleeding Gums Murphy',
+			'author_email' => 'murphy@gingivitis.com',
+			'author_url'   => 'http://jazz.' . rand_long_str( 185 ) . '.com',
+			'content'      => 'This isn\'t a saxophone. It\'s an umbrella.',
+			'date'         => '1995-04-30T10:22:00',
+		);
+		$request = new WP_REST_Request( 'POST', '/wp/v2/comments' );
+
+		$request->add_header( 'content-type', 'application/json' );
+		$request->set_body( wp_json_encode( $params ) );
+		$response = $this->server->dispatch( $request );
+
+		$this->assertErrorResponse( 'comment_author_url_column_length', $response, 400 );
+	}
+
+	/**
+	 * @ticket 38477
+	 */
+	public function test_create_comment_content_too_long() {
+		wp_set_current_user( 0 );
+
+		$params = array(
+			'post'         => self::$post_id,
+			'author_name'  => 'Bleeding Gums Murphy',
+			'author_email' => 'murphy@gingivitis.com',
+			'author_url'   => 'http://jazz.gingivitis.com',
+			'content'      => rand_long_str( 66525 ),
+			'date'         => '1995-04-30T10:22:00',
+		);
+		$request = new WP_REST_Request( 'POST', '/wp/v2/comments' );
+
+		$request->add_header( 'content-type', 'application/json' );
+		$request->set_body( wp_json_encode( $params ) );
+		$response = $this->server->dispatch( $request );
+
+		$this->assertErrorResponse( 'comment_content_column_length', $response, 400 );
+	}
+
 	public function test_update_item() {
 		$post_id = $this->factory->post->create();
 
@@ -1609,6 +1805,81 @@ class WP_Test_REST_Comments_Controller extends WP_Test_REST_Controller_Testcase 
 		$this->assertArrayHasKey( 'children', $response->get_links() );
 	}
 
+	/**
+	 * @ticket 38477
+	 */
+	public function test_update_comment_author_name_too_long() {
+		wp_set_current_user( self::$admin_id );
+
+		$params = array(
+			'author_name' => rand_long_str( 246 ),
+			'content'     => 'This isn\'t a saxophone. It\'s an umbrella.',
+		);
+		$request = new WP_REST_Request( 'PUT', sprintf( '/wp/v2/comments/%d', self::$approved_id ) );
+
+		$request->add_header( 'content-type', 'application/json' );
+		$request->set_body( wp_json_encode( $params ) );
+		$response = $this->server->dispatch( $request );
+
+		$this->assertErrorResponse( 'comment_author_column_length', $response, 400 );
+	}
+
+	/**
+	 * @ticket 38477
+	 */
+	public function test_update_comment_author_email_too_long() {
+		wp_set_current_user( self::$admin_id );
+
+		$params = array(
+			'author_email' => 'murphy@' . rand_long_str( 190 ) . '.com',
+			'content'      => 'This isn\'t a saxophone. It\'s an umbrella.',
+		);
+		$request = new WP_REST_Request( 'PUT', sprintf( '/wp/v2/comments/%d', self::$approved_id ) );
+
+		$request->add_header( 'content-type', 'application/json' );
+		$request->set_body( wp_json_encode( $params ) );
+		$response = $this->server->dispatch( $request );
+
+		$this->assertErrorResponse( 'comment_author_email_column_length', $response, 400 );
+	}
+
+	/**
+	 * @ticket 38477
+	 */
+	public function test_update_comment_author_url_too_long() {
+		wp_set_current_user( self::$admin_id );
+
+		$params = array(
+			'author_url' => 'http://jazz.' . rand_long_str( 185 ) . '.com',
+			'content'    => 'This isn\'t a saxophone. It\'s an umbrella.',
+		);
+		$request = new WP_REST_Request( 'PUT', sprintf( '/wp/v2/comments/%d', self::$approved_id ) );
+
+		$request->add_header( 'content-type', 'application/json' );
+		$request->set_body( wp_json_encode( $params ) );
+		$response = $this->server->dispatch( $request );
+
+		$this->assertErrorResponse( 'comment_author_url_column_length', $response, 400 );
+	}
+
+	/**
+	 * @ticket 38477
+	 */
+	public function test_update_comment_content_too_long() {
+		wp_set_current_user( self::$admin_id );
+
+		$params = array(
+			'content' => rand_long_str( 66525 ),
+		);
+		$request = new WP_REST_Request( 'PUT', sprintf( '/wp/v2/comments/%d', self::$approved_id ) );
+
+		$request->add_header( 'content-type', 'application/json' );
+		$request->set_body( wp_json_encode( $params ) );
+		$response = $this->server->dispatch( $request );
+
+		$this->assertErrorResponse( 'comment_content_column_length', $response, 400 );
+	}
+
 	public function test_delete_item() {
 		wp_set_current_user( self::$admin_id );
 
@@ -1617,12 +1888,14 @@ class WP_Test_REST_Comments_Controller extends WP_Test_REST_Controller_Testcase 
 			'comment_post_ID'  => self::$post_id,
 			'user_id'          => self::$subscriber_id,
 		));
-		$request = new WP_REST_Request( 'DELETE', sprintf( '/wp/v2/comments/%d', $comment_id ) );
 
+		$request = new WP_REST_Request( 'DELETE', sprintf( '/wp/v2/comments/%d', $comment_id ) );
+		$request->set_param( 'force', 'false' );
 		$response = $this->server->dispatch( $request );
 		$this->assertEquals( 200, $response->get_status() );
+
 		$data = $response->get_data();
-		$this->assertEquals( self::$post_id, $data['post'] );
+		$this->assertEquals( 'trash', $data['status'] );
 	}
 
 	public function test_delete_item_skip_trash() {
@@ -1639,7 +1912,8 @@ class WP_Test_REST_Comments_Controller extends WP_Test_REST_Controller_Testcase 
 		$response = $this->server->dispatch( $request );
 		$this->assertEquals( 200, $response->get_status() );
 		$data = $response->get_data();
-		$this->assertEquals( self::$post_id, $data['post'] );
+		$this->assertTrue( $data['deleted'] );
+		$this->assertNotEmpty( $data['previous']['post'] );
 	}
 
 	public function test_delete_item_already_trashed() {
@@ -1726,6 +2000,10 @@ class WP_Test_REST_Comments_Controller extends WP_Test_REST_Controller_Testcase 
 		$this->assertArrayHasKey( 'post', $properties );
 		$this->assertArrayHasKey( 'status', $properties );
 		$this->assertArrayHasKey( 'type', $properties );
+
+		$this->assertEquals( '127.0.0.1', $properties['author_ip']['default'] );
+		$this->assertEquals( 0, $properties['parent']['default'] );
+		$this->assertEquals( 0, $properties['post']['default'] );
 	}
 
 	public function test_get_item_schema_show_avatar() {
