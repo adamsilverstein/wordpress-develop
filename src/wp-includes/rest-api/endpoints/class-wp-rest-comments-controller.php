@@ -83,6 +83,7 @@ class WP_REST_Comments_Controller extends WP_REST_Controller {
 				'permission_callback' => array( $this, 'delete_item_permissions_check' ),
 				'args'     => array(
 					'force'    => array(
+						'type'        => 'boolean',
 						'default'     => false,
 						'description' => __( 'Whether to bypass trash and force deletion.' ),
 					),
@@ -484,6 +485,12 @@ class WP_REST_Comments_Controller extends WP_REST_Controller {
 			$prepared_comment['comment_agent'] = '';
 		}
 
+		$check_comment_lengths = wp_check_comment_data_max_lengths( $prepared_comment );
+		if ( is_wp_error( $check_comment_lengths ) ) {
+			$error_code = $check_comment_lengths->get_error_code();
+			return new WP_Error( $error_code, __( 'Comment field exceeds maximum length allowed.' ), array( 'status' => 400 ) );
+		}
+
 		$prepared_comment['comment_approved'] = wp_allow_comment( $prepared_comment, true );
 
 		if ( is_wp_error( $prepared_comment['comment_approved'] ) ) {
@@ -631,6 +638,12 @@ class WP_REST_Comments_Controller extends WP_REST_Controller {
 
 			$prepared_args['comment_ID'] = $id;
 
+			$check_comment_lengths = wp_check_comment_data_max_lengths( $prepared_args );
+			if ( is_wp_error( $check_comment_lengths ) ) {
+				$error_code = $check_comment_lengths->get_error_code();
+				return new WP_Error( $error_code, __( 'Comment field exceeds maximum length allowed.' ), array( 'status' => 400 ) );
+			}
+
 			$updated = wp_update_comment( $prepared_args );
 
 			if ( 0 === $updated ) {
@@ -726,14 +739,15 @@ class WP_REST_Comments_Controller extends WP_REST_Controller {
 
 		$request->set_param( 'context', 'edit' );
 
-		$response = $this->prepare_item_for_response( $comment, $request );
-
 		if ( $force ) {
+			$previous = $this->prepare_item_for_response( $comment, $request );
 			$result = wp_delete_comment( $comment->comment_ID, true );
+			$response = new WP_REST_Response();
+			$response->set_data( array( 'deleted' => true, 'previous' => $previous->get_data() ) );
 		} else {
 			// If this type doesn't support trashing, error out.
 			if ( ! $supports_trash ) {
-				return new WP_Error( 'rest_trash_not_supported', __( 'The comment does not support trashing.' ), array( 'status' => 501 ) );
+				return new WP_Error( 'rest_trash_not_supported', __( 'The comment does not support trashing. Set force=true to delete.' ), array( 'status' => 501 ) );
 			}
 
 			if ( 'trash' === $comment->comment_approved ) {
@@ -741,6 +755,8 @@ class WP_REST_Comments_Controller extends WP_REST_Controller {
 			}
 
 			$result = wp_trash_comment( $comment->comment_ID );
+			$comment = get_comment( $comment->comment_ID );
+			$response = $this->prepare_item_for_response( $comment, $request );
 		}
 
 		if ( ! $result ) {
@@ -1076,7 +1092,7 @@ class WP_REST_Comments_Controller extends WP_REST_Controller {
 	 */
 	public function get_item_schema() {
 		$schema = array(
-			'$schema'              => 'http://json-schema.org/draft-04/schema#',
+			'$schema'              => 'http://json-schema.org/schema#',
 			'title'                => 'comment',
 			'type'                 => 'object',
 			'properties'           => array(
@@ -1102,9 +1118,7 @@ class WP_REST_Comments_Controller extends WP_REST_Controller {
 					'type'         => 'string',
 					'format'       => 'ipv4',
 					'context'      => array( 'edit' ),
-					'arg_options'  => array(
-						'default'           => '127.0.0.1',
-					),
+					'default'      => '127.0.0.1',
 				),
 				'author_name'     => array(
 					'description'  => __( 'Display name for the object author.' ),
@@ -1176,17 +1190,13 @@ class WP_REST_Comments_Controller extends WP_REST_Controller {
 					'description'  => __( 'The id for the parent of the object.' ),
 					'type'         => 'integer',
 					'context'      => array( 'view', 'edit', 'embed' ),
-					'arg_options'  => array(
-						'default'           => 0,
-					),
+					'default'      => 0,
 				),
 				'post'             => array(
 					'description'  => __( 'The id of the associated post object.' ),
 					'type'         => 'integer',
 					'context'      => array( 'view', 'edit' ),
-					'arg_options'  => array(
-						'default'           => 0,
-					),
+					'default'      => 0,
 				),
 				'status'           => array(
 					'description'  => __( 'State of the object.' ),
@@ -1252,26 +1262,28 @@ class WP_REST_Comments_Controller extends WP_REST_Controller {
 			'description'       => __( 'Limit response to resources published after a given ISO8601 compliant date.' ),
 			'type'              => 'string',
 			'format'            => 'date-time',
-			'validate_callback' => 'rest_validate_request_arg',
 		);
 
 		$query_params['author'] = array(
 			'description'       => __( 'Limit result set to comments assigned to specific user ids. Requires authorization.' ),
-			'sanitize_callback' => 'wp_parse_id_list',
 			'type'              => 'array',
+			'items'             => array(
+				'type'          => 'integer',
+			),
 		);
 
 		$query_params['author_exclude'] = array(
 			'description'       => __( 'Ensure result set excludes comments assigned to specific user ids. Requires authorization.' ),
-			'sanitize_callback' => 'wp_parse_id_list',
 			'type'              => 'array',
+			'items'             => array(
+				'type'          => 'integer',
+			),
 		);
 
 		$query_params['author_email'] = array(
 			'default'           => null,
 			'description'       => __( 'Limit result set to that from a specific author email. Requires authorization.' ),
 			'format'            => 'email',
-			'sanitize_callback' => 'sanitize_email',
 			'type'              => 'string',
 		);
 
@@ -1279,43 +1291,40 @@ class WP_REST_Comments_Controller extends WP_REST_Controller {
 			'description'       => __( 'Limit response to resources published before a given ISO8601 compliant date.' ),
 			'type'              => 'string',
 			'format'            => 'date-time',
-			'validate_callback' => 'rest_validate_request_arg',
 		);
 
 		$query_params['exclude'] = array(
 			'description'        => __( 'Ensure result set excludes specific ids.' ),
 			'type'               => 'array',
+			'items'              => array(
+				'type'           => 'integer',
+			),
 			'default'            => array(),
-			'sanitize_callback'  => 'wp_parse_id_list',
 		);
 
 		$query_params['include'] = array(
 			'description'        => __( 'Limit result set to specific ids.' ),
 			'type'               => 'array',
+			'items'              => array(
+				'type'           => 'integer',
+			),
 			'default'            => array(),
-			'sanitize_callback'  => 'wp_parse_id_list',
 		);
 
 		$query_params['karma'] = array(
 			'default'           => null,
 			'description'       => __( 'Limit result set to that of a particular comment karma. Requires authorization.' ),
-			'sanitize_callback' => 'absint',
 			'type'              => 'integer',
-			'validate_callback'  => 'rest_validate_request_arg',
 		);
 
 		$query_params['offset'] = array(
 			'description'        => __( 'Offset the result set by a specific number of comments.' ),
 			'type'               => 'integer',
-			'sanitize_callback'  => 'absint',
-			'validate_callback'  => 'rest_validate_request_arg',
 		);
 
 		$query_params['order']      = array(
 			'description'           => __( 'Order sort attribute ascending or descending.' ),
 			'type'                  => 'string',
-			'sanitize_callback'     => 'sanitize_key',
-			'validate_callback'     => 'rest_validate_request_arg',
 			'default'               => 'desc',
 			'enum'                  => array(
 				'asc',
@@ -1326,8 +1335,6 @@ class WP_REST_Comments_Controller extends WP_REST_Controller {
 		$query_params['orderby']    = array(
 			'description'           => __( 'Sort collection by object attribute.' ),
 			'type'                  => 'string',
-			'sanitize_callback'     => 'sanitize_key',
-			'validate_callback'     => 'rest_validate_request_arg',
 			'default'               => 'date_gmt',
 			'enum'                  => array(
 				'date',
@@ -1343,22 +1350,28 @@ class WP_REST_Comments_Controller extends WP_REST_Controller {
 		$query_params['parent'] = array(
 			'default'           => array(),
 			'description'       => __( 'Limit result set to resources of specific parent ids.' ),
-			'sanitize_callback' => 'wp_parse_id_list',
 			'type'              => 'array',
+			'items'             => array(
+				'type'          => 'integer',
+			),
 		);
 
 		$query_params['parent_exclude'] = array(
 			'default'           => array(),
 			'description'       => __( 'Ensure result set excludes specific parent ids.' ),
-			'sanitize_callback' => 'wp_parse_id_list',
 			'type'              => 'array',
+			'items'             => array(
+				'type'          => 'integer',
+			),
 		);
 
 		$query_params['post']   = array(
 			'default'           => array(),
 			'description'       => __( 'Limit result set to resources assigned to specific post ids.' ),
 			'type'              => 'array',
-			'sanitize_callback' => 'wp_parse_id_list',
+			'items'             => array(
+				'type'          => 'integer',
+			),
 		);
 
 		$query_params['status'] = array(

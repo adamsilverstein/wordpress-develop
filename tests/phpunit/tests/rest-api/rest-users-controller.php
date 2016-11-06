@@ -363,6 +363,20 @@ class WP_Test_REST_Users_Controller extends WP_Test_REST_Controller_Testcase {
 		$this->assertErrorResponse( 'rest_forbidden_orderby', $response, 401 );
 	}
 
+	public function test_get_items_invalid_order() {
+		$request = new WP_REST_Request( 'GET', '/wp/v2/users' );
+		$request->set_param( 'order', 'asc,id' );
+		$response = $this->server->dispatch( $request );
+		$this->assertErrorResponse( 'rest_invalid_param', $response, 400 );
+	}
+
+	public function test_get_items_invalid_orderby() {
+		$request = new WP_REST_Request( 'GET', '/wp/v2/users' );
+		$request->set_param( 'orderby', 'invalid' );
+		$response = $this->server->dispatch( $request );
+		$this->assertErrorResponse( 'rest_invalid_param', $response, 400 );
+	}
+
 	public function test_get_items_offset() {
 		wp_set_current_user( self::$user );
 		// 2 users created in __construct(), plus default user
@@ -379,6 +393,10 @@ class WP_Test_REST_Users_Controller extends WP_Test_REST_Controller_Testcase {
 		$request->set_param( 'page', 3 );
 		$response = $this->server->dispatch( $request );
 		$this->assertCount( 2, $response->get_data() );
+		// 'offset' invalid value should error
+		$request->set_param( 'offset', 'moreplease' );
+		$response = $this->server->dispatch( $request );
+		$this->assertErrorResponse( 'rest_invalid_param', $response, 400 );
 	}
 
 	public function test_get_items_include_query() {
@@ -399,7 +417,12 @@ class WP_Test_REST_Users_Controller extends WP_Test_REST_Controller_Testcase {
 		$data = $response->get_data();
 		$this->assertEquals( 2, count( $data ) );
 		$this->assertEquals( $id3, $data[0]['id'] );
+		// Invalid include should fail
+		$request->set_param( 'include', 'invalid' );
+		$response = $this->server->dispatch( $request );
+		$this->assertErrorResponse( 'rest_invalid_param', $response, 400 );
 		// No privileges
+		$request->set_param( 'include', array( $id3, $id1 ) );
 		wp_set_current_user( 0 );
 		$response = $this->server->dispatch( $request );
 		$data = $response->get_data();
@@ -421,6 +444,10 @@ class WP_Test_REST_Users_Controller extends WP_Test_REST_Controller_Testcase {
 		$data = $response->get_data();
 		$this->assertTrue( in_array( $id1, wp_list_pluck( $data, 'id' ), true ) );
 		$this->assertFalse( in_array( $id2, wp_list_pluck( $data, 'id' ), true ) );
+		// Invalid exlude value should error.
+		$request->set_param( 'exclude', 'none-of-those-please' );
+		$response = $this->server->dispatch( $request );
+		$this->assertErrorResponse( 'rest_invalid_param', $response, 400 );
 	}
 
 	public function test_get_items_search() {
@@ -838,6 +865,20 @@ class WP_Test_REST_Users_Controller extends WP_Test_REST_Controller_Testcase {
 		$this->assertEquals( 'rest_invalid_param', $response->as_error()->get_error_code() );
 	}
 
+	public function test_update_item_en_US_locale() {
+		$user_id = $this->factory->user->create( array( 'user_login' => 'test_json_user', 'user_email' => 'testjson@example.com' ) );
+		$this->allow_user_to_manage_multisite();
+		wp_set_current_user( self::$user );
+
+		$request = new WP_REST_Request( 'PUT', '/wp/v2/users/' . $user_id );
+		$request->set_param( 'locale', 'en_US' );
+		$response = $this->server->dispatch( $request );
+		$this->check_add_edit_user_response( $response, true );
+
+		$user = get_userdata( $user_id );
+		$this->assertEquals( 'en_US', $user->locale );
+	}
+
 	public function test_update_item_username_attempt() {
 		$user1 = $this->factory->user->create( array( 'user_login' => 'test_json_user', 'user_email' => 'testjson@example.com' ) );
 		$user2 = $this->factory->user->create( array( 'user_login' => 'test_json_user2', 'user_email' => 'testjson2@example.com' ) );
@@ -1113,7 +1154,29 @@ class WP_Test_REST_Users_Controller extends WP_Test_REST_Controller_Testcase {
 
 		$this->assertEquals( 200, $response->get_status() );
 		$data = $response->get_data();
-		$this->assertEquals( 'Deleted User', $data['name'] );
+		$this->assertTrue( $data['deleted'] );
+		$this->assertEquals( 'Deleted User', $data['previous']['name'] );
+	}
+
+	public function test_delete_item_no_trash() {
+		$user_id = $this->factory->user->create( array( 'display_name' => 'Deleted User' ) );
+
+		$this->allow_user_to_manage_multisite();
+		wp_set_current_user( self::$user );
+
+		$userdata = get_userdata( $user_id ); // cache for later
+
+		$request = new WP_REST_Request( 'DELETE', sprintf( '/wp/v2/users/%d', $user_id ) );
+		$response = $this->server->dispatch( $request );
+		$this->assertErrorResponse( 'rest_trash_not_supported', $response, 501 );
+
+		$request->set_param( 'force', 'false' );
+		$response = $this->server->dispatch( $request );
+		$this->assertErrorResponse( 'rest_trash_not_supported', $response, 501 );
+
+		// Ensure the user still exists
+		$user = get_user_by( 'id', $user_id );
+		$this->assertNotEmpty( $user );
 	}
 
 	public function test_delete_current_item() {
@@ -1129,34 +1192,22 @@ class WP_Test_REST_Users_Controller extends WP_Test_REST_Controller_Testcase {
 
 		$this->assertEquals( 200, $response->get_status() );
 		$data = $response->get_data();
-		$this->assertEquals( 'Deleted User', $data['name'] );
-	}
-
-	public function test_delete_item_no_trash() {
-		$user_id = $this->factory->user->create( array( 'display_name' => 'Deleted User' ) );
-
-		$this->allow_user_to_manage_multisite();
-		wp_set_current_user( self::$user );
-
-		$userdata = get_userdata( $user_id ); // cache for later
-		$request = new WP_REST_Request( 'DELETE', sprintf( '/wp/v2/users/%d', $user_id ) );
-		$response = $this->server->dispatch( $request );
-		$this->assertErrorResponse( 'rest_trash_not_supported', $response, 501 );
-
-		// Ensure the user still exists
-		$user = get_user_by( 'id', $user_id );
-		$this->assertNotEmpty( $user );
+		$this->assertTrue( $data['deleted'] );
+		$this->assertEquals( 'Deleted User', $data['previous']['name'] );
 	}
 
 	public function test_delete_current_item_no_trash() {
-		$user_id = $this->factory->user->create( array( 'role' => 'administrator' ) );
+		$user_id = $this->factory->user->create( array( 'role' => 'administrator', 'display_name' => 'Deleted User' ) );
 
 		wp_set_current_user( $user_id );
 		$user = wp_get_current_user();
 		update_site_option( 'site_admins', array( $user->user_login ) );
 
-		$userdata = get_userdata( $user_id ); // cache for later
 		$request = new WP_REST_Request( 'DELETE', '/wp/v2/users/me' );
+		$response = $this->server->dispatch( $request );
+		$this->assertErrorResponse( 'rest_trash_not_supported', $response, 501 );
+
+		$request->set_param( 'force', 'false' );
 		$response = $this->server->dispatch( $request );
 		$this->assertErrorResponse( 'rest_trash_not_supported', $response, 501 );
 

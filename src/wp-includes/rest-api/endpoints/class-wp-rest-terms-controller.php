@@ -116,6 +116,7 @@ class WP_REST_Terms_Controller extends WP_REST_Controller {
 				'permission_callback' => array( $this, 'delete_item_permissions_check' ),
 				'args'                => array(
 					'force' => array(
+						'type'        => 'boolean',
 						'default'     => false,
 						'description' => __( 'Required to be true, as resource does not support trashing.' ),
 					),
@@ -566,20 +567,23 @@ class WP_REST_Terms_Controller extends WP_REST_Controller {
 
 		// We don't support trashing for this resource type.
 		if ( ! $force ) {
-			return new WP_Error( 'rest_trash_not_supported', __( 'Resource does not support trashing.' ), array( 'status' => 501 ) );
+			return new WP_Error( 'rest_trash_not_supported', __( 'Terms do not support trashing. Set force=true to delete.' ), array( 'status' => 501 ) );
 		}
 
 		$term = get_term( (int) $request['id'], $this->taxonomy );
 
 		$request->set_param( 'context', 'view' );
 
-		$response = $this->prepare_item_for_response( $term, $request );
+		$previous = $this->prepare_item_for_response( $term, $request );
 
 		$retval = wp_delete_term( $term->term_id, $term->taxonomy );
 
 		if ( ! $retval ) {
 			return new WP_Error( 'rest_cannot_delete', __( 'The resource cannot be deleted.' ), array( 'status' => 500 ) );
 		}
+
+		$response = new WP_REST_Response();
+		$response->set_data( array( 'deleted' => true, 'previous' => $previous->get_data() ) );
 
 		/**
 		 * Fires after a single term is deleted via the REST API.
@@ -797,7 +801,7 @@ class WP_REST_Terms_Controller extends WP_REST_Controller {
 	 */
 	public function get_item_schema() {
 		$schema = array(
-			'$schema'    => 'http://json-schema.org/draft-04/schema#',
+			'$schema'    => 'http://json-schema.org/schema#',
 			'title'      => 'post_tag' === $this->taxonomy ? 'tag' : $this->taxonomy,
 			'type'       => 'object',
 			'properties' => array(
@@ -887,42 +891,41 @@ class WP_REST_Terms_Controller extends WP_REST_Controller {
 		$query_params['exclude'] = array(
 			'description'       => __( 'Ensure result set excludes specific ids.' ),
 			'type'              => 'array',
+			'items'             => array(
+				'type'          => 'integer',
+			),
 			'default'           => array(),
-			'sanitize_callback' => 'wp_parse_id_list',
 		);
 
 		$query_params['include'] = array(
 			'description'       => __( 'Limit result set to specific ids.' ),
 			'type'              => 'array',
+			'items'             => array(
+				'type'          => 'integer',
+			),
 			'default'           => array(),
-			'sanitize_callback' => 'wp_parse_id_list',
 		);
 
 		if ( ! $taxonomy->hierarchical ) {
 			$query_params['offset'] = array(
 				'description'       => __( 'Offset the result set by a specific number of items.' ),
 				'type'              => 'integer',
-				'sanitize_callback' => 'absint',
-				'validate_callback' => 'rest_validate_request_arg',
 			);
 		}
 
 		$query_params['order'] = array(
 			'description'       => __( 'Order sort attribute ascending or descending.' ),
 			'type'              => 'string',
-			'sanitize_callback' => 'sanitize_key',
 			'default'           => 'asc',
 			'enum'              => array(
 				'asc',
 				'desc',
 			),
-			'validate_callback' => 'rest_validate_request_arg',
 		);
 
 		$query_params['orderby'] = array(
 			'description'       => __( 'Sort collection by resource attribute.' ),
 			'type'              => 'string',
-			'sanitize_callback' => 'sanitize_key',
 			'default'           => 'name',
 			'enum'              => array(
 				'id',
@@ -933,23 +936,18 @@ class WP_REST_Terms_Controller extends WP_REST_Controller {
 				'description',
 				'count',
 			),
-			'validate_callback' => 'rest_validate_request_arg',
 		);
 
 		$query_params['hide_empty'] = array(
 			'description'       => __( 'Whether to hide resources not assigned to any posts.' ),
 			'type'              => 'boolean',
 			'default'           => false,
-			'sanitize_callback' => 'rest_sanitize_request_arg',
-			'validate_callback' => 'rest_validate_request_arg',
 		);
 
 		if ( $taxonomy->hierarchical ) {
 			$query_params['parent'] = array(
 				'description'       => __( 'Limit result set to resources assigned to a specific parent.' ),
 				'type'              => 'integer',
-				'sanitize_callback' => 'absint',
-				'validate_callback' => 'rest_validate_request_arg',
 			);
 		}
 
@@ -957,13 +955,11 @@ class WP_REST_Terms_Controller extends WP_REST_Controller {
 			'description'       => __( 'Limit result set to resources assigned to a specific post.' ),
 			'type'              => 'integer',
 			'default'           => null,
-			'validate_callback' => 'rest_validate_request_arg',
 		);
 
 		$query_params['slug'] = array(
 			'description'       => __( 'Limit result set to resources with a specific slug.' ),
 			'type'              => 'string',
-			'validate_callback' => 'rest_validate_request_arg',
 		);
 
 		return $query_params;

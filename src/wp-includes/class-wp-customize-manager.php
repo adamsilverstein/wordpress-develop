@@ -295,7 +295,6 @@ final class WP_Customize_Manager {
 
 		require_once( ABSPATH . WPINC . '/customize/class-wp-customize-nav-menus-panel.php' );
 
-		require_once( ABSPATH . WPINC . '/customize/class-wp-customize-themes-panel.php' );
 		require_once( ABSPATH . WPINC . '/customize/class-wp-customize-themes-section.php' );
 		require_once( ABSPATH . WPINC . '/customize/class-wp-customize-sidebar-section.php' );
 		require_once( ABSPATH . WPINC . '/customize/class-wp-customize-nav-menu-section.php' );
@@ -351,7 +350,6 @@ final class WP_Customize_Manager {
 
 		add_action( 'wp_ajax_customize_save',           array( $this, 'save' ) );
 		add_action( 'wp_ajax_customize_refresh_nonces', array( $this, 'refresh_nonces' ) );
-		add_action( 'wp_ajax_customize-load-themes',    array( $this, 'load_themes_ajax' ) );
 
 		add_action( 'customize_register',                 array( $this, 'register_controls' ) );
 		add_action( 'customize_register',                 array( $this, 'register_dynamic_settings' ), 11 ); // allow code to create settings first
@@ -368,12 +366,6 @@ final class WP_Customize_Manager {
 
 		// Export the settings to JS via the _wpCustomizeSettings variable.
 		add_action( 'customize_controls_print_footer_scripts', array( $this, 'customize_pane_settings' ), 1000 );
-
-		// Add theme update notices.
-		if ( current_user_can( 'install_themes' ) || current_user_can( 'update_themes' ) ) {
-			require_once( ABSPATH . '/wp-admin/includes/update.php' );
-			add_action( 'customize_controls_print_footer_scripts', 'wp_print_admin_notice_templates' );
-		}
 	}
 
 	/**
@@ -928,8 +920,12 @@ final class WP_Customize_Manager {
 
 					// Find the max widget number for this type.
 					$widget_numbers = array_keys( $settings );
-					$widget_numbers[] = 1;
-					$max_widget_numbers[ $id_base ] = call_user_func_array( 'max', $widget_numbers );
+					if ( count( $widget_numbers ) > 0 ) {
+						$widget_numbers[] = 1;
+						$max_widget_numbers[ $id_base ] = call_user_func_array( 'max', $widget_numbers );
+					} else {
+						$max_widget_numbers[ $id_base ] = 1;
+					}
 				}
 				$max_widget_numbers[ $id_base ] += 1;
 
@@ -1228,6 +1224,7 @@ final class WP_Customize_Manager {
 		wp_enqueue_script( 'customize-preview' );
 		add_action( 'wp_head', array( $this, 'customize_preview_loading_style' ) );
 		add_action( 'wp_footer', array( $this, 'customize_preview_settings' ), 20 );
+		add_filter( 'get_edit_post_link', '__return_empty_string' );
 
 		/**
 		 * Fires once the Customizer preview has initialized and JavaScript
@@ -2753,9 +2750,6 @@ final class WP_Customize_Manager {
 		foreach ( $this->controls as $control ) {
 			$control->enqueue();
 		}
-		if ( ! is_multisite() && ( current_user_can( 'install_themes' ) || current_user_can( 'update_themes' ) || current_user_can( 'delete_themes' ) ) ) {
-			wp_enqueue_script( 'updates' );
-		}
 	}
 
 	/**
@@ -2970,7 +2964,6 @@ final class WP_Customize_Manager {
 		$nonces = array(
 			'save' => wp_create_nonce( 'save-customize_' . $this->get_stylesheet() ),
 			'preview' => wp_create_nonce( 'preview-customize_' . $this->get_stylesheet() ),
-			'switch-themes' => wp_create_nonce( 'switch-themes' ),
 		);
 
 		/**
@@ -3044,14 +3037,6 @@ final class WP_Customize_Manager {
 			'autofocus' => $this->get_autofocus(),
 			'documentTitleTmpl' => $this->get_document_title_template(),
 			'previewableDevices' => $this->get_previewable_devices(),
-			'l10n' => array(
-				'confirmDeleteTheme' => __( 'Are you sure you want to delete this theme?' ),
-				/* translators: %d is the number of theme search results, which cannot consider singular vs. plural forms */
-				'themeSearchResults' => __( '%d themes found' ),
-				/* translators: %d is the number of themes being displayed, which cannot consider singular vs. plural forms */
-				'announceThemeCount' => __( 'Displaying %d themes' ),
-				'announceThemeDetails' => __( 'Showing details for theme: %s' ),
-			),
 		);
 
 		// Prepare Customize Section objects to pass to JavaScript.
@@ -3155,10 +3140,8 @@ final class WP_Customize_Manager {
 
 		/* Panel, Section, and Control Types */
 		$this->register_panel_type( 'WP_Customize_Panel' );
-		$this->register_panel_type( 'WP_Customize_Themes_Panel' );
 		$this->register_section_type( 'WP_Customize_Section' );
 		$this->register_section_type( 'WP_Customize_Sidebar_Section' );
-		$this->register_section_type( 'WP_Customize_Themes_Section' );
 		$this->register_control_type( 'WP_Customize_Color_Control' );
 		$this->register_control_type( 'WP_Customize_Media_Control' );
 		$this->register_control_type( 'WP_Customize_Upload_Control' );
@@ -3169,79 +3152,49 @@ final class WP_Customize_Manager {
 		$this->register_control_type( 'WP_Customize_Site_Icon_Control' );
 		$this->register_control_type( 'WP_Customize_Theme_Control' );
 
-		/* Themes (controls are loaded via ajax) */
+		/* Themes */
 
-		$this->add_panel( new WP_Customize_Themes_Panel( $this, 'themes', array(
-			'title'       => $this->theme()->display( 'Name' ),
-			'description' => __( 'Once themes are installed, you can live-preview them on your site, customize them, and publish your new design. Browse available themes via the filters in this menu.' ),
-			'capability'  => 'switch_themes',
-			'priority'    => 0,
+		$this->add_section( new WP_Customize_Themes_Section( $this, 'themes', array(
+			'title'      => $this->theme()->display( 'Name' ),
+			'capability' => 'switch_themes',
+			'priority'   => 0,
 		) ) );
-
-		$this->add_section( new WP_Customize_Themes_Section( $this, 'installed_themes', array(
-			'title'       => __( 'Installed' ),
-			'text_before' => __( 'Your local site' ),
-			'action'      => 'installed',
-			'capability'  => 'switch_themes',
-			'panel'       => 'themes',
-			'priority'    => 0,
-		) ) );
-
-		if ( ! is_multisite() ) {
-			$this->add_section( new WP_Customize_Themes_Section( $this, 'search_themes', array(
-				'title'       => __( 'Search themes&hellip;' ),
-				'text_before' => __( 'Browse all WordPress.org themes' ),
-				'action'      => 'search',
-				'capability'  => 'install_themes',
-				'panel'       => 'themes',
-				'priority'    => 5,
-			) ) );
-
-			$this->add_section( new WP_Customize_Themes_Section( $this, 'featured_themes', array(
-				'title'      => __( 'Featured' ),
-				'action'     => 'featured',
-				'capability' => 'install_themes',
-				'panel'      => 'themes',
-				'priority'   => 10,
-			) ) );
-
-			$this->add_section( new WP_Customize_Themes_Section( $this, 'popular_themes', array(
-				'title'      => __( 'Popular' ),
-				'action'     => 'popular',
-				'capability' => 'install_themes',
-				'panel'      => 'themes',
-				'priority'   => 15,
-			) ) );
-
-			$this->add_section( new WP_Customize_Themes_Section( $this, 'latest_themes', array(
-				'title'      => __( 'Latest' ),
-				'action'     => 'latest',
-				'capability' => 'install_themes',
-				'panel'      => 'themes',
-				'priority'   => 20,
-			) ) );
-
-			$this->add_section( new WP_Customize_Themes_Section( $this, 'feature_filter_themes', array(
-				'title'      => __( 'Feature Filter' ),
-				'action'     => 'feature_filter',
-				'capability' => 'install_themes',
-				'panel'      => 'themes',
-				'priority'   => 25,
-			) ) );
-
-			$this->add_section( new WP_Customize_Themes_Section( $this, 'favorites_themes', array(
-				'title'      => __( 'Favorites' ),
-				'action'     => 'favorites',
-				'capability' => 'install_themes',
-				'panel'      => 'themes',
-				'priority'   => 30,
-			) ) );
-		}
 
 		// Themes Setting (unused - the theme is considerably more fundamental to the Customizer experience).
 		$this->add_setting( new WP_Customize_Filter_Setting( $this, 'active_theme', array(
 			'capability' => 'switch_themes',
 		) ) );
+
+		require_once( ABSPATH . 'wp-admin/includes/theme.php' );
+
+		// Theme Controls.
+
+		// Add a control for the active/original theme.
+		if ( ! $this->is_theme_active() ) {
+			$themes = wp_prepare_themes_for_js( array( wp_get_theme( $this->original_stylesheet ) ) );
+			$active_theme = current( $themes );
+			$active_theme['isActiveTheme'] = true;
+			$this->add_control( new WP_Customize_Theme_Control( $this, $active_theme['id'], array(
+				'theme'    => $active_theme,
+				'section'  => 'themes',
+				'settings' => 'active_theme',
+			) ) );
+		}
+
+		$themes = wp_prepare_themes_for_js();
+		foreach ( $themes as $theme ) {
+			if ( $theme['active'] || $theme['id'] === $this->original_stylesheet ) {
+				continue;
+			}
+
+			$theme_id = 'theme_' . $theme['id'];
+			$theme['isActiveTheme'] = false;
+			$this->add_control( new WP_Customize_Theme_Control( $this, $theme_id, array(
+				'theme'    => $theme,
+				'section'  => 'themes',
+				'settings' => 'active_theme',
+			) ) );
+		}
 
 		/* Site Identity */
 
@@ -3435,12 +3388,11 @@ final class WP_Customize_Manager {
 		) );
 
 		$this->add_setting( new WP_Customize_Filter_Setting( $this, 'header_image', array(
-			'default'        => get_theme_support( 'custom-header', 'default-image' ),
+			'default'        => sprintf( get_theme_support( 'custom-header', 'default-image' ), get_template_directory_uri(), get_stylesheet_directory_uri() ),
 			'theme_supports' => 'custom-header',
 		) ) );
 
 		$this->add_setting( new WP_Customize_Header_Image_Setting( $this, 'header_image_data', array(
-			// 'default'        => get_theme_support( 'custom-header', 'default-image' ),
 			'theme_supports' => 'custom-header',
 		) ) );
 
@@ -3455,7 +3407,7 @@ final class WP_Customize_Manager {
 		$this->add_control( 'external_header_video', array(
 			'theme_supports' => array( 'custom-header', 'video' ),
 			'type'           => 'url',
-			'description'    => __( 'Or, enter a YouTube or Vimeo URL:' ),
+			'description'    => __( 'Or, enter a YouTube URL:' ),
 			'section'        => 'header_image',
 		) );
 
@@ -3638,7 +3590,7 @@ final class WP_Customize_Manager {
 			'priority'           => 200,
 			'description_hidden' => true,
 			'description'        => sprintf( '%s<br /><a href="%s" class="external-link" target="_blank">%s<span class="screen-reader-text">%s</span></a>',
-				__( 'CSS allows you to customize the appearance and layout of your site with code. Separate CSS is saved for each of your themes.' ),
+				__( 'CSS allows you to customize the appearance and layout of your site with code. Separate CSS is saved for each of your themes. In the editing area the Tab key enters a tab character. To move below this area by pressing Tab, press the Esc key followed by the Tab key.' ),
 				'https://codex.wordpress.org/Know_Your_Sources#CSS',
 				__( 'Learn more about CSS' ),
 				__( '(link opens in a new window)' )
@@ -3695,150 +3647,6 @@ final class WP_Customize_Manager {
 		$setting_ids = array_keys( $this->unsanitized_post_values() );
 		$this->add_dynamic_settings( $setting_ids );
 	}
-
-	/**
-	 * Load themes into the theme browsing/installation UI.
-	 *
-	 * @since 4.7.0
-	 * @access public
-	 */
-	public function load_themes_ajax() {
-		check_ajax_referer( 'switch-themes', 'switch-themes-nonce' );
-
-		if ( ! current_user_can( 'switch_themes' ) ) {
-			wp_die( -1 );
-		}
-
-		if ( empty( $_POST['theme_action'] ) ) {
-			wp_send_json_error( 'missing_theme_action' );
-		}
-
-		if ( 'search' === $_POST['theme_action'] && ! array_key_exists( 'search', $_POST ) ) {
-			wp_send_json_error( 'empty_search' );
-		} elseif ( 'favorites' === $_POST['theme_action'] && ! array_key_exists( 'user', $_POST ) ) {
-			wp_send_json_error( 'empty_user' );
-		} elseif ( 'feature_filter' === $_POST['theme_action'] && ! array_key_exists( 'tags', $_POST ) ) {
-			wp_send_json_error( 'no_features' );
-		}
-
-		require_once( ABSPATH . 'wp-admin/includes/theme.php' );
-		if ( 'installed' === $_POST['theme_action'] ) {
-			$themes = array( 'themes' => wp_prepare_themes_for_js() );
-			foreach ( $themes['themes'] as &$theme ) {
-				$theme['type'] = 'installed';
-				// Set active based on customized theme.
-				if ( $_POST['customized_theme'] === $theme['id'] ) {
-					$theme['active'] = true;
-				} else {
-					$theme['active'] = false;
-				}
-			}
-		} else {
-			if ( ! current_user_can( 'install_themes' ) ) {
-				wp_die( -1 );
-			}
-
-			// Arguments for all queries.
-			$args = array(
-				'per_page' => 100,
-				'page' => absint( $_POST['page'] ),
-				'fields' => array(
-					'slug' => true,
-					'screenshot' => true,
-					'description' => true,
-					'requires' => true,
-					'rating' => true,
-					'downloaded' => true,
-					'downloadLink' => true,
-					'last_updated' => true,
-					'homepage' => true,
-					'num_ratings' => true,
-					'tags' => true,
-				),
-			);
-
-			// Specialized handling for each query.
-			switch ( $_POST['theme_action'] ) {
-				case 'search':
-					$args['search'] = wp_unslash( $_POST['search'] );
-					break;
-				case 'favorites':
-					$args['user'] = wp_unslash( $_POST['user'] );
-				case 'featured':
-				case 'popular':
-					$args['browse'] = wp_unslash( $_POST['theme_action'] );
-					break;
-				case 'latest':
-					$args['browse'] = 'new';
-					break;
-				case 'feature_filter':
-					$args['tag'] = wp_unslash( $_POST['tags'] );
-					break;
-			}
-
-			// Load themes from the .org API.
-			$themes = themes_api( 'query_themes', $args );
-			if ( is_wp_error( $themes ) ) {
-				wp_send_json_error();
-			}
-
-			// This list matches the allowed tags in wp-admin/includes/theme-install.php.
-			$themes_allowedtags = array('a' => array('href' => array(), 'title' => array(), 'target' => array()),
-				'abbr' => array('title' => array()), 'acronym' => array('title' => array()),
-				'code' => array(), 'pre' => array(), 'em' => array(), 'strong' => array(),
-				'div' => array(), 'p' => array(), 'ul' => array(), 'ol' => array(), 'li' => array(),
-				'h1' => array(), 'h2' => array(), 'h3' => array(), 'h4' => array(), 'h5' => array(), 'h6' => array(),
-				'img' => array('src' => array(), 'class' => array(), 'alt' => array())
-			);
-
-			// Prepare a list of installed themes to check against before the loop.
-			$installed_themes = array();
-			$wp_themes = wp_get_themes();
-			foreach ( $wp_themes as $theme ) {
-				$installed_themes[] = $theme->get_stylesheet();
-			}
-			$update_php = network_admin_url( 'update.php?action=install-theme' );
-			foreach ( $themes->themes as &$theme ) {
-				$theme->install_url = add_query_arg( array(
-					'theme'    => $theme->slug,
-					'_wpnonce' => wp_create_nonce( 'install-theme_' . $theme->slug ),
-				), $update_php );
-
-				$theme->name        = wp_kses( $theme->name, $themes_allowedtags );
-				$theme->author      = wp_kses( $theme->author, $themes_allowedtags );
-				$theme->version     = wp_kses( $theme->version, $themes_allowedtags );
-				$theme->description = wp_kses( $theme->description, $themes_allowedtags );
-				$theme->tags        = implode( ', ', $theme->tags );
-				$theme->stars       = wp_star_rating( array( 'rating' => $theme->rating, 'type' => 'percent', 'number' => $theme->num_ratings, 'echo' => false ) );
-				$theme->num_ratings = number_format_i18n( $theme->num_ratings );
-				$theme->preview_url = set_url_scheme( $theme->preview_url );
-
-				// Handle themes that are already installed as installed themes.
-				if ( in_array( $theme->slug, $installed_themes, true ) ) {
-					$theme->type = 'installed';
-				} else {
-					$theme->type = $_POST['theme_action'];
-				}
-
-				// Set active based on customized theme.
-				if ( $_POST['customized_theme'] === $theme->slug ) {
-					$theme->active = true;
-				} else {
-					$theme->active = false;
-				}
-
-				// Map available theme properties to installed theme properties.
-				$theme->id           = $theme->slug;
-				$theme->screenshot   = array( $theme->screenshot_url );
-				$theme->authorAndUri = $theme->author;
-				unset( $theme->slug );
-				unset( $theme->screenshot_url );
-				unset( $theme->author );
-			} // End foreach().
-		} // End if().
-		wp_send_json_success( $themes );
-	}
-
 
 	/**
 	 * Callback for validating the header_textcolor value.
@@ -3960,11 +3768,10 @@ final class WP_Customize_Manager {
 	 * @return mixed
 	 */
 	public function _validate_external_header_video( $validity, $value ) {
-		$video = esc_url( $value );
+		$video = esc_url_raw( $value );
 		if ( $video ) {
-			if ( ! preg_match( '#^https?://(?:www\.)?(?:youtube\.com/watch|youtu\.be/)#', $video )
-			     && ! preg_match( '#^https?://(.+\.)?vimeo\.com/.*#', $video ) ) {
-				$validity->add( 'invalid_url', __( 'Please enter a valid YouTube or Vimeo video URL.' ) );
+			if ( ! preg_match( '#^https?://(?:www\.)?(?:youtube\.com/watch|youtu\.be/)#', $video ) ) {
+				$validity->add( 'invalid_url', __( 'Please enter a valid YouTube URL.' ) );
 			}
 		}
 		return $validity;

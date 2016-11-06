@@ -230,7 +230,7 @@ class WP_REST_Taxonomies_Controller extends WP_REST_Controller {
 	 */
 	public function get_item_schema() {
 		$schema = array(
-			'$schema'              => 'http://json-schema.org/draft-04/schema#',
+			'$schema'              => 'http://json-schema.org/schema#',
 			'title'                => 'taxonomy',
 			'type'                 => 'object',
 			'properties'           => array(
@@ -279,6 +279,9 @@ class WP_REST_Taxonomies_Controller extends WP_REST_Controller {
 				'types'            => array(
 					'description'  => __( 'Types associated with resource.' ),
 					'type'         => 'array',
+					'items'        => array(
+						'type' => 'string',
+					),
 					'context'      => array( 'view', 'edit' ),
 					'readonly'     => true,
 				),
@@ -301,7 +304,6 @@ class WP_REST_Taxonomies_Controller extends WP_REST_Controller {
 		$new_params['type'] = array(
 			'description'  => __( 'Limit results to resources associated with a specific post type.' ),
 			'type'         => 'string',
-			'validate_callback' => 'rest_validate_request_arg',
 		);
 		return $new_params;
 	}
