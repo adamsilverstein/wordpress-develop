@@ -518,6 +518,10 @@ form.initial-form.quickpress-open input#title {
 	resize: none;
 }
 
+#quick-press.is-saving .spinner {
+	visibility: inherit;
+}
+
 /* Dashboard Quick Draft - Drafts list */
 
 .js #dashboard_quick_press .drafts {
@@ -541,9 +545,68 @@ form.initial-form.quickpress-open input#title {
 	margin: 0 12px;
 }
 
+#dashboard_quick_press .drafts ul.is-placeholder li {
+	padding: 3px 0;
+	color: transparent;
+}
+
+@-webkit-keyframes loading-fade {
+
+	0% {
+		opacity: 0.5;
+	}
+
+	50% {
+		opacity: 1;
+	}
+
+	100% {
+		opacity: 0.5;
+	}
+}
+
+@keyframes loading-fade {
+
+	0% {
+		opacity: 0.5;
+	}
+
+	50% {
+		opacity: 1;
+	}
+
+	100% {
+		opacity: 0.5;
+	}
+}
+
+#dashboard_quick_press .drafts ul.is-placeholder li:before,
+#dashboard_quick_press .drafts ul.is-placeholder li:after {
+	content: "";
+	display: block;
+	height: 13px;
+	background: #eee;
+	-webkit-animation: loading-fade 1.6s ease-in-out infinite;
+	animation: loading-fade 1.6s ease-in-out infinite;
+}
+
+#dashboard_quick_press .drafts ul.is-placeholder li:before {
+	margin-bottom: 5px;
+	width: 40%;
+}
+
+#dashboard_quick_press .drafts ul.is-placeholder li:after {
+	width: 80%;
+}
+
 #dashboard_quick_press .drafts li {
 	margin-bottom: 1em;
 }
+
+#dashboard_quick_press .drafts li.is-new {
+	background-color: #fffbe5;
+}
+
 #dashboard_quick_press .drafts li time {
 	color: #72777c;
 }

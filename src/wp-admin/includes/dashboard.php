@@ -50,6 +50,7 @@ function wp_dashboard_setup() {
 	if ( is_blog_admin() && current_user_can( get_post_type_object( 'post' )->cap->create_posts ) ) {
 		$quick_draft_title = sprintf( '<span class="hide-if-no-js">%1$s</span> <span class="hide-if-js">%2$s</span>', __( 'Quick Draft' ), __( 'Drafts' ) );
 		wp_add_dashboard_widget( 'dashboard_quick_press', $quick_draft_title, 'wp_dashboard_quick_press' );
+		add_action( 'admin_footer', 'wp_dashboard_print_recent_drafts_template' );
 	}
 
 	// WordPress News
@@ -494,46 +495,47 @@ function wp_dashboard_quick_press( $error_msg = false ) {
 	$post_ID = (int) $post->ID;
 ?>
 
-	<form name="post" action="<?php echo esc_url( admin_url( 'post.php' ) ); ?>" method="post" id="quick-press" class="initial-form hide-if-no-js">
-
-		<?php if ( $error_msg ) : ?>
-		<div class="error"><?php echo $error_msg; ?></div>
-		<?php endif; ?>
-
+	<form name="post" method="post" id="quick-press" class="initial-form hide-if-no-js">
+		<div class="notice notice-info notice-alt inline" style="display: none;"><p></p></div>
 		<div class="input-text-wrap" id="title-wrap">
-			<label class="screen-reader-text prompt" for="title" id="title-prompt-text">
+			<label class="prompt" for="title" id="title-prompt-text">
 
 				<?php
 				/** This filter is documented in wp-admin/edit-form-advanced.php */
 				echo apply_filters( 'enter_title_here', __( 'Title' ), $post );
 				?>
 			</label>
-			<input type="text" name="post_title" id="title" autocomplete="off" />
+			<input type="text" name="title" id="title" autocomplete="off" />
 		</div>
 
 		<div class="textarea-wrap" id="description-wrap">
-			<label class="screen-reader-text prompt" for="content" id="content-prompt-text"><?php _e( 'What&#8217;s on your mind?' ); ?></label>
+			<label class="prompt" for="content" id="content-prompt-text"><?php _e( 'What&#8217;s on your mind?' ); ?></label>
 			<textarea name="content" id="content" class="mceEditor" rows="3" cols="15" autocomplete="off"></textarea>
 		</div>
-
 		<p class="submit">
-			<input type="hidden" name="action" id="quickpost-action" value="post-quickdraft-save" />
-			<input type="hidden" name="post_ID" value="<?php echo $post_ID; ?>" />
-			<input type="hidden" name="post_type" value="post" />
-			<?php wp_nonce_field( 'add-post' ); ?>
+			<div class="spinner no-float"></div>
 			<?php submit_button( __( 'Save Draft' ), 'primary', 'save', false, array( 'id' => 'save-post' ) ); ?>
 			<br class="clear" />
 		</p>
 
 	</form>
+	<div id="quick-press-drafts" class="drafts">
+		<p class="view-all" style="display: none;">
+			<a href="<?php echo esc_url( admin_url( 'edit.php?post_status=draft' ) ) ?>" aria-label="<?php esc_attr_e( 'View all drafts' ) ?>"><?php _ex( 'View all', 'drafts' ) ?></a>
+		</p>
+		<h2 class="hide-if-no-js"><?php _e( 'Drafts' ) ?></h2>
+		<ul class="drafts-list is-placeholder">
+			<li><span class="screen-reader-text"><?php _e( 'Loading&hellip;' ) ?></span></li>
+		</ul>
+	</div>
 	<?php
-	wp_dashboard_recent_drafts();
 }
 
 /**
  * Show recent drafts of the user on the dashboard.
  *
  * @since 2.7.0
+ * @deprecated 4.7
  *
  * @param array $drafts
  */
@@ -548,13 +550,7 @@ function wp_dashboard_recent_drafts( $drafts = false ) {
 			'order'          => 'DESC'
 		);
 
-		/**
-		 * Filters the post query arguments for the 'Recent Drafts' dashboard widget.
-		 *
-		 * @since 4.4.0
-		 *
-		 * @param array $query_args The query arguments for the 'Recent Drafts' dashboard widget.
-		 */
+		/** This filter is documented in wp-includes/rest-api.php */
 		$query_args = apply_filters( 'dashboard_recent_drafts_query_args', $query_args );
 
 		$drafts = get_posts( $query_args );
@@ -583,6 +579,25 @@ function wp_dashboard_recent_drafts( $drafts = false ) {
 		echo "</li>\n";
  	}
 	echo "</ul>\n</div>";
+}
+
+/**
+ * Get the HTML template for the Quick Draft recent posts.
+ *
+ * @since 4.7.0
+ *
+ * @return string The template HTML.
+ */
+function wp_dashboard_print_recent_drafts_template() {
+	?>
+	<script id="tmpl-item-quick-press-draft" type="text/template">
+		<div class="draft-title">
+			<a href="post.php?post={{ data.id }}&action=edit" aria-label="<?php esc_attr_e( 'Edit Post' ) ?>">{{ data.formattedTitle }}</a>
+			<time datetime="{{ data.date }}">{{ data.formattedDate }}</time>
+		</div>
+		{{{ data.formattedContent }}}
+	</script>
+	<?php
 }
 
 /**

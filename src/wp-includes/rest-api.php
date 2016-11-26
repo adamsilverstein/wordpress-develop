@@ -164,6 +164,37 @@ function rest_api_default_filters() {
 	add_filter( 'rest_post_dispatch', 'rest_send_allow_header', 10, 3 );
 
 	add_filter( 'rest_pre_dispatch', 'rest_handle_options_request', 10, 3 );
+
+	// Legacy filter for Quick Draft recent posts.
+	add_filter( 'rest_post_query', 'rest_filter_quick_draft_query', 10, 2 );
+}
+
+/**
+ * Filter query args used by he Quick Draft recent posts list.
+ *
+ * @param array           $args    Key value array of query var to query value.
+ * @param WP_REST_Request $request The request used.
+ */
+function rest_filter_quick_draft_query( $query_args, $request ) {
+
+	// Only modify Quick Draft queries.
+	$params = $request->get_query_params();
+
+	if ( ! isset( $params['quick-draft-post-list'] ) ) {
+		return $query_args;
+	}
+
+	/**
+	 * Filters the post query arguments for the 'Recent Drafts' dashboard widget.
+	 *
+	 * @since 4.4.0
+	 *
+	 * @param array $query_args The query arguments for the 'Recent Drafts' dashboard widget.
+	 */
+	$query_args = apply_filters( 'dashboard_recent_drafts_query_args', $query_args );
+
+	return $query_args;
+
 }
 
 /**

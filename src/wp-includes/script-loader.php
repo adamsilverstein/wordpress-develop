@@ -336,6 +336,15 @@ function wp_default_scripts( &$scripts ) {
 		'ajax' => array(
 			'url' => admin_url( 'admin-ajax.php', 'relative' ),
 		),
+		'formatting' => array(
+			'trimWordsMore'  => __( '&hellip;' ),
+			/*
+			 * translators: If your word count is based on single characters (e.g. East Asian characters),
+			 * enter 'characters_excluding_spaces' or 'characters_including_spaces'. Otherwise, enter 'words'.
+			 * Do not translate into your own language.
+			 */
+			'trimWordsByCharacter' => strpos( _x( 'words', 'Word count type. Do not translate!' ), 'characters' ) === 0 && preg_match( '/^utf\-?8$/i', get_option( 'blog_charset' ) ),
+		),
 	) );
 
 	$scripts->add( 'wp-backbone', "/wp-includes/js/wp-backbone$suffix.js", array('backbone', 'wp-util'), false, 1 );
@@ -721,7 +730,17 @@ function wp_default_scripts( &$scripts ) {
 			'current' => __( 'Current Color' ),
 		) );
 
-		$scripts->add( 'dashboard', "/wp-admin/js/dashboard$suffix.js", array( 'jquery', 'admin-comments', 'postbox' ), false, 1 );
+		$scripts->add( 'dashboard', "/wp-admin/js/dashboard$suffix.js", array( 'jquery', 'admin-comments', 'postbox', 'wp-api', 'wp-backbone', 'wp-a11y', 'wp-util' ), false, 1 );
+		did_action( 'init' ) && $scripts->localize( 'dashboard', 'quickDraft', array(
+			'currentUserId'  => get_current_user_id(),
+			'l10n' => array(
+				'error'            => __( 'An error has occurred. Please reload the page and try again.' ),
+				'newDraftCreated'  => __( 'Success. A new draft was created.' ),
+				'errorEmptyFields' => __( 'Error. All fields were empty.' ),
+				'noTitle'          => __( '(no title)' ),
+			),
+			'timezoneOffset' => ( get_option( 'gmt_offset' ) >= 0 ? '+' : '-' ) . date( 'H:i', abs( get_option( 'gmt_offset' ) * 3600 ) ),
+		) );
 
 		$scripts->add( 'list-revisions', "/wp-includes/js/wp-list-revisions$suffix.js" );
 

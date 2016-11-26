@@ -121,4 +121,50 @@ window.wp = window.wp || {};
 		}
 	};
 
+	// wp.formatting
+	// ------
+	//
+	// Tools for formatting strings
+	wp.formatting = {
+		settings: settings.formatting || {},
+
+		/**
+		 * Trims text to a certain number of words.
+		 *
+		 * @see wp_trim_words
+		 *
+		 * @param  {string} text     Text to trim.
+		 * @param  {number} numWords Number of words. Optional, default is 55.
+		 * @param  {string} more     What to append if text needs to be trimmed. Optional, default is '…'.
+		 * @return {string}          Trimmed text.
+		 */
+		trimWords: function( text, numWords, more ) {
+			var words, separator;
+
+			if ( 'undefined' === typeof numWords ) {
+				numWords = 55;
+			}
+
+			if ( 'undefined' === typeof more ) {
+				more = wp.formatting.settings.trimWordsMore;
+			}
+
+			text = text.replace( /[\n\r\t ]+/g, ' ' ).replace( /^ | $/g, '' );
+
+			if ( wp.formatting.settings.trimWordsByCharacter ) {
+				separator = '';
+			} else {
+				separator = ' ';
+			}
+
+			words = text.split( separator );
+
+			if ( words.length <= numWords ) {
+				return words.join( separator );
+			}
+
+			return words.slice( 0, numWords ).join( separator ) + more;
+		}
+	};
+
 }(jQuery));
