@@ -119,7 +119,7 @@ class WP_Customize_Control {
 	 *
 	 * @since 4.7.0
 	 * @access public
-	 * @var array
+	 * @var bool
 	 */
 	public $allow_addition = false;
 
@@ -588,7 +588,10 @@ class WP_Customize_Control {
 				?>
 				</label>
 				<?php if ( $this->allow_addition && current_user_can( 'publish_pages' ) && current_user_can( 'edit_theme_options' ) ) : // Currently tied to menus functionality. ?>
-					<button type="button" class="button add-new-toggle"><?php echo get_post_type_object( 'page' )->labels->add_new_item; ?></button>
+					<button type="button" class="button-link add-new-toggle"><?php
+						/* translators: %s: add new page label */
+						printf( __( '+ %s' ), get_post_type_object( 'page' )->labels->add_new_item );
+					?></button>
 					<div class="new-content-item">
 						<label for="create-input-<?php echo $this->id; ?>"><span class="screen-reader-text"><?php _e( 'New page title' ); ?></span></label>
 						<input type="text" id="create-input-<?php echo $this->id; ?>" class="create-item-input" placeholder="<?php esc_attr_e( 'New page title&hellip;' ); ?>">

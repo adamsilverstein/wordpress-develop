@@ -17,35 +17,37 @@ Use it to make something cool, have fun, and share what you've learned with othe
 /*--------------------------------------------------------------
 >>> TABLE OF CONTENTS:
 ----------------------------------------------------------------
-# Normalize
-# Accessibility
-# Alignments
-# Clearings
-# Typography
-# Forms
-# Formatting
-# Lists
-# Tables
-# Links
-# Featured Image Hover
-# Navigation
-# Layout
-   ## Header
-   ## Front Page
-   ## Regular Content
-   ## Posts
-   ## Pages
-   ## Footer
-# Comments
-# Widgets
-# Media
-	## Galleries
-# Customizer
-# Media Queries
+1.0 Normalize
+2.0 Accessibility
+3.0 Alignments
+4.0 Clearings
+5.0 Typography
+6.0 Forms
+7.0 Formatting
+8.0 Lists
+9.0 Tables
+10.0 Links
+11.0 Featured Image Hover
+12.0 Navigation
+13.0 Layout
+   13.1 Header
+   13.2 Front Page
+   13.3 Regular Content
+   13.4 Posts
+   13.5 Pages
+   13.6 Footer
+14.0 Comments
+15.0 Widgets
+16.0 Media
+   16.1 Galleries
+17.0 Customizer
+18.0 SVGs Fallbacks
+19.0 Media Queries
+20.0 Print
 --------------------------------------------------------------*/
 
 /*--------------------------------------------------------------
-# Normalize
+1.0 Normalize
 Styles based on Normalize v5.0.0 @link https://github.com/necolas/normalize.css
 --------------------------------------------------------------*/
 
@@ -119,7 +121,7 @@ strong {
 
 b,
 strong {
-	font-weight: bolder;
+	font-weight: 700;
 }
 
 code,
@@ -295,7 +297,7 @@ template {
 }
 
 /*--------------------------------------------------------------
-# Accessibility
+2.0 Accessibility
 --------------------------------------------------------------*/
 
 /* Text meant only for screen readers. */
@@ -306,6 +308,7 @@ template {
 	overflow: hidden;
 	position: absolute !important;
 	width: 1px;
+	word-wrap: normal !important; /* Many screen reader and browser combinations announce broken words as they would appear visually. */
 }
 
 .screen-reader-text:focus {
@@ -331,7 +334,7 @@ template {
 }
 
 /*--------------------------------------------------------------
-# Alignments
+3.0 Alignments
 --------------------------------------------------------------*/
 
 .alignleft {
@@ -354,7 +357,7 @@ template {
 }
 
 /*--------------------------------------------------------------
-# Clearings
+4.0 Clearings
 --------------------------------------------------------------*/
 
 .clear:before,
@@ -405,7 +408,7 @@ template {
 }
 
 /*--------------------------------------------------------------
-# Typography
+5.0 Typography
 --------------------------------------------------------------*/
 
 body,
@@ -899,7 +902,7 @@ html[lang="th"] * {
 }
 
 /*--------------------------------------------------------------
-# Forms
+6.0 Forms
 --------------------------------------------------------------*/
 
 label {
@@ -1060,7 +1063,7 @@ input[type="submit"].secondary:focus {
 }
 
 /*--------------------------------------------------------------
-# Formatting
+7.0 Formatting
 --------------------------------------------------------------*/
 
 hr {
@@ -1071,7 +1074,7 @@ hr {
 }
 
 /*--------------------------------------------------------------
-# Lists
+8.0 Lists
 --------------------------------------------------------------*/
 
 ul,
@@ -1103,7 +1106,7 @@ dd {
 }
 
 /*--------------------------------------------------------------
-# Tables
+9.0 Tables
 --------------------------------------------------------------*/
 
 table {
@@ -1141,7 +1144,7 @@ td:last-child {
 }
 
 /*--------------------------------------------------------------
-# Links
+10.0 Links
 --------------------------------------------------------------*/
 
 a {
@@ -1272,7 +1275,7 @@ a:hover .nav-title,
 }
 
 /*--------------------------------------------------------------
-# Featured Image Hover
+11.0 Featured Image Hover
 --------------------------------------------------------------*/
 
 .post-thumbnail {
@@ -1291,7 +1294,7 @@ a:hover .nav-title,
 }
 
 /*--------------------------------------------------------------
-# Navigation
+12.0 Navigation
 --------------------------------------------------------------*/
 
 .navigation-top {
@@ -1482,7 +1485,7 @@ a:hover .nav-title,
 }
 
 /*--------------------------------------------------------------
-# Layout
+13.0 Layout
 --------------------------------------------------------------*/
 
 html {
@@ -1507,7 +1510,6 @@ body {
 
 #page {
 	position: relative;
-	-ms-word-wrap: break-word;
 	word-wrap: break-word;
 }
 
@@ -1526,7 +1528,7 @@ body {
 }
 
 /*--------------------------------------------------------------
-## Header
+13.1 Header
 --------------------------------------------------------------*/
 
 #masthead .wrap {
@@ -1678,6 +1680,32 @@ body:not(.title-tagline-hidden) .site-branding-text {
 	transform: translateX(-50%) translateY(-50%);
 }
 
+.wp-custom-header .wp-custom-header-video-button { /* Specificity prevents .color-dark button overrides */
+	background-color: rgba(34, 34, 34, 0.5);
+	border: 1px solid rgba(255, 255, 255, 0.6);
+	color: rgba(255, 255, 255, 0.6);
+	height: 45px;
+	overflow: hidden;
+	padding: 0;
+	position: fixed;
+	right: 30px;
+	top: 30px;
+	-webkit-transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out, color 0.3s ease-in-out;
+	transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out, color 0.3s ease-in-out;
+	width: 45px;
+}
+
+.wp-custom-header .wp-custom-header-video-button:hover,
+.wp-custom-header .wp-custom-header-video-button:focus { /* Specificity prevents .color-dark button overrides */
+	border-color: rgba(255, 255, 255, 0.8);
+	background-color: rgba(34, 34, 34, 0.8);
+	color: #fff;
+}
+
+.admin-bar .wp-custom-header-video-button {
+	top: 62px;
+}
+
 .has-header-image:not(.twentyseventeen-front-page):not(.home) .custom-header-image img {
 	bottom: 0;
 	position: absolute;
@@ -1688,8 +1716,10 @@ body:not(.title-tagline-hidden) .site-branding-text {
 	transform: translateX(-50%) translateY(0);
 }
 
+/* Hides div in Customizer preview when header images or videos change. */
+
 body:not(.has-header-image) .custom-header-image {
-	padding: 5% 0;
+	display: none;
 }
 
 .has-header-image.twentyseventeen-front-page .site-branding,
@@ -1700,7 +1730,7 @@ body:not(.has-header-image) .custom-header-image {
 }
 
 /*--------------------------------------------------------------
-## Front Page
+13.2 Front Page
 --------------------------------------------------------------*/
 
 .twentyseventeen-front-page .site-content {
@@ -1789,7 +1819,7 @@ body:not(.has-header-image) .custom-header-image {
 }
 
 /*--------------------------------------------------------------
-## Regular Content
+13.3 Regular Content
 --------------------------------------------------------------*/
 
 .site-content-contain {
@@ -1802,7 +1832,7 @@ body:not(.has-header-image) .custom-header-image {
 }
 
 /*--------------------------------------------------------------
-## Posts
+13.4 Posts
 --------------------------------------------------------------*/
 
 /* Post Landing Page */
@@ -1984,10 +2014,12 @@ body:not(.twentyseventeen-front-page) .entry-header {
 	color: #222;
 	display: inline-block;
 	margin-left: 1em;
+	white-space: nowrap;
 }
 
 .search .page .entry-meta a.post-edit-link {
 	margin-left: 0;
+	white-space: nowrap;
 }
 
 .taxonomy-description {
@@ -2104,6 +2136,7 @@ body:not(.twentyseventeen-front-page) .entry-header {
 	padding: 0.7em 2em;
 	-webkit-transition: background-color 0.2s ease-in-out;
 	transition: background-color 0.2s ease-in-out;
+	white-space: nowrap;
 }
 
 .entry-footer .edit-link a.post-edit-link:hover,
@@ -2141,7 +2174,6 @@ body:not(.twentyseventeen-front-page) .entry-header {
 	width: 20px;
 }
 
-
 /* Post Navigation */
 
 .post-navigation {
@@ -2166,16 +2198,24 @@ body:not(.twentyseventeen-front-page) .entry-header {
 
 .nav-title {
 	color: #333;
-	font-size: 16px;
-	font-size: 1rem;
+	font-size: 15px;
+	font-size: 0.9375rem;
 }
 
 .post-navigation .nav-next {
 	margin-top: 1.5em;
 }
 
+.nav-links .nav-previous .nav-title .nav-title-icon-wrapper {
+	margin-right: 0.5em;
+}
+
+.nav-links .nav-next .nav-title .nav-title-icon-wrapper {
+	margin-left: 0.5em;
+}
+
 /*--------------------------------------------------------------
-## Pages
+13.5 Pages
 --------------------------------------------------------------*/
 
 .page-header {
@@ -2209,7 +2249,7 @@ body:not(.twentyseventeen-front-page) .entry-header {
 }
 
 /*--------------------------------------------------------------
-## Footer
+13.6 Footer
 --------------------------------------------------------------*/
 
 .site-footer {
@@ -2291,7 +2331,7 @@ body:not(.twentyseventeen-front-page) .entry-header {
 }
 
 /*--------------------------------------------------------------
-# Comments
+14.0 Comments
 --------------------------------------------------------------*/
 
 #comments {
@@ -2410,7 +2450,7 @@ body:not(.twentyseventeen-front-page) .entry-header {
 }
 
 /*--------------------------------------------------------------
-# Widgets
+15.0 Widgets
 --------------------------------------------------------------*/
 
 #secondary {
@@ -2507,7 +2547,6 @@ h2.widget-title {
 /* Text widget */
 
 .widget_text {
-	-ms-word-wrap: break-word;
 	word-wrap: break-word;
 }
 
@@ -2635,7 +2674,6 @@ h2.widget-title {
 	-webkit-transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out, color 0.3s ease-in-out;
 	transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out, color 0.3s ease-in-out;
 	width: auto;
-	-ms-word-wrap: break-word;
 	word-wrap: break-word;
 	z-index: 0;
 }
@@ -2664,7 +2702,7 @@ h2.widget-title {
 }
 
 /*--------------------------------------------------------------
-# Media
+16.0 Media
 --------------------------------------------------------------*/
 
 img,
@@ -2873,7 +2911,7 @@ object {
 }
 
 /*--------------------------------------------------------------
-## Galleries
+16.1 Galleries
 --------------------------------------------------------------*/
 
 .gallery-item {
@@ -2900,6 +2938,7 @@ object {
 	box-shadow: none;
 	background: none;
 	display: inline-block;
+	width: 100%;
 }
 
 .gallery-item a img {
@@ -2926,7 +2965,7 @@ object {
 }
 
 /*--------------------------------------------------------------
-# Customizer
+17.0 Customizer
 --------------------------------------------------------------*/
 
 .highlight-front-sections.twentyseventeen-customizer.twentyseventeen-front-page .twentyseventeen-panel:after {
@@ -2972,27 +3011,13 @@ object {
 	left: 30px;
 }
 
-/* Prevent color schemes from showing 1px dots everywhere. */
-.customize-partial-edit-shortcut {
-	background: transparent !important;
-}
-
 /* Ensure that placeholder icons are visible. */
 .twentyseventeen-panel .customize-partial-edit-shortcut-hidden:before {
 	visibility: visible;
 }
 
-/* Prevent icon colors from clashing with color schemes. */
-.colors-custom .customize-partial-edit-shortcut button {
-	text-shadow: 0 -1px 1px rgba(0,0,0,.2),
-	             1px 0 1px rgba(0,0,0,.2),
-	             0 1px 1px rgba(0,0,0,.2),
-	            -1px 0 1px rgba(0,0,0,.2);
-}
-
-
 /*--------------------------------------------------------------
-## SVGs Fallbacks
+18.0 SVGs Fallbacks
 --------------------------------------------------------------*/
 
 .svg-fallback {
@@ -3013,7 +3038,7 @@ object {
 .no-svg .dropdown-toggle .svg-fallback.icon-angle-down {
 	font-size: 20px;
 	font-size: 1.25rem;
-	font-weight: normal;
+	font-weight: 400;
 	line-height: 1;
 	-webkit-transform: rotate(180deg); /* Chrome, Safari, Opera */
 	-ms-transform: rotate(180deg); /* IE 9 */
@@ -3055,8 +3080,16 @@ object {
 }
 
 /*--------------------------------------------------------------
-## Media Queries
+19.0 Media Queries
 --------------------------------------------------------------*/
+
+/* Adjust positioning of edit shortcuts, override style in customize-preview.css */
+@media screen and (min-width: 20em) {
+
+	body.customize-partial-edit-shortcuts-shown .site-header .site-title {
+		padding-left: 0;
+	}
+}
 
 @media screen and (min-width: 30em) {
 
@@ -3575,6 +3608,11 @@ object {
 		max-height: 1200px;
 	}
 
+	/* With panel images 100% of the screen height, we're going to fix the background image where supported to create a parallax-like effect. */
+	.background-fixed .panel-image {
+		background-attachment: fixed;
+	}
+
 	.page-two-column .panel-content .entry-header {
 		float: left;
 		width: 36%;
@@ -3901,13 +3939,6 @@ object {
 	}
 }
 
-@media screen and ( min-width: 55em ) {
-
-	.panel-image {
-		background-attachment: fixed;
-	}
-}
-
 @media screen and ( min-width: 67em ) {
 
 	/* Layout */
@@ -3981,7 +4012,7 @@ object {
 }
 
 /*--------------------------------------------------------------
-# Print
+20.0 Print
 --------------------------------------------------------------*/
 
 @media print {

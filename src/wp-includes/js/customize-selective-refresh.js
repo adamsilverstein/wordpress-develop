@@ -103,22 +103,25 @@ wp.customize.selectiveRefresh = ( function( $, api ) {
 		/**
 		 * Create and show the edit shortcut for a given partial placement container.
 		 *
-		 * @since 4.7
+		 * @since 4.7.0
+		 * @access public
 		 *
 		 * @param {Placement} placement The placement container element.
 		 * @returns {void}
 		 */
 		createEditShortcutForPlacement: function( placement ) {
-			var partial = this, $shortcut, $placementContainer;
+			var partial = this, $shortcut, $placementContainer, illegalAncestorSelector, illegalContainerSelector;
 			if ( ! placement.container ) {
 				return;
 			}
 			$placementContainer = $( placement.container );
-			if ( ! $placementContainer.length ) {
+			illegalAncestorSelector = 'head';
+			illegalContainerSelector = 'area, audio, base, bdi, bdo, br, button, canvas, col, colgroup, command, datalist, embed, head, hr, html, iframe, img, input, keygen, label, link, map, math, menu, meta, noscript, object, optgroup, option, param, progress, rp, rt, ruby, script, select, source, style, svg, table, tbody, textarea, tfoot, thead, title, tr, track, video, wbr';
+			if ( ! $placementContainer.length || $placementContainer.is( illegalContainerSelector ) || $placementContainer.closest( illegalAncestorSelector ).length ) {
 				return;
 			}
 			$shortcut = partial.createEditShortcut();
-			partial.positionEditShortcut( placement, $shortcut );
+			partial.addEditShortcutToPlacement( placement, $shortcut );
 			$shortcut.on( 'click', function( event ) {
 				event.preventDefault();
 				event.stopPropagation();
@@ -127,30 +130,28 @@ wp.customize.selectiveRefresh = ( function( $, api ) {
 		},
 
 		/**
-		 * Position an edit shortcut for the placement container.
+		 * Add an edit shortcut to the placement container.
 		 *
-		 * The shortcut must already be created and added to the page.
-		 *
-		 * @since 4.7
+		 * @since 4.7.0
+		 * @access public
 		 *
 		 * @param {Placement} placement The placement for the partial.
 		 * @param {jQuery} $editShortcut The shortcut element as a jQuery object.
 		 * @returns {void}
 		 */
-		positionEditShortcut: function( placement, $editShortcut ) {
-			var $placementContainer = $( placement.container ), $editButton;
+		addEditShortcutToPlacement: function( placement, $editShortcut ) {
+			var $placementContainer = $( placement.container );
 			$placementContainer.prepend( $editShortcut );
 			if ( ! $placementContainer.is( ':visible' ) || 'none' === $placementContainer.css( 'display' ) ) {
 				$editShortcut.addClass( 'customize-partial-edit-shortcut-hidden' );
 			}
-			$editButton = $editShortcut.find( 'button' );
-			$editShortcut.toggleClass( 'customize-partial-edit-shortcut-left-margin', $editButton.offset().left < 2 );
 		},
 
 		/**
 		 * Return the unique class name for the edit shortcut button for this partial.
 		 *
-		 * @since 4.7
+		 * @since 4.7.0
+		 * @access public
 		 *
 		 * @return {string} Partial ID converted into a class name for use in shortcut.
 		 */
@@ -163,7 +164,8 @@ wp.customize.selectiveRefresh = ( function( $, api ) {
 		/**
 		 * Return the appropriate translated string for the edit shortcut button.
 		 *
-		 * @since 4.7
+		 * @since 4.7.0
+		 * @access public
 		 *
 		 * @return {string} Tooltip for edit shortcut.
 		 */
@@ -188,7 +190,8 @@ wp.customize.selectiveRefresh = ( function( $, api ) {
 		 *
 		 * Will use `params.type` if set, but otherwise will try to infer type from settingId.
 		 *
-		 * @since 4.7
+		 * @since 4.7.0
+		 * @access public
 		 *
 		 * @return {string} Type of partial derived from type param or the related setting ID.
 		 */
@@ -210,7 +213,8 @@ wp.customize.selectiveRefresh = ( function( $, api ) {
 		/**
 		 * Create an edit shortcut button for this partial.
 		 *
-		 * @since 4.7
+		 * @since 4.7.0
+		 * @access public
 		 *
 		 * @return {jQuery} The edit shortcut button element.
 		 */
