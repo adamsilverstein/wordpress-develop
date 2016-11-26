@@ -496,7 +496,7 @@ function wp_dashboard_quick_press( $error_msg = false ) {
 ?>
 
 	<form name="post" method="post" id="quick-press" class="initial-form hide-if-no-js">
-		<div class="notice notice-info notice-alt inline" style="display: none;"><p></p></div>
+		<div class="notice notice-error notice-alt inline hidden"><p></p></div>
 		<div class="input-text-wrap" id="title-wrap">
 			<label class="prompt" for="title" id="title-prompt-text">
 
