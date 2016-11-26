@@ -168,13 +168,11 @@ QuickDraft.Views.Form = wp.Backbone.View.extend( {
 	// Initialize the QuickDraft Form view.
 	initialize: function() {
 
-		// Show all prompts n the form to begin.
+		// Show all prompts in the form to begin.
 		this.showAllPrompts();
 
-		// Add some listeners to handle events on the underlying model containing the form data.
-		this.model.on( 'invalid',           _.bind( this.render, this ) );
-		this.model.on( 'error',             _.bind( this.setSyncError, this ) );
-		this.model.on( 'change:errorState', _.bind( this.render, this ) );
+		// Rerender if the error state changes.
+		quickDraft.state.on( 'change:errorState', _.bind( this.render, this ) );
 	},
 
 	/**
@@ -221,23 +219,6 @@ QuickDraft.Views.Form = wp.Backbone.View.extend( {
 	},
 
 	/**
-	 * When the model fires an error, show and speak the error.
-	 *
-	 * @param  {object} model The underlying Backbone model containing the form data.
-	 * @param  {object} error The error object.
-	 */
-	setSyncError: function( model, error ) {
-		try {
-			this.model.set( 'errorState', JSON.parse( error.responseText ).message );
-		} catch( e ) {
-			this.model.set( 'errorState', quickDraft.l10n.error );
-		}
-
-		// Alert screen readers that an error occurred.
-		wp.a11y.speak( this.model.get( 'errorState' ), 'assertive' );
-	},
-
-	/**
 	 * Handle the form submission event.
 	 *
 	 * @param {object} event The form submission event.
@@ -247,7 +228,7 @@ QuickDraft.Views.Form = wp.Backbone.View.extend( {
 			hasValuesToSave = false;
 
 		// remove any previous error condition.
-		this.model.set( 'errorState', false );
+		quickDraft.state.set( 'errorState', false );
 
 		// Prevent the browser's default form submission handling.
 		event.preventDefault();
@@ -269,10 +250,10 @@ QuickDraft.Views.Form = wp.Backbone.View.extend( {
 
 		// If the values are all blank, show an error.
 		if ( ! hasValuesToSave ) {
-			this.model.set( 'errorState', quickDraft.l10n.errorEmptyFields );
 
+			quickDraft.state.set( 'errorState', quickDraft.l10n.errorEmptyFields );
 			// Alert screen readers that an error occurred.
-			wp.a11y.speak( this.model.get( 'errorState' ), 'assertive' );
+			wp.a11y.speak( quickDraft.state.get( 'errorState' ), 'assertive' );
 			return;
 		}
 
@@ -294,7 +275,7 @@ QuickDraft.Views.Form = wp.Backbone.View.extend( {
 					this.$el.removeClass( 'is-saving' );
 
 					// Refocus in the title field.
-					$( '#quick-press #title' ).focus()
+					jQuery( '#quick-press #title' ).focus()
 				}, this )
 			)
 
@@ -309,15 +290,32 @@ QuickDraft.Views.Form = wp.Backbone.View.extend( {
 
 					// Create a new post model to contain the form data and reset the form.
 					this.model = new wp.api.models.Post();
+					this.model.on( 'change:errorState', _.bind( this.render, this ) );
+
 					this.el.reset();
 				}, this )
-			);
+			)
+
+			// Handle save failure.
+			.error(
+				_.bind( function( model, error ) {
+					try {
+						quickDraft.state.set( 'errorState', JSON.parse( error.responseText ).message );
+					} catch( e ) {
+						quickDraft.state.set( 'errorState', quickDraft.l10n.error );
+					}
+
+					// Alert screen readers that an error occurred.
+					wp.a11y.speak( quickDraft.state.get( 'errorState' ), 'assertive' );
+				}, this )
+			)
+			;
 	},
 
 	// Render the form view.
 	render: function() {
 		var $error = this.$el.find( '.notice-alt' ),
-			errorText = this.model.get( 'errorState' );
+			errorText = quickDraft.state.get( 'errorState' );
 
 		// Error notice is only visible if error text is set.
 		$error.toggle( !! errorText );
@@ -445,6 +443,11 @@ QuickDraft.Views.DraftListItem = wp.Backbone.View.extend( {
  *
  */
 QuickDraft.init = function() {
+
+	// Set up a state model to track the application state.
+	quickDraft.state = new Backbone.Model({
+		'errorState': false
+	});
 
 	// Wait for the wp-api client to initialize.
 	wp.api.loadPromise.done( function() {
