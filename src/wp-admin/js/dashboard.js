@@ -331,7 +331,7 @@ QuickDraft.Views.Form = wp.Backbone.View.extend( {
 						message = JSON.parse( error.responseText ).message;
 					} catch( e ) {
 
-						// Fall back to a default error string if we parse fails.
+						// Fall back to a default error string if the parse fails.
 						message = quickDraft.l10n.error;
 					}
 
