@@ -219,6 +219,24 @@ QuickDraft.Views.Form = wp.Backbone.View.extend( {
 	},
 
 	/**
+	 * Handle error conditions.
+	 *
+	 * {string} error The error condition, or false to reset.
+	 */
+	setErrorState: function( error ) {
+
+		// Set or reset the app state error condition.
+		quickDraft.state.set( 'errorState', error );
+
+		if ( false !== error ) {
+
+			// Alert screen readers that an error occurred.
+			wp.a11y.speak( error, 'assertive' );
+		}
+
+	},
+
+	/**
 	 * Handle the form submission event.
 	 *
 	 * @param {object} event The form submission event.
@@ -227,19 +245,17 @@ QuickDraft.Views.Form = wp.Backbone.View.extend( {
 		var values,
 			hasValuesToSave = false;
 
-		// remove any previous error condition.
-		quickDraft.state.set( 'errorState', false );
-
 		// Prevent the browser's default form submission handling.
 		event.preventDefault();
+
+		// Reset the error state.
+		this.setErrorState( false );
 
 		// Extract the form field values.
 		values = _.reduce( this.$el.serializeArray(), function( memo, field ) {
 			memo[ field.name ] = field.value;
 			return memo;
 		}, {} );
-
-		console.log( values );
 
 		// Check to see if there are any values to save.
 		_.each( values, function( value ) {
@@ -251,9 +267,8 @@ QuickDraft.Views.Form = wp.Backbone.View.extend( {
 		// If the values are all blank, show an error.
 		if ( ! hasValuesToSave ) {
 
-			quickDraft.state.set( 'errorState', quickDraft.l10n.errorEmptyFields );
-			// Alert screen readers that an error occurred.
-			wp.a11y.speak( quickDraft.state.get( 'errorState' ), 'assertive' );
+			// Set the error.
+			this.setErrorState( quickDraft.l10n.errorEmptyFields );
 			return;
 		}
 
@@ -299,14 +314,19 @@ QuickDraft.Views.Form = wp.Backbone.View.extend( {
 			// Handle save failure.
 			.error(
 				_.bind( function( model, error ) {
+					var message = '';
+
+					// Try to parse and use the response message.
 					try {
-						quickDraft.state.set( 'errorState', JSON.parse( error.responseText ).message );
+						message = JSON.parse( error.responseText ).message;
 					} catch( e ) {
-						quickDraft.state.set( 'errorState', quickDraft.l10n.error );
+
+						// Fall back to a default error string if we parse fails.
+						message = quickDraft.l10n.error;
 					}
 
-					// Alert screen readers that an error occurred.
-					wp.a11y.speak( quickDraft.state.get( 'errorState' ), 'assertive' );
+					// Set the app error condition.
+					this.setErrorState( message );
 				}, this )
 			)
 			;
