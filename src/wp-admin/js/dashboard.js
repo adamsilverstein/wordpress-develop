@@ -248,6 +248,12 @@ QuickDraft.Views.Form = wp.Backbone.View.extend( {
 		// Prevent the browser's default form submission handling.
 		event.preventDefault();
 
+		if ( quickDraft.state.get( 'submitting' ) ) {
+			return false;
+		}
+
+		quickDraft.state.set( 'submitting', true );
+
 		// Reset the error state.
 		this.setErrorState( false );
 
@@ -290,7 +296,11 @@ QuickDraft.Views.Form = wp.Backbone.View.extend( {
 					this.$el.removeClass( 'is-saving' );
 
 					// Refocus in the title field.
-					jQuery( '#quick-press #title' ).focus()
+					jQuery( '#quick-press #title' ).focus();
+
+					// Submission complete
+					quickDraft.state.set( 'submitting', false );
+
 				}, this )
 			)
 
