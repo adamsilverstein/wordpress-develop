@@ -334,11 +334,11 @@ QuickDraft.Views.Form = wp.Backbone.View.extend( {
 
 	// Render the form view.
 	render: function() {
-		var $error = this.$el.find( '.notice-alt' ),
+		var $error    = this.$el.find( '.notice-alt' ),
 			errorText = quickDraft.state.get( 'errorState' );
 
 		// Error notice is only visible if error text is set.
-		$error.toggle( !! errorText );
+		$error.toggleClass( 'hidden', ! errorText );
 		if ( errorText ) {
 
 			// Note: The inner text transform prevents XSS via html().
