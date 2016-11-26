@@ -535,7 +535,7 @@ function wp_dashboard_quick_press( $error_msg = false ) {
  * Show recent drafts of the user on the dashboard.
  *
  * @since 2.7.0
- * @deprecated 4.7
+ * @deprecated 4.8.0
  *
  * @param array $drafts
  */
@@ -584,7 +584,7 @@ function wp_dashboard_recent_drafts( $drafts = false ) {
 /**
  * Get the HTML template for the Quick Draft recent posts.
  *
- * @since 4.7.0
+ * @since 4.8.0
  *
  * @return string The template HTML.
  */

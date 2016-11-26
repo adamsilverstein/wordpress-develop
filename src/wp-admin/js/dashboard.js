@@ -143,7 +143,7 @@ QuickDraft.Views = {};
 /**
  * Set up a view object for the quick draft form.
  *
- * @since 4.7.0
+ * @since 4.8.0
  *
  * @augments wp.Backbone.View
  */
@@ -360,7 +360,7 @@ QuickDraft.Views.Form = wp.Backbone.View.extend( {
 /**
  * Set up a view object for the Quick Draft list of drafts.
  *
- * @since 4.7.0
+ * @since 4.8.0
  *
  * @augments wp.Backbone.View
  */
@@ -423,7 +423,7 @@ QuickDraft.Views.DraftList = wp.Backbone.View.extend( {
 /**
  * Set up a view object an individual draft in the draft list.
  *
- * @since 4.7.0
+ * @since 4.8.0
  *
  * @augments wp.Backbone.View
  */
@@ -469,7 +469,7 @@ QuickDraft.Views.DraftListItem = wp.Backbone.View.extend( {
 /**
  * Initialize the Quick Draft feature.
  *
- * @since 4.7.0
+ * @since 4.8.0
  *
  */
 QuickDraft.init = function() {
