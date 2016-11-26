@@ -592,7 +592,7 @@ function wp_dashboard_print_recent_drafts_template() {
 	?>
 	<script id="tmpl-item-quick-press-draft" type="text/template">
 		<div class="draft-title">
-			<a href="post.php?post={{ data.id }}&action=edit" aria-label="<?php esc_attr_e( 'Edit Post' ) ?>">{{ data.formattedTitle }}</a>
+			<a href="<?php echo ( esc_url( admin_url( 'post.php?post={{ data.id }}&action=edit' ) ) ); ?>" aria-label="<?php esc_attr_e( 'Edit Post' ) ?>">{{ data.formattedTitle }}</a>
 			<time datetime="{{ data.date }}">{{ data.formattedDate }}</time>
 		</div>
 		{{{ data.formattedContent }}}
