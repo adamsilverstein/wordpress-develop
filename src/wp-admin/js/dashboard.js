@@ -187,15 +187,15 @@ QuickDraft.Views.Form = wp.Backbone.View.extend( {
 		var $input = jQuery( element ),
 			hasContent = $input.val().length > 0;
 
+		// Set the visibility of the elements nearest prompt to passed 'visible' value.
 		jQuery( element ).siblings( '.prompt' ).toggleClass( 'screen-reader-text', ! visible || hasContent );
 	},
 
 	// Show all of the field promts.
 	showAllPrompts: function() {
-		this.$el.find( ':input' ).each( _.bind( function( i, input ) {
 
-			// Prompt toggling must be deferred because the reset event is
-			// fired before the input values have been cleared
+		// Show all of the field prompts.
+		this.$el.find( ':input' ).each( _.bind( function( i, input ) {
 			_.defer( _.bind( this.togglePrompt, this, input, true ) );
 		}, this ) );
 	},
