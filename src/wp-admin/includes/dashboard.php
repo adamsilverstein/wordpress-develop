@@ -50,7 +50,6 @@ function wp_dashboard_setup() {
 	if ( is_blog_admin() && current_user_can( get_post_type_object( 'post' )->cap->create_posts ) ) {
 		$quick_draft_title = sprintf( '<span class="hide-if-no-js">%1$s</span> <span class="hide-if-js">%2$s</span>', __( 'Quick Draft' ), __( 'Drafts' ) );
 		wp_add_dashboard_widget( 'dashboard_quick_press', $quick_draft_title, 'wp_dashboard_quick_press' );
-		add_action( 'admin_footer', 'wp_dashboard_print_recent_drafts_template' );
 	}
 
 	// WordPress News
@@ -528,6 +527,13 @@ function wp_dashboard_quick_press( $error_msg = false ) {
 			<li><span class="screen-reader-text"><?php _e( 'Loading&hellip;' ) ?></span></li>
 		</ul>
 	</div>
+	<script id="tmpl-item-quick-press-draft" type="text/template">
+		<div class="draft-title">
+			<a href="<?php echo ( esc_url( admin_url( 'post.php?post={{ data.id }}&action=edit' ) ) ); ?>" aria-label="<?php esc_attr_e( 'Edit Post' ) ?>">{{ data.formattedTitle }}</a>
+			<time datetime="{{ data.date }}">{{ data.formattedDate }}</time>
+		</div>
+		{{{ data.formattedContent }}}
+	</script>
 	<?php
 }
 
@@ -579,25 +585,6 @@ function wp_dashboard_recent_drafts( $drafts = false ) {
 		echo "</li>\n";
  	}
 	echo "</ul>\n</div>";
-}
-
-/**
- * Get the HTML template for the Quick Draft recent posts.
- *
- * @since 4.8.0
- *
- * @return string The template HTML.
- */
-function wp_dashboard_print_recent_drafts_template() {
-	?>
-	<script id="tmpl-item-quick-press-draft" type="text/template">
-		<div class="draft-title">
-			<a href="<?php echo ( esc_url( admin_url( 'post.php?post={{ data.id }}&action=edit' ) ) ); ?>" aria-label="<?php esc_attr_e( 'Edit Post' ) ?>">{{ data.formattedTitle }}</a>
-			<time datetime="{{ data.date }}">{{ data.formattedDate }}</time>
-		</div>
-		{{{ data.formattedContent }}}
-	</script>
-	<?php
 }
 
 /**
