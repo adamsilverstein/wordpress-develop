@@ -248,6 +248,7 @@ QuickDraft.Views.Form = wp.Backbone.View.extend( {
 		// Prevent the browser's default form submission handling.
 		event.preventDefault();
 
+		// Prevent double submissions by checking the submitting state.
 		if ( quickDraft.state.get( 'submitting' ) ) {
 			return;
 		}
@@ -258,15 +259,9 @@ QuickDraft.Views.Form = wp.Backbone.View.extend( {
 		// Extract the form field values.
 		values = _.reduce( this.$el.serializeArray(), function( memo, field ) {
 			memo[ field.name ] = field.value;
+			hasValuesToSave    = hasValuesToSave || ( '' !== field.value );
 			return memo;
 		}, {} );
-
-		// Check to see if there are any values to save.
-		_.each( values, function( value ) {
-			if ( '' !== value ) {
-				hasValuesToSave = true;
-			}
-		});
 
 		// If the values are all blank, show an error.
 		if ( ! hasValuesToSave ) {
@@ -285,8 +280,11 @@ QuickDraft.Views.Form = wp.Backbone.View.extend( {
 		// Show a spinner during the callback.
 		this.$el.addClass( 'is-saving' );
 
-		// Trigger the model save.
+
+		// Set the state sbmitting to avoid double saves
 		quickDraft.state.set( 'submitting', true );
+
+		// Trigger the model save.
 		this.model.save()
 
 			// Always remove the spinner.
@@ -337,8 +335,7 @@ QuickDraft.Views.Form = wp.Backbone.View.extend( {
 					// Set the app error condition.
 					this.setErrorState( message );
 				}, this )
-			)
-			;
+			);
 	},
 
 	// Render the form view.
