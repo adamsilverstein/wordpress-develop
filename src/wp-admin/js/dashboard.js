@@ -249,10 +249,8 @@ QuickDraft.Views.Form = wp.Backbone.View.extend( {
 		event.preventDefault();
 
 		if ( quickDraft.state.get( 'submitting' ) ) {
-			return false;
+			return;
 		}
-
-		quickDraft.state.set( 'submitting', true );
 
 		// Reset the error state.
 		this.setErrorState( false );
@@ -288,6 +286,7 @@ QuickDraft.Views.Form = wp.Backbone.View.extend( {
 		this.$el.addClass( 'is-saving' );
 
 		// Trigger the model save.
+		quickDraft.state.set( 'submitting', true );
 		this.model.save()
 
 			// Always remove the spinner.
