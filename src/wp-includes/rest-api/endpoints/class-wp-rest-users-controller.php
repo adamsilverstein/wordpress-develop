@@ -92,6 +92,8 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 					'reassign' => array(
 						'type'        => 'integer',
 						'description' => __( 'Reassign the deleted user\'s posts and links to this user ID.' ),
+						'required'    => true,
+						'sanitize_callback' => array( $this, 'check_reassign' ),
 					),
 				),
 			),
@@ -125,11 +127,38 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 					'reassign' => array(
 						'type'        => 'integer',
 						'description' => __( 'Reassign the deleted user\'s posts and links to this user ID.' ),
+						'required'    => true,
+						'sanitize_callback' => array( $this, 'check_reassign' ),
 					),
 				),
 			),
 			'schema' => array( $this, 'get_public_item_schema' ),
 		));
+	}
+
+	/**
+	 * Checks for a valid value for the reassign parameter when deleting users.
+	 *
+	 * The value can be an integer, 'false', false, or ''.
+	 *
+	 * @since 4.7.0
+	 *
+	 * @param int|bool        $value   The value passed to the reassign parameter.
+	 * @param WP_REST_Request $request Full details about the request.
+	 * @param string          $param   The parameter that is being sanitized.
+	 *
+	 * @return int|bool|WP_Error
+	 */
+	public function check_reassign( $value, $request, $param ) {
+		if ( is_numeric( $value ) ) {
+			return $value;
+		}
+
+		if ( empty( $value ) || false === $value || 'false' === $value ) {
+			return false;
+		}
+
+		return new WP_Error( 'rest_invalid_param', __( 'Invalid user parameter(s).' ), array( 'status' => 400 ) );
 	}
 
 	/**
@@ -672,8 +701,13 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 	 * @return WP_REST_Response|WP_Error Response object on success, or WP_Error object on failure.
 	 */
 	public function delete_item( $request ) {
+		// We don't support delete requests in multisite.
+		if ( is_multisite() ) {
+			return new WP_Error( 'rest_cannot_delete', __( 'The user cannot be deleted.' ), array( 'status' => 501 ) );
+		}
+
 		$id       = (int) $request['id'];
-		$reassign = isset( $request['reassign'] ) ? absint( $request['reassign'] ) : null;
+		$reassign = false === $request['reassign'] ? null : absint( $request['reassign'] );
 		$force    = isset( $request['force'] ) ? (bool) $request['force'] : false;
 
 		// We don't support trashing for users.
@@ -1027,7 +1061,7 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 	 * @return WP_Error|string The sanitized username, if valid, otherwise an error.
 	 */
 	public function check_username( $value, $request, $param ) {
-		$username = (string) rest_sanitize_value_from_schema( $value, $request, $param );
+		$username = (string) $value;
 
 		if ( ! validate_username( $username ) ) {
 			return new WP_Error( 'rest_user_invalid_username', __( 'Username contains invalid characters.' ), array( 'status' => 400 ) );
@@ -1056,7 +1090,7 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 	 * @return WP_Error|string The sanitized password, if valid, otherwise an error.
 	 */
 	public function check_user_password( $value, $request, $param ) {
-		$password = (string) rest_sanitize_value_from_schema( $value, $request, $param );
+		$password = (string) $value;
 
 		if ( empty( $password ) ) {
 			return new WP_Error( 'rest_user_invalid_password', __( 'Passwords cannot be empty.' ), array( 'status' => 400 ) );
