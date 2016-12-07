@@ -10,12 +10,18 @@
  * @group restapi
  */
 class WP_Test_REST_Attachments_Controller extends WP_Test_REST_Post_Type_Controller_Testcase {
+
+	protected static $superadmin_id;
 	protected static $editor_id;
 	protected static $author_id;
 	protected static $contributor_id;
 	protected static $uploader_id;
 
 	public static function wpSetUpBeforeClass( $factory ) {
+		self::$superadmin_id = $factory->user->create( array(
+			'role'       => 'administrator',
+			'user_login' => 'superadmin',
+		) );
 		self::$editor_id = $factory->user->create( array(
 			'role' => 'editor',
 		) );
@@ -28,6 +34,10 @@ class WP_Test_REST_Attachments_Controller extends WP_Test_REST_Post_Type_Control
 		self::$uploader_id = $factory->user->create( array(
 			'role' => 'uploader',
 		) );
+
+		if ( is_multisite() ) {
+			update_site_option( 'site_admins', array( 'superadmin' ) );
+		}
 	}
 
 	public static function wpTearDownAfterClass() {
@@ -53,7 +63,6 @@ class WP_Test_REST_Attachments_Controller extends WP_Test_REST_Post_Type_Control
 		$orig_file2 = DIR_TESTDATA . '/images/codeispoetry.png';
 		$this->test_file2 = '/tmp/codeispoetry.png';
 		copy( $orig_file2, $this->test_file2 );
-
 	}
 
 	public function test_register_routes() {
@@ -327,6 +336,37 @@ class WP_Test_REST_Attachments_Controller extends WP_Test_REST_Post_Type_Control
 		$this->assertEquals( $attachment_id1, $data[0]['id'] );
 	}
 
+	public function test_get_items_multiple_statuses() {
+		// Logged out users can't make the request
+		wp_set_current_user( 0 );
+		$attachment_id1 = $this->factory->attachment->create_object( $this->test_file, 0, array(
+			'post_mime_type' => 'image/jpeg',
+			'post_excerpt'   => 'A sample caption',
+			'post_status'    => 'private',
+		) );
+		$attachment_id2 = $this->factory->attachment->create_object( $this->test_file, 0, array(
+			'post_mime_type' => 'image/jpeg',
+			'post_excerpt'   => 'A sample caption',
+			'post_status'    => 'trash',
+		) );
+		$request = new WP_REST_Request( 'GET', '/wp/v2/media' );
+		$request->set_param( 'status', array( 'private', 'trash' ) );
+		$response = $this->server->dispatch( $request );
+		$this->assertErrorResponse( 'rest_invalid_param', $response, 400 );
+		// Properly authorized users can make the request
+		wp_set_current_user( self::$editor_id );
+		$response = $this->server->dispatch( $request );
+		$this->assertEquals( 200, $response->get_status() );
+		$data = $response->get_data();
+		$this->assertEquals( 2, count( $data ) );
+		$ids = array(
+			$data[0]['id'],
+			$data[1]['id'],
+		);
+		sort( $ids );
+		$this->assertEquals( array( $attachment_id1, $attachment_id2 ), $ids );
+	}
+
 	public function test_get_items_invalid_date() {
 		$request = new WP_REST_Request( 'GET', '/wp/v2/media' );
 		$request->set_param( 'after', rand_str() );
@@ -429,14 +469,31 @@ class WP_Test_REST_Attachments_Controller extends WP_Test_REST_Post_Type_Control
 
 	public function test_create_item() {
 		wp_set_current_user( self::$author_id );
+
 		$request = new WP_REST_Request( 'POST', '/wp/v2/media' );
 		$request->set_header( 'Content-Type', 'image/jpeg' );
 		$request->set_header( 'Content-Disposition', 'attachment; filename=canola.jpg' );
+		$request->set_param( 'title', 'My title is very cool' );
+		$request->set_param( 'caption', 'This is a better caption.' );
+		$request->set_param( 'description', 'Without a description, my attachment is descriptionless.' );
+		$request->set_param( 'alt_text', 'Alt text is stored outside post schema.' );
+
 		$request->set_body( file_get_contents( $this->test_file ) );
 		$response = $this->server->dispatch( $request );
 		$data = $response->get_data();
+
 		$this->assertEquals( 201, $response->get_status() );
 		$this->assertEquals( 'image', $data['media_type'] );
+
+		$attachment = get_post( $data['id'] );
+		$this->assertEquals( 'My title is very cool', $data['title']['raw'] );
+		$this->assertEquals( 'My title is very cool', $attachment->post_title );
+		$this->assertEquals( 'This is a better caption.', $data['caption']['raw'] );
+		$this->assertEquals( 'This is a better caption.', $attachment->post_excerpt );
+		$this->assertEquals( 'Without a description, my attachment is descriptionless.', $data['description']['raw'] );
+		$this->assertEquals( 'Without a description, my attachment is descriptionless.', $attachment->post_content );
+		$this->assertEquals( 'Alt text is stored outside post schema.', $data['alt_text'] );
+		$this->assertEquals( 'Alt text is stored outside post schema.', get_post_meta( $attachment->ID, '_wp_attachment_image_alt', true ) );
 	}
 
 	public function test_create_item_default_filename_title() {
@@ -619,9 +676,9 @@ class WP_Test_REST_Attachments_Controller extends WP_Test_REST_Post_Type_Control
 		$attachment = get_post( $data['id'] );
 		$this->assertEquals( 'My title is very cool', $data['title']['raw'] );
 		$this->assertEquals( 'My title is very cool', $attachment->post_title );
-		$this->assertEquals( 'This is a better caption.', $data['caption'] );
+		$this->assertEquals( 'This is a better caption.', $data['caption']['raw'] );
 		$this->assertEquals( 'This is a better caption.', $attachment->post_excerpt );
-		$this->assertEquals( 'Without a description, my attachment is descriptionless.', $data['description'] );
+		$this->assertEquals( 'Without a description, my attachment is descriptionless.', $data['description']['raw'] );
 		$this->assertEquals( 'Without a description, my attachment is descriptionless.', $attachment->post_content );
 		$this->assertEquals( 'Alt text is stored outside post schema.', $data['alt_text'] );
 		$this->assertEquals( 'Alt text is stored outside post schema.', get_post_meta( $attachment->ID, '_wp_attachment_image_alt', true ) );
@@ -675,6 +732,250 @@ class WP_Test_REST_Attachments_Controller extends WP_Test_REST_Post_Type_Control
 		$this->assertErrorResponse( 'rest_invalid_param', $response, 400 );
 	}
 
+	public function verify_attachment_roundtrip( $input = array(), $expected_output = array() ) {
+		// Create the post
+		$request = new WP_REST_Request( 'POST', '/wp/v2/media' );
+		$request->set_header( 'Content-Type', 'image/jpeg' );
+		$request->set_header( 'Content-Disposition', 'attachment; filename=canola.jpg' );
+		$request->set_body( file_get_contents( $this->test_file ) );
+
+		foreach ( $input as $name => $value ) {
+			$request->set_param( $name, $value );
+		}
+		$response = $this->server->dispatch( $request );
+		$this->assertEquals( 201, $response->get_status() );
+		$actual_output = $response->get_data();
+
+		// Remove <p class="attachment"> from rendered description
+		// see https://core.trac.wordpress.org/ticket/38679
+		$content = $actual_output['description']['rendered'];
+		$content = explode( "\n", trim( $content ) );
+		if ( preg_match( '/^<p class="attachment">/', $content[0] ) ) {
+			$content = implode( "\n", array_slice( $content, 1 ) );
+			$actual_output['description']['rendered'] = $content;
+		}
+
+		// Compare expected API output to actual API output
+		$this->assertEquals( $expected_output['title']['raw']           , $actual_output['title']['raw'] );
+		$this->assertEquals( $expected_output['title']['rendered']      , trim( $actual_output['title']['rendered'] ) );
+		$this->assertEquals( $expected_output['description']['raw']     , $actual_output['description']['raw'] );
+		$this->assertEquals( $expected_output['description']['rendered'], trim( $actual_output['description']['rendered'] ) );
+		$this->assertEquals( $expected_output['caption']['raw']         , $actual_output['caption']['raw'] );
+		$this->assertEquals( $expected_output['caption']['rendered']    , trim( $actual_output['caption']['rendered'] ) );
+
+		// Compare expected API output to WP internal values
+		$post = get_post( $actual_output['id'] );
+		$this->assertEquals( $expected_output['title']['raw'], $post->post_title );
+		$this->assertEquals( $expected_output['description']['raw'], $post->post_content );
+		$this->assertEquals( $expected_output['caption']['raw'], $post->post_excerpt );
+
+		// Update the post
+		$request = new WP_REST_Request( 'PUT', sprintf( '/wp/v2/media/%d', $actual_output['id'] ) );
+		foreach ( $input as $name => $value ) {
+			$request->set_param( $name, $value );
+		}
+		$response = $this->server->dispatch( $request );
+		$this->assertEquals( 200, $response->get_status() );
+		$actual_output = $response->get_data();
+
+		// Remove <p class="attachment"> from rendered description
+		// see https://core.trac.wordpress.org/ticket/38679
+		$content = $actual_output['description']['rendered'];
+		$content = explode( "\n", trim( $content ) );
+		if ( preg_match( '/^<p class="attachment">/', $content[0] ) ) {
+			$content = implode( "\n", array_slice( $content, 1 ) );
+			$actual_output['description']['rendered'] = $content;
+		}
+
+		// Compare expected API output to actual API output
+		$this->assertEquals( $expected_output['title']['raw']           , $actual_output['title']['raw'] );
+		$this->assertEquals( $expected_output['title']['rendered']      , trim( $actual_output['title']['rendered'] ) );
+		$this->assertEquals( $expected_output['description']['raw']     , $actual_output['description']['raw'] );
+		$this->assertEquals( $expected_output['description']['rendered'], trim( $actual_output['description']['rendered'] ) );
+		$this->assertEquals( $expected_output['caption']['raw']         , $actual_output['caption']['raw'] );
+		$this->assertEquals( $expected_output['caption']['rendered']    , trim( $actual_output['caption']['rendered'] ) );
+
+		// Compare expected API output to WP internal values
+		$post = get_post( $actual_output['id'] );
+		$this->assertEquals( $expected_output['title']['raw']  , $post->post_title );
+		$this->assertEquals( $expected_output['description']['raw'], $post->post_content );
+		$this->assertEquals( $expected_output['caption']['raw'], $post->post_excerpt );
+	}
+
+	public static function attachment_roundtrip_provider() {
+		return array(
+			array(
+				// Raw values.
+				array(
+					'title'   => '\o/ ¯\_(ツ)_/¯',
+					'description' => '\o/ ¯\_(ツ)_/¯',
+					'caption' => '\o/ ¯\_(ツ)_/¯',
+				),
+				// Expected returned values.
+				array(
+					'title' => array(
+						'raw'      => '\o/ ¯\_(ツ)_/¯',
+						'rendered' => '\o/ ¯\_(ツ)_/¯',
+					),
+					'description' => array(
+						'raw'      => '\o/ ¯\_(ツ)_/¯',
+						'rendered' => '<p>\o/ ¯\_(ツ)_/¯</p>',
+					),
+					'caption' => array(
+						'raw'      => '\o/ ¯\_(ツ)_/¯',
+						'rendered' => '<p>\o/ ¯\_(ツ)_/¯</p>',
+					),
+				)
+			),
+			array(
+				// Raw values.
+				array(
+					'title'   => '\\\&\\\ &amp; &invalid; < &lt; &amp;lt;',
+					'description' => '\\\&\\\ &amp; &invalid; < &lt; &amp;lt;',
+					'caption' => '\\\&\\\ &amp; &invalid; < &lt; &amp;lt;',
+				),
+				// Expected returned values.
+				array(
+					'title' => array(
+						'raw'      => '\\\&amp;\\\ &amp; &amp;invalid; &lt; &lt; &amp;lt;',
+						'rendered' => '\\\&amp;\\\ &amp; &amp;invalid; &lt; &lt; &amp;lt;',
+					),
+					'description' => array(
+						'raw'      => '\\\&amp;\\\ &amp; &amp;invalid; &lt; &lt; &amp;lt;',
+						'rendered' => '<p>\\\&amp;\\\ &amp; &amp;invalid; &lt; &lt; &amp;lt;</p>',
+					),
+					'caption' => array(
+						'raw'      => '\\\&amp;\\\ &amp; &amp;invalid; &lt; &lt; &amp;lt;',
+						'rendered' => '<p>\\\&amp;\\\ &amp; &amp;invalid; &lt; &lt; &amp;lt;</p>',
+					),
+				),
+			),
+			array(
+				// Raw values.
+				array(
+					'title'   => '<div>div</div> <strong>strong</strong> <script>oh noes</script>',
+					'description' => '<div>div</div> <strong>strong</strong> <script>oh noes</script>',
+					'caption' => '<div>div</div> <strong>strong</strong> <script>oh noes</script>',
+				),
+				// Expected returned values.
+				array(
+					'title' => array(
+						'raw'      => 'div <strong>strong</strong> oh noes',
+						'rendered' => 'div <strong>strong</strong> oh noes',
+					),
+					'description' => array(
+						'raw'      => '<div>div</div> <strong>strong</strong> oh noes',
+						'rendered' => "<div>div</div>\n<p> <strong>strong</strong> oh noes</p>",
+					),
+					'caption' => array(
+						'raw'      => '<div>div</div> <strong>strong</strong> oh noes',
+						'rendered' => "<div>div</div>\n<p> <strong>strong</strong> oh noes</p>",
+					),
+				)
+			),
+			array(
+				// Raw values.
+				array(
+					'title'   => '<a href="#" target="_blank" data-unfiltered=true>link</a>',
+					'description' => '<a href="#" target="_blank" data-unfiltered=true>link</a>',
+					'caption' => '<a href="#" target="_blank" data-unfiltered=true>link</a>',
+				),
+				// Expected returned values.
+				array(
+					'title' => array(
+						'raw'      => '<a href="#">link</a>',
+						'rendered' => '<a href="#">link</a>',
+					),
+					'description' => array(
+						'raw'      => '<a href="#" target="_blank">link</a>',
+						'rendered' => '<p><a href="#" target="_blank">link</a></p>',
+					),
+					'caption' => array(
+						'raw'      => '<a href="#" target="_blank">link</a>',
+						'rendered' => '<p><a href="#" target="_blank">link</a></p>',
+					),
+				)
+			),
+		);
+	}
+
+	/**
+	 * @dataProvider attachment_roundtrip_provider
+	 */
+	public function test_post_roundtrip_as_author( $raw, $expected ) {
+		wp_set_current_user( self::$author_id );
+		$this->assertFalse( current_user_can( 'unfiltered_html' ) );
+		$this->verify_attachment_roundtrip( $raw, $expected );
+	}
+
+	public function test_attachment_roundtrip_as_editor_unfiltered_html() {
+		wp_set_current_user( self::$editor_id );
+		if ( is_multisite() ) {
+			$this->assertFalse( current_user_can( 'unfiltered_html' ) );
+			$this->verify_attachment_roundtrip( array(
+				'title'       => '<div>div</div> <strong>strong</strong> <script>oh noes</script>',
+				'description' => '<div>div</div> <strong>strong</strong> <script>oh noes</script>',
+				'caption'     => '<div>div</div> <strong>strong</strong> <script>oh noes</script>',
+			), array(
+				'title' => array(
+					'raw'      => 'div <strong>strong</strong> oh noes',
+					'rendered' => 'div <strong>strong</strong> oh noes',
+				),
+				'description' => array(
+					'raw'      => '<div>div</div> <strong>strong</strong> oh noes',
+					'rendered' => "<div>div</div>\n<p> <strong>strong</strong> oh noes</p>",
+				),
+				'caption' => array(
+					'raw'      => '<div>div</div> <strong>strong</strong> oh noes',
+					'rendered' => "<div>div</div>\n<p> <strong>strong</strong> oh noes</p>",
+				),
+			) );
+		} else {
+			$this->assertTrue( current_user_can( 'unfiltered_html' ) );
+			$this->verify_attachment_roundtrip( array(
+				'title'       => '<div>div</div> <strong>strong</strong> <script>oh noes</script>',
+				'description' => '<div>div</div> <strong>strong</strong> <script>oh noes</script>',
+				'caption'     => '<div>div</div> <strong>strong</strong> <script>oh noes</script>',
+			), array(
+				'title' => array(
+					'raw'      => '<div>div</div> <strong>strong</strong> <script>oh noes</script>',
+					'rendered' => '<div>div</div> <strong>strong</strong> <script>oh noes</script>',
+				),
+				'description' => array(
+					'raw'      => '<div>div</div> <strong>strong</strong> <script>oh noes</script>',
+					'rendered' => "<div>div</div>\n<p> <strong>strong</strong> <script>oh noes</script></p>",
+				),
+				'caption' => array(
+					'raw'      => '<div>div</div> <strong>strong</strong> <script>oh noes</script>',
+					'rendered' => "<div>div</div>\n<p> <strong>strong</strong> <script>oh noes</script></p>",
+				),
+			) );
+		}
+	}
+
+	public function test_attachment_roundtrip_as_superadmin_unfiltered_html() {
+		wp_set_current_user( self::$superadmin_id );
+		$this->assertTrue( current_user_can( 'unfiltered_html' ) );
+		$this->verify_attachment_roundtrip( array(
+			'title'       => '<div>div</div> <strong>strong</strong> <script>oh noes</script>',
+			'description' => '<div>div</div> <strong>strong</strong> <script>oh noes</script>',
+			'caption'     => '<div>div</div> <strong>strong</strong> <script>oh noes</script>',
+		), array(
+			'title' => array(
+				'raw'      => '<div>div</div> <strong>strong</strong> <script>oh noes</script>',
+				'rendered' => '<div>div</div> <strong>strong</strong> <script>oh noes</script>',
+			),
+			'description' => array(
+				'raw'      => '<div>div</div> <strong>strong</strong> <script>oh noes</script>',
+				'rendered' => "<div>div</div>\n<p> <strong>strong</strong> <script>oh noes</script></p>",
+			),
+			'caption' => array(
+				'raw'      => '<div>div</div> <strong>strong</strong> <script>oh noes</script>',
+				'rendered' => "<div>div</div>\n<p> <strong>strong</strong> <script>oh noes</script></p>",
+			),
+		) );
+	}
+
 	public function test_delete_item() {
 		wp_set_current_user( self::$editor_id );
 		$attachment_id = $this->factory->attachment->create_object( $this->test_file, 0, array(
@@ -696,6 +997,10 @@ class WP_Test_REST_Attachments_Controller extends WP_Test_REST_Post_Type_Control
 
 		// Attempt trashing
 		$request = new WP_REST_Request( 'DELETE', '/wp/v2/media/' . $attachment_id );
+		$response = $this->server->dispatch( $request );
+		$this->assertErrorResponse( 'rest_trash_not_supported', $response, 501 );
+
+		$request->set_param( 'force', 'false' );
 		$response = $this->server->dispatch( $request );
 		$this->assertErrorResponse( 'rest_trash_not_supported', $response, 501 );
 
@@ -736,11 +1041,15 @@ class WP_Test_REST_Attachments_Controller extends WP_Test_REST_Post_Type_Control
 		$response = $this->server->dispatch( $request );
 		$data = $response->get_data();
 		$properties = $data['schema']['properties'];
-		$this->assertEquals( 23, count( $properties ) );
+		$this->assertEquals( 24, count( $properties ) );
 		$this->assertArrayHasKey( 'author', $properties );
 		$this->assertArrayHasKey( 'alt_text', $properties );
 		$this->assertArrayHasKey( 'caption', $properties );
+		$this->assertArrayHasKey( 'raw', $properties['caption']['properties'] );
+		$this->assertArrayHasKey( 'rendered', $properties['caption']['properties'] );
 		$this->assertArrayHasKey( 'description', $properties );
+		$this->assertArrayHasKey( 'raw', $properties['description']['properties'] );
+		$this->assertArrayHasKey( 'rendered', $properties['description']['properties'] );
 		$this->assertArrayHasKey( 'comment_status', $properties );
 		$this->assertArrayHasKey( 'date', $properties );
 		$this->assertArrayHasKey( 'date_gmt', $properties );
@@ -758,7 +1067,10 @@ class WP_Test_REST_Attachments_Controller extends WP_Test_REST_Post_Type_Control
 		$this->assertArrayHasKey( 'status', $properties );
 		$this->assertArrayHasKey( 'slug', $properties );
 		$this->assertArrayHasKey( 'source_url', $properties );
+		$this->assertArrayHasKey( 'template', $properties );
 		$this->assertArrayHasKey( 'title', $properties );
+		$this->assertArrayHasKey( 'raw', $properties['title']['properties'] );
+		$this->assertArrayHasKey( 'rendered', $properties['title']['properties'] );
 		$this->assertArrayHasKey( 'type', $properties );
 	}
 
@@ -849,14 +1161,24 @@ class WP_Test_REST_Attachments_Controller extends WP_Test_REST_Post_Type_Control
 		if ( file_exists( $this->test_file2 ) ) {
 			unlink( $this->test_file2 );
 		}
+
+		$this->remove_added_uploads();
 	}
 
 	protected function check_post_data( $attachment, $data, $context = 'view', $links ) {
 		parent::check_post_data( $attachment, $data, $context, $links );
 
+		$this->assertArrayNotHasKey( 'content', $data );
+		$this->assertArrayNotHasKey( 'excerpt', $data );
+
 		$this->assertEquals( get_post_meta( $attachment->ID, '_wp_attachment_image_alt', true ), $data['alt_text'] );
-		$this->assertEquals( $attachment->post_excerpt, $data['caption'] );
-		$this->assertEquals( $attachment->post_content, $data['description'] );
+		if ( 'edit' === $context ) {
+			$this->assertEquals( $attachment->post_excerpt, $data['caption']['raw'] );
+			$this->assertEquals( $attachment->post_content, $data['description']['raw'] );
+		} else {
+			$this->assertFalse( isset( $data['caption']['raw'] ) );
+			$this->assertFalse( isset( $data['description']['raw'] ) );
+		}
 		$this->assertTrue( isset( $data['media_details'] ) );
 
 		if ( $attachment->post_parent ) {

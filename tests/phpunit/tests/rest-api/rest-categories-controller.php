@@ -428,6 +428,15 @@ class WP_Test_REST_Categories_Controller extends WP_Test_REST_Controller_Testcas
 		$this->assertEquals( 'Child', $data[0]['name'] );
 	}
 
+	public function test_get_terms_invalid_parent_arg() {
+		$category1 = $this->factory->category->create( array( 'name' => 'Parent' ) );
+		$this->factory->category->create( array( 'name' => 'Child', 'parent' => $category1 ) );
+		$request = new WP_REST_Request( 'GET', '/wp/v2/categories' );
+		$request->set_param( 'parent', 'invalid-parent' );
+		$response = $this->server->dispatch( $request );
+		$this->assertErrorResponse( 'rest_invalid_param', $response, 400 );
+	}
+
 	public function test_get_terms_private_taxonomy() {
 		register_taxonomy( 'robin', 'post', array( 'public' => false ) );
 		$this->factory->term->create( array( 'name' => 'Cape', 'taxonomy' => 'robin' ) );
@@ -716,16 +725,21 @@ class WP_Test_REST_Categories_Controller extends WP_Test_REST_Controller_Testcas
 		$response = $this->server->dispatch( $request );
 		$this->assertEquals( 200, $response->get_status() );
 		$data = $response->get_data();
-		$this->assertEquals( 'Deleted Category', $data['name'] );
+		$this->assertTrue( $data['deleted'] );
+		$this->assertEquals( 'Deleted Category', $data['previous']['name'] );
 	}
 
-	public function test_delete_item_force_false() {
+	public function test_delete_item_no_trash() {
 		wp_set_current_user( self::$administrator );
 		$term = get_term_by( 'id', $this->factory->category->create( array( 'name' => 'Deleted Category' ) ), 'category' );
+
 		$request = new WP_REST_Request( 'DELETE', '/wp/v2/categories/' . $term->term_id );
-		// force defaults to false
 		$response = $this->server->dispatch( $request );
-		$this->assertEquals( 501, $response->get_status() );
+		$this->assertErrorResponse( 'rest_trash_not_supported', $response, 501 );
+
+		$request->set_param( 'force', 'false' );
+		$response = $this->server->dispatch( $request );
+		$this->assertErrorResponse( 'rest_trash_not_supported', $response, 501 );
 	}
 
 	public function test_delete_item_invalid_taxonomy() {

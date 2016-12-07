@@ -297,7 +297,7 @@ function get_inline_data($post) {
 		echo '<div class="post_parent">' . $post->post_parent . '</div>';
 	}
 
-	echo '<div class="page_template">' . esc_html( $post->page_template ) . '</div>';
+	echo '<div class="page_template">' . ( $post->page_template ? esc_html( $post->page_template ) : 'default' ) . '</div>';
 
 	if ( post_type_supports( $post->post_type, 'page-attributes' ) ) {
 		echo '<div class="menu_order">' . $post->menu_order . '</div>';
@@ -1944,9 +1944,6 @@ function get_submit_button( $text = '', $type = 'primary large', $name = 'submit
 	}
 	// Remove empty items, remove duplicate items, and finally build a string.
 	$class = implode( ' ', array_unique( array_filter( $classes ) ) );
-
-	if ( 'delete' === $type )
-		$class = 'button delete';
 
 	$text = $text ? $text : __( 'Save Changes' );
 

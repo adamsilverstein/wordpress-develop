@@ -1270,7 +1270,7 @@ class wp_xmlrpc_server extends IXR_Server {
 			}
 		} elseif ( isset( $post_data['sticky'] ) )  {
 			if ( ! current_user_can( $post_type->cap->edit_others_posts ) ) {
-				return new IXR_Error( 401, __( 'Sorry, you are not allowed to stick this post.' ) );
+				return new IXR_Error( 401, __( 'Sorry, you are not allowed to make posts sticky.' ) );
 			}
 
 			$sticky = wp_validate_boolean( $post_data['sticky'] );
@@ -1795,7 +1795,7 @@ class wp_xmlrpc_server extends IXR_Server {
 		}
 
 		if ( ! current_user_can( $post_type->cap->edit_posts ) )
-			return new IXR_Error( 401, __( 'Sorry, you are not allowed to edit posts in this post type.' ));
+			return new IXR_Error( 401, __( 'Sorry, you are not allowed to edit posts in this post type.' ) );
 
 		$query['post_type'] = $post_type->name;
 
@@ -2476,7 +2476,7 @@ class wp_xmlrpc_server extends IXR_Server {
 		do_action( 'xmlrpc_call', 'wp.getUsers' );
 
 		if ( ! current_user_can( 'list_users' ) )
-			return new IXR_Error( 401, __( 'Sorry, you are not allowed to browse users.' ) );
+			return new IXR_Error( 401, __( 'Sorry, you are not allowed to list users.' ) );
 
 		$query = array( 'fields' => 'all_with_meta' );
 
@@ -3553,8 +3553,14 @@ class wp_xmlrpc_server extends IXR_Server {
 			return new IXR_Error( 403, __( 'Sorry, comments are closed for this item.' ) );
 		}
 
-		$comment = array();
-		$comment['comment_post_ID'] = $post_id;
+		if ( empty( $content_struct['content'] ) ) {
+			return new IXR_Error( 403, __( 'Comment is required.' ) );
+		}
+
+		$comment = array(
+			'comment_post_ID' => $post_id,
+			'comment_content' => $content_struct['content'],
+		);
 
 		if ( $logged_in ) {
 			$display_name = $user->display_name;
@@ -3590,12 +3596,17 @@ class wp_xmlrpc_server extends IXR_Server {
 
 		$comment['comment_parent'] = isset($content_struct['comment_parent']) ? absint($content_struct['comment_parent']) : 0;
 
-		$comment['comment_content'] =  isset($content_struct['content']) ? $content_struct['content'] : null;
-
 		/** This action is documented in wp-includes/class-wp-xmlrpc-server.php */
 		do_action( 'xmlrpc_call', 'wp.newComment' );
 
-		$comment_ID = wp_new_comment( $comment );
+		$comment_ID = wp_new_comment( $comment, true );
+		if ( is_wp_error( $comment_ID ) ) {
+			return new IXR_Error( 403, $comment_ID->get_error_message() );
+		}
+
+		if ( ! $comment_ID ) {
+			return new IXR_Error( 403, __( 'An unknown error occurred' ) );
+		}
 
 		/**
 		 * Fires after a new comment has been successfully created via XML-RPC.
@@ -4106,7 +4117,7 @@ class wp_xmlrpc_server extends IXR_Server {
 		$post_type = get_post_type_object( $post_type_name );
 
 		if ( ! current_user_can( $post_type->cap->edit_posts ) )
-			return new IXR_Error( 401, __( 'Sorry, you are not allowed to edit this post type.' ) );
+			return new IXR_Error( 401, __( 'Sorry, you are not allowed to edit posts in this post type.' ) );
 
 		return $this->_prepare_post_type( $post_type, $fields );
 	}

@@ -50,6 +50,9 @@ function wp_install( $blog_title, $user_name, $user_email, $public, $deprecated 
 	update_option('admin_email', $user_email);
 	update_option('blog_public', $public);
 
+	// Freshness of site - in the future, this could get more specific about actions taken, perhaps.
+	update_option( 'fresh_site', 1 );
+
 	if ( $language ) {
 		update_option( 'WPLANG', $language );
 	}
@@ -372,6 +375,7 @@ function wp_new_blog_notification($blog_title, $blog_url, $user_id, $password) {
 	$email = $user->user_email;
 	$name = $user->user_login;
 	$login_url = wp_login_url();
+	/* translators: New site notification email. 1: New site URL, 2: User login, 3: User password or password reset link, 4: Login URL */
 	$message = sprintf( __( "Your new WordPress site has been successfully set up at:
 
 %1\$s

@@ -27,6 +27,11 @@ class WP_Test_REST_Pages_Controller extends WP_Test_REST_Post_Type_Controller_Te
 		parent::setUp();
 		$this->has_setup_template = false;
 		add_filter( 'theme_page_templates', array( $this, 'filter_theme_page_templates' ) );
+		// reregister the route as we now have a template available.
+		$GLOBALS['wp_rest_server']->override_by_default = true;
+		$controller = new WP_REST_Posts_Controller( 'page' );
+		$controller->register_routes();
+		$GLOBALS['wp_rest_server']->override_by_default = false;
 	}
 
 	public function test_register_routes() {
@@ -95,6 +100,10 @@ class WP_Test_REST_Pages_Controller extends WP_Test_REST_Post_Type_Controller_Te
 		$data = $response->get_data();
 		$this->assertEquals( 1, count( $data ) );
 		$this->assertEquals( $id2, $data[0]['id'] );
+		// Invalid parent should fail
+		$request->set_param( 'parent', 'some-slug' );
+		$response = $this->server->dispatch( $request );
+		$this->assertErrorResponse( 'rest_invalid_param', $response, 400 );
 	}
 
 	public function test_get_items_parents_query() {
@@ -129,6 +138,10 @@ class WP_Test_REST_Pages_Controller extends WP_Test_REST_Post_Type_Controller_Te
 		$data = $response->get_data();
 		$this->assertEquals( 1, count( $data ) );
 		$this->assertEquals( $id1, $data[0]['id'] );
+		// Invalid parent_exclude should error
+		$request->set_param( 'parent_exclude', 'some-slug' );
+		$response = $this->server->dispatch( $request );
+		$this->assertErrorResponse( 'rest_invalid_param', $response, 400 );
 	}
 
 	public function test_get_items_menu_order_query() {
@@ -156,6 +169,11 @@ class WP_Test_REST_Pages_Controller extends WP_Test_REST_Post_Type_Controller_Te
 		$this->assertEquals( $id4, $data[1]['id'] );
 		$this->assertEquals( $id2, $data[2]['id'] );
 		$this->assertEquals( $id3, $data[3]['id'] );
+		// Invalid menu_order should fail
+		$request = new WP_REST_Request( 'GET', '/wp/v2/pages' );
+		$request->set_param( 'menu_order', 'top-first' );
+		$response = $this->server->dispatch( $request );
+		$this->assertErrorResponse( 'rest_invalid_param', $response, 400 );
 	}
 
 	public function test_get_items_min_max_pages_query() {
@@ -358,12 +376,113 @@ class WP_Test_REST_Pages_Controller extends WP_Test_REST_Post_Type_Controller_Te
 		$this->assertEquals( 0, $new_data['menu_order'] );
 	}
 
+	public function test_update_page_parent_non_zero() {
+		$page_id1 = $this->factory->post->create( array(
+			'post_type' => 'page',
+		) );
+		$page_id2 = $this->factory->post->create( array(
+			'post_type' => 'page',
+		) );
+		wp_set_current_user( self::$editor_id );
+		$request = new WP_REST_Request( 'PUT', sprintf( '/wp/v2/pages/%d', $page_id2 ) );
+		$request->set_body_params( array(
+			'parent' => $page_id1,
+		) );
+		$response = $this->server->dispatch( $request );
+		$new_data = $response->get_data();
+		$this->assertEquals( $page_id1, $new_data['parent'] );
+	}
+
+	public function test_update_page_parent_zero() {
+		$page_id1 = $this->factory->post->create( array(
+			'post_type' => 'page',
+		) );
+		$page_id2 = $this->factory->post->create( array(
+			'post_type'    => 'page',
+			'post_parent'  => $page_id1,
+		) );
+		wp_set_current_user( self::$editor_id );
+		$request = new WP_REST_Request( 'PUT', sprintf( '/wp/v2/pages/%d', $page_id2 ) );
+		$request->set_body_params( array(
+			'parent' => 0,
+		) );
+		$response = $this->server->dispatch( $request );
+		$new_data = $response->get_data();
+		$this->assertEquals( 0, $new_data['parent'] );
+	}
+
+	public function test_get_page_with_password() {
+		$page_id = $this->factory->post->create( array(
+			'post_type'     => 'page',
+			'post_password' => '$inthebananastand',
+		) );
+
+		$request = new WP_REST_Request( 'GET', sprintf( '/wp/v2/pages/%d', $page_id ) );
+		$response = $this->server->dispatch( $request );
+
+		$data = $response->get_data();
+		$this->assertEquals( '', $data['content']['rendered'] );
+		$this->assertTrue( $data['content']['protected'] );
+		$this->assertEquals( '', $data['excerpt']['rendered'] );
+		$this->assertTrue( $data['excerpt']['protected'] );
+	}
+
+	public function test_get_page_with_password_using_password() {
+		$page_id = $this->factory->post->create( array(
+			'post_type'     => 'page',
+			'post_password' => '$inthebananastand',
+			'post_content'  => 'Some secret content.',
+			'post_excerpt'  => 'Some secret excerpt.',
+		) );
+
+		$page = get_post( $page_id );
+		$request = new WP_REST_Request( 'GET', sprintf( '/wp/v2/pages/%d', $page_id ) );
+		$request->set_param( 'password', '$inthebananastand' );
+		$response = $this->server->dispatch( $request );
+
+		$data = $response->get_data();
+		$this->assertEquals( wpautop( $page->post_content ), $data['content']['rendered'] );
+		$this->assertTrue( $data['content']['protected'] );
+		$this->assertEquals( wpautop( $page->post_excerpt ), $data['excerpt']['rendered'] );
+		$this->assertTrue( $data['excerpt']['protected'] );
+	}
+
+	public function test_get_page_with_password_using_incorrect_password() {
+		$page_id = $this->factory->post->create( array(
+			'post_type'     => 'page',
+			'post_password' => '$inthebananastand',
+		) );
+
+		$page = get_post( $page_id );
+		$request = new WP_REST_Request( 'GET', sprintf( '/wp/v2/pages/%d', $page_id ) );
+		$request->set_param( 'password', 'wrongpassword' );
+		$response = $this->server->dispatch( $request );
+
+		$this->assertErrorResponse( 'rest_post_incorrect_password', $response, 403 );
+	}
+
+	public function test_get_page_with_password_without_permission() {
+		$page_id = $this->factory->post->create( array(
+			'post_type'     => 'page',
+			'post_password' => '$inthebananastand',
+			'post_content'  => 'Some secret content.',
+			'post_excerpt'  => 'Some secret excerpt.',
+		) );
+		$request = new WP_REST_Request( 'GET', sprintf( '/wp/v2/pages/%d', $page_id ) );
+		$response = $this->server->dispatch( $request );
+		$data = $response->get_data();
+		$this->assertEquals( '', $data['content']['rendered'] );
+		$this->assertTrue( $data['content']['protected'] );
+		$this->assertEquals( '', $data['excerpt']['rendered'] );
+		$this->assertTrue( $data['excerpt']['protected'] );
+	}
+
 	public function test_get_item_schema() {
 		$request = new WP_REST_Request( 'OPTIONS', '/wp/v2/pages' );
 		$response = $this->server->dispatch( $request );
 		$data = $response->get_data();
 		$properties = $data['schema']['properties'];
-		$this->assertEquals( 21, count( $properties ) );
+		$this->assertEquals( 22, count( $properties ) );
 		$this->assertArrayHasKey( 'author', $properties );
 		$this->assertArrayHasKey( 'comment_status', $properties );
 		$this->assertArrayHasKey( 'content', $properties );
@@ -379,6 +498,7 @@ class WP_Test_REST_Pages_Controller extends WP_Test_REST_Post_Type_Controller_Te
 		$this->assertArrayHasKey( 'modified', $properties );
 		$this->assertArrayHasKey( 'modified_gmt', $properties );
 		$this->assertArrayHasKey( 'parent', $properties );
+		$this->assertArrayHasKey( 'password', $properties );
 		$this->assertArrayHasKey( 'ping_status', $properties );
 		$this->assertArrayHasKey( 'slug', $properties );
 		$this->assertArrayHasKey( 'status', $properties );

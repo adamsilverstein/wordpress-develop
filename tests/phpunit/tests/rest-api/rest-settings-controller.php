@@ -49,13 +49,11 @@ class WP_Test_REST_Settings_Controller extends WP_Test_REST_Controller_Testcase 
 		$request = new WP_REST_Request( 'GET', '/wp/v2/settings' );
 		$response = $this->server->dispatch( $request );
 		$data = $response->get_data();
+		$actual = array_keys( $data );
 
-		$this->assertEquals( 200, $response->get_status() );
-		$this->assertEquals( array(
+		$expected = array(
 			'title',
 			'description',
-			'url',
-			'email',
 			'timezone',
 			'date_format',
 			'time_format',
@@ -67,7 +65,18 @@ class WP_Test_REST_Settings_Controller extends WP_Test_REST_Controller_Testcase 
 			'posts_per_page',
 			'default_ping_status',
 			'default_comment_status',
-		), array_keys( $data ) );
+		);
+
+		if ( ! is_multisite() ) {
+			$expected[] = 'url';
+			$expected[] = 'email';
+		}
+
+		sort( $expected );
+		sort( $actual );
+
+		$this->assertEquals( 200, $response->get_status() );
+		$this->assertEquals( $expected, $actual );
 	}
 
 	public function test_get_item_value_is_cast_to_type() {
@@ -263,6 +272,22 @@ class WP_Test_REST_Settings_Controller extends WP_Test_REST_Controller_Testcase 
 		wp_set_current_user( self::$administrator );
 		$request = new WP_REST_Request( 'PUT', '/wp/v2/settings' );
 		$request->set_param( 'title', array( 'rendered' => 'This should fail.' ) );
+		$response = $this->server->dispatch( $request );
+		$this->assertErrorResponse( 'rest_invalid_param', $response, 400 );
+	}
+
+	public function test_update_item_with_integer() {
+		wp_set_current_user( self::$administrator );
+		$request = new WP_REST_Request( 'PUT', '/wp/v2/settings' );
+		$request->set_param( 'posts_per_page', 11 );
+		$response = $this->server->dispatch( $request );
+		$this->assertEquals( 200, $response->get_status() );
+	}
+
+	public function test_update_item_with_invalid_float_for_integer() {
+		wp_set_current_user( self::$administrator );
+		$request = new WP_REST_Request( 'PUT', '/wp/v2/settings' );
+		$request->set_param( 'posts_per_page', 10.5 );
 		$response = $this->server->dispatch( $request );
 		$this->assertErrorResponse( 'rest_invalid_param', $response, 400 );
 	}

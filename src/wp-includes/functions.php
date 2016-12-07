@@ -3241,6 +3241,16 @@ function _config_wp_siteurl( $url = '' ) {
 }
 
 /**
+ * Delete the fresh site option.
+ *
+ * @since 4.7.0
+ * @access private
+ */
+function _delete_option_fresh_site() {
+	update_option( 'fresh_site', 0 );
+}
+
+/**
  * Set the localized direction for MCE plugin.
  *
  * Will only set the direction to 'rtl', if the WordPress locale has
@@ -3768,15 +3778,19 @@ function _deprecated_function( $function, $version, $replacement = null ) {
 	 */
 	if ( WP_DEBUG && apply_filters( 'deprecated_function_trigger_error', true ) ) {
 		if ( function_exists( '__' ) ) {
-			if ( ! is_null( $replacement ) )
+			if ( ! is_null( $replacement ) ) {
+				/* translators: 1: PHP function name, 2: version number, 3: alternative function name */
 				trigger_error( sprintf( __('%1$s is <strong>deprecated</strong> since version %2$s! Use %3$s instead.'), $function, $version, $replacement ) );
-			else
+			} else {
+				/* translators: 1: PHP function name, 2: version number */
 				trigger_error( sprintf( __('%1$s is <strong>deprecated</strong> since version %2$s with no alternative available.'), $function, $version ) );
+			}
 		} else {
-			if ( ! is_null( $replacement ) )
+			if ( ! is_null( $replacement ) ) {
 				trigger_error( sprintf( '%1$s is <strong>deprecated</strong> since version %2$s! Use %3$s instead.', $function, $version, $replacement ) );
-			else
+			} else {
 				trigger_error( sprintf( '%1$s is <strong>deprecated</strong> since version %2$s with no alternative available.', $function, $version ) );
+			}
 		}
 	}
 }
@@ -3892,15 +3906,19 @@ function _deprecated_file( $file, $version, $replacement = null, $message = '' )
 	if ( WP_DEBUG && apply_filters( 'deprecated_file_trigger_error', true ) ) {
 		$message = empty( $message ) ? '' : ' ' . $message;
 		if ( function_exists( '__' ) ) {
-			if ( ! is_null( $replacement ) )
+			if ( ! is_null( $replacement ) ) {
+				/* translators: 1: PHP file name, 2: version number, 3: alternative file name */
 				trigger_error( sprintf( __('%1$s is <strong>deprecated</strong> since version %2$s! Use %3$s instead.'), $file, $version, $replacement ) . $message );
-			else
+			} else {
+				/* translators: 1: PHP file name, 2: version number */
 				trigger_error( sprintf( __('%1$s is <strong>deprecated</strong> since version %2$s with no alternative available.'), $file, $version ) . $message );
+			}
 		} else {
-			if ( ! is_null( $replacement ) )
+			if ( ! is_null( $replacement ) ) {
 				trigger_error( sprintf( '%1$s is <strong>deprecated</strong> since version %2$s! Use %3$s instead.', $file, $version, $replacement ) . $message );
-			else
+			} else {
 				trigger_error( sprintf( '%1$s is <strong>deprecated</strong> since version %2$s with no alternative available.', $file, $version ) . $message );
+			}
 		}
 	}
 }
@@ -3952,15 +3970,19 @@ function _deprecated_argument( $function, $version, $message = null ) {
 	 */
 	if ( WP_DEBUG && apply_filters( 'deprecated_argument_trigger_error', true ) ) {
 		if ( function_exists( '__' ) ) {
-			if ( ! is_null( $message ) )
+			if ( ! is_null( $message ) ) {
+				/* translators: 1: PHP function name, 2: version number, 3: optional message regarding the change */
 				trigger_error( sprintf( __('%1$s was called with an argument that is <strong>deprecated</strong> since version %2$s! %3$s'), $function, $version, $message ) );
-			else
+			} else {
+				/* translators: 1: PHP function name, 2: version number */
 				trigger_error( sprintf( __('%1$s was called with an argument that is <strong>deprecated</strong> since version %2$s with no alternative available.'), $function, $version ) );
+			}
 		} else {
-			if ( ! is_null( $message ) )
+			if ( ! is_null( $message ) ) {
 				trigger_error( sprintf( '%1$s was called with an argument that is <strong>deprecated</strong> since version %2$s! %3$s', $function, $version, $message ) );
-			else
+			} else {
 				trigger_error( sprintf( '%1$s was called with an argument that is <strong>deprecated</strong> since version %2$s with no alternative available.', $function, $version ) );
+			}
 		}
 	}
 }
@@ -4008,8 +4030,10 @@ function _deprecated_hook( $hook, $version, $replacement = null, $message = null
 	if ( WP_DEBUG && apply_filters( 'deprecated_hook_trigger_error', true ) ) {
 		$message = empty( $message ) ? '' : ' ' . $message;
 		if ( ! is_null( $replacement ) ) {
+			/* translators: 1: WordPress hook name, 2: version number, 3: alternative hook name */
 			trigger_error( sprintf( __( '%1$s is <strong>deprecated</strong> since version %2$s! Use %3$s instead.' ), $hook, $version, $replacement ) . $message );
 		} else {
+			/* translators: 1: WordPress hook name, 2: version number */
 			trigger_error( sprintf( __( '%1$s is <strong>deprecated</strong> since version %2$s with no alternative available.' ), $hook, $version ) . $message );
 		}
 	}
@@ -4063,6 +4087,7 @@ function _doing_it_wrong( $function, $message, $version ) {
 			$message .= ' ' . sprintf( __( 'Please see <a href="%s">Debugging in WordPress</a> for more information.' ),
 				__( 'https://codex.wordpress.org/Debugging_in_WordPress' )
 			);
+			/* translators: Developer debugging message. 1: PHP function name, 2: Explanatory message, 3: Version information message */
 			trigger_error( sprintf( __( '%1$s was called <strong>incorrectly</strong>. %2$s %3$s' ), $function, $message, $version ) );
 		} else {
 			if ( is_null( $version ) ) {
@@ -4491,21 +4516,25 @@ function _wp_timezone_choice_usort_callback( $a, $b ) {
  * Gives a nicely-formatted list of timezone strings.
  *
  * @since 2.9.0
+ * @since 4.7.0 Added the `$locale` parameter.
  *
  * @staticvar bool $mo_loaded
+ * @staticvar string $locale_loaded
  *
  * @param string $selected_zone Selected timezone.
+ * @param string $locale        Optional. Locale to load the timezones in. Default current site locale.
  * @return string
  */
-function wp_timezone_choice( $selected_zone ) {
-	static $mo_loaded = false;
+function wp_timezone_choice( $selected_zone, $locale = null ) {
+	static $mo_loaded = false, $locale_loaded = null;
 
 	$continents = array( 'Africa', 'America', 'Antarctica', 'Arctic', 'Asia', 'Atlantic', 'Australia', 'Europe', 'Indian', 'Pacific');
 
-	// Load translations for continents and cities
-	if ( !$mo_loaded ) {
-		$locale = get_locale();
-		$mofile = WP_LANG_DIR . '/continents-cities-' . $locale . '.mo';
+	// Load translations for continents and cities.
+	if ( ! $mo_loaded || $locale !== $locale_loaded ) {
+		$locale_loaded = $locale ? $locale : get_locale();
+		$mofile = WP_LANG_DIR . '/continents-cities-' . $locale_loaded . '.mo';
+		unload_textdomain( 'continents-cities' );
 		load_textdomain( 'continents-cities', $mofile );
 		$mo_loaded = true;
 	}

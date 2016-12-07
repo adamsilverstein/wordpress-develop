@@ -109,8 +109,7 @@ $admin_title = sprintf( $wp_customize->get_document_title_template(), __( 'Loadi
 ?><title><?php echo $admin_title; ?></title>
 
 <script type="text/javascript">
-var ajaxurl = <?php echo wp_json_encode( admin_url( 'admin-ajax.php', 'relative' ) ); ?>,
-    pagenow = 'customize';
+var ajaxurl = <?php echo wp_json_encode( admin_url( 'admin-ajax.php', 'relative' ) ); ?>;
 </script>
 
 <?php
@@ -161,7 +160,7 @@ do_action( 'customize_controls_print_scripts' );
 					<button type="button" class="customize-help-toggle dashicons dashicons-editor-help" aria-expanded="false"><span class="screen-reader-text"><?php _e( 'Help' ); ?></span></button>
 				</div>
 				<div class="customize-panel-description"><?php
-					_e( 'The Customizer allows you to preview changes to your site before publishing them. You can navigate to different pages on your site within the preview. Edit shortcuts are shown for some editable elements; click anywhere in the preview to toggle them off and on.' );
+					_e( 'The Customizer allows you to preview changes to your site before publishing them. You can navigate to different pages on your site within the preview. Edit shortcuts are shown for some editable elements.' );
 				?></div>
 			</div>
 
@@ -192,9 +191,9 @@ do_action( 'customize_controls_print_scripts' );
 				<?php endforeach; ?>
 			</div>
 			<?php endif; ?>
-			<button type="button" class="collapse-sidebar button" aria-expanded="true" aria-label="<?php esc_attr_e( 'Collapse Sidebar' ); ?>">
+			<button type="button" class="collapse-sidebar button" aria-expanded="true" aria-label="<?php echo esc_attr( _x( 'Hide Controls', 'label for hide controls button without length constraints' ) ); ?>">
 				<span class="collapse-sidebar-arrow"></span>
-				<span class="collapse-sidebar-label"><?php _e( 'Collapse' ); ?></span>
+				<span class="collapse-sidebar-label"><?php _ex( 'Hide Controls', 'short (~12 characters) label for hide controls button' ); ?></span>
 			</button>
 		</div>
 	</form>

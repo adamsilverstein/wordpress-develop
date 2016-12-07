@@ -170,7 +170,8 @@ function get_approved_comments( $post_id, $args = array() ) {
  * @global WP_Comment $comment
  *
  * @param WP_Comment|string|int $comment Comment to retrieve.
- * @param string $output Optional. OBJECT or ARRAY_A or ARRAY_N constants.
+ * @param string                $output  Optional. The required return type. One of OBJECT, ARRAY_A, or ARRAY_N, which correspond to
+ *                                       a WP_Comment object, an associative array, or a numeric array, respectively. Default OBJECT.
  * @return WP_Comment|array|null Depends on $output value.
  */
 function get_comment( &$comment = null, $output = OBJECT ) {
@@ -1119,6 +1120,37 @@ function wp_get_comment_fields_max_lengths() {
 	 * @param array $lengths Associative array `'field_name' => 'maximum length'`.
 	 */
 	return apply_filters( 'wp_get_comment_fields_max_lengths', $lengths );
+}
+
+/**
+ * Compares the lengths of comment data against the maximum character limits.
+ *
+ * @since 4.7.0
+ *
+ * @param array $comment_data Array of arguments for inserting a comment.
+ * @return WP_Error|true WP_Error when a comment field exceeds the limit,
+ *                       otherwise true.
+ */
+function wp_check_comment_data_max_lengths( $comment_data ) {
+	$max_lengths = wp_get_comment_fields_max_lengths();
+
+	if ( isset( $comment_data['comment_author'] ) && mb_strlen( $comment_data['comment_author'], '8bit' ) > $max_lengths['comment_author'] ) {
+		return new WP_Error( 'comment_author_column_length', __( '<strong>ERROR</strong>: your name is too long.' ), 200 );
+	}
+
+	if ( isset( $comment_data['comment_author_email'] ) && strlen( $comment_data['comment_author_email'] ) > $max_lengths['comment_author_email'] ) {
+		return new WP_Error( 'comment_author_email_column_length', __( '<strong>ERROR</strong>: your email address is too long.' ), 200 );
+	}
+
+	if ( isset( $comment_data['comment_author_url'] ) && strlen( $comment_data['comment_author_url'] ) > $max_lengths['comment_author_url'] ) {
+		return new WP_Error( 'comment_author_url_column_length', __( '<strong>ERROR</strong>: your url is too long.' ), 200 );
+	}
+
+	if ( isset( $comment_data['comment_content'] ) && mb_strlen( $comment_data['comment_content'], '8bit' ) > $max_lengths['comment_content'] ) {
+		return new WP_Error( 'comment_content_column_length', __( '<strong>ERROR</strong>: your comment is too long.' ), 200 );
+	}
+
+	return true;
 }
 
 /**
@@ -3027,12 +3059,11 @@ function wp_handle_comment_submission( $comment_data ) {
 		}
 	} else {
 		if ( get_option( 'comment_registration' ) ) {
-			return new WP_Error( 'not_logged_in', __( 'Sorry, you must be logged in to post a comment.' ), 403 );
+			return new WP_Error( 'not_logged_in', __( 'Sorry, you must be logged in to comment.' ), 403 );
 		}
 	}
 
 	$comment_type = '';
-	$max_lengths = wp_get_comment_fields_max_lengths();
 
 	if ( get_option( 'require_name_email' ) && ! $user->exists() ) {
 		if ( 6 > strlen( $comment_author_email ) || '' == $comment_author ) {
@@ -3042,22 +3073,8 @@ function wp_handle_comment_submission( $comment_data ) {
 		}
 	}
 
-	if ( isset( $comment_author ) && $max_lengths['comment_author'] < mb_strlen( $comment_author, '8bit' ) ) {
-		return new WP_Error( 'comment_author_column_length', __( '<strong>ERROR</strong>: your name is too long.' ), 200 );
-	}
-
-	if ( isset( $comment_author_email ) && $max_lengths['comment_author_email'] < strlen( $comment_author_email ) ) {
-		return new WP_Error( 'comment_author_email_column_length', __( '<strong>ERROR</strong>: your email address is too long.' ), 200 );
-	}
-
-	if ( isset( $comment_author_url ) && $max_lengths['comment_author_url'] < strlen( $comment_author_url ) ) {
-		return new WP_Error( 'comment_author_url_column_length', __( '<strong>ERROR</strong>: your url is too long.' ), 200 );
-	}
-
 	if ( '' == $comment_content ) {
 		return new WP_Error( 'require_valid_comment', __( '<strong>ERROR</strong>: please type a comment.' ), 200 );
-	} elseif ( $max_lengths['comment_content'] < mb_strlen( $comment_content, '8bit' ) ) {
-		return new WP_Error( 'comment_content_column_length', __( '<strong>ERROR</strong>: your comment is too long.' ), 200 );
 	}
 
 	$commentdata = compact(
@@ -3070,6 +3087,11 @@ function wp_handle_comment_submission( $comment_data ) {
 		'comment_parent',
 		'user_ID'
 	);
+
+	$check_max_lengths = wp_check_comment_data_max_lengths( $commentdata );
+	if ( is_wp_error( $check_max_lengths ) ) {
+		return $check_max_lengths;
+	}
 
 	$comment_id = wp_new_comment( wp_slash( $commentdata ), true );
 	if ( is_wp_error( $comment_id ) ) {

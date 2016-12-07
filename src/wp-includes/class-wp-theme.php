@@ -1038,7 +1038,7 @@ final class WP_Theme implements ArrayAccess {
 				}
 
 				foreach ( $types as $type ) {
-					$type = trim( $type );
+					$type = sanitize_key( $type );
 					if ( ! isset( $post_templates[ $type ] ) ) {
 						$post_templates[ $type ] = array();
 					}
@@ -1082,7 +1082,7 @@ final class WP_Theme implements ArrayAccess {
 		$post_templates = isset( $post_templates[ $post_type ] ) ? $post_templates[ $post_type ] : array();
 
 		if ( $this->parent() ) {
-			$post_templates += $this->parent()->get_page_templates( $post );
+			$post_templates += $this->parent()->get_page_templates( $post, $post_type );
 		}
 
 		/**
