@@ -344,6 +344,8 @@ function wp_default_scripts( &$scripts ) {
 			 * Do not translate into your own language.
 			 */
 			'trimWordsByCharacter' => strpos( _x( 'words', 'Word count type. Do not translate!' ), 'characters' ) === 0 && preg_match( '/^utf\-?8$/i', get_option( 'blog_charset' ) ),
+			'userLocale' => get_user_locale(),
+			'dateFormat' => get_option( 'date_format' ),
 		),
 	) );
 
@@ -738,8 +740,7 @@ function wp_default_scripts( &$scripts ) {
 				'newDraftCreated'  => __( 'Success. A new draft was created.' ),
 				'errorEmptyFields' => __( 'Error. All fields were empty.' ),
 				'noTitle'          => __( '(no title)' ),
-			),
-			'timezoneOffset' => ( get_option( 'gmt_offset' ) >= 0 ? '+' : '-' ) . date( 'H:i', abs( get_option( 'gmt_offset' ) * 3600 ) ),
+			)
 		) );
 
 		$scripts->add( 'list-revisions', "/wp-includes/js/wp-list-revisions$suffix.js" );

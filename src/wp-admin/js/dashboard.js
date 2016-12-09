@@ -431,9 +431,10 @@ QuickDraft.Views.DraftListItem = wp.Backbone.View.extend( {
 
 	// Render a single draft list item.
 	render: function() {
+		var attributes, date;
 
 		// Clone the original model attributes, so we can leave the model untouched.
-		var attributes = _.clone( this.model.attributes );
+		attributes = _.clone( this.model.attributes );
 
 		// Trim the content to 10 words.
 		attributes.formattedContent = wp.formatting.trimWords( attributes.content.rendered, 10 );
@@ -441,17 +442,8 @@ QuickDraft.Views.DraftListItem = wp.Backbone.View.extend( {
 		// If the title is missing entirely, add a no title placeholder.
 		attributes.formattedTitle = attributes.title.rendered.length > 0 ? attributes.title.rendered : quickDraft.l10n.noTitle;
 
-		// Format the data using Intl.DateTimeFormat with a fallback to date.toLocaleDateString.
-		var date = new Date( wp.api.utils.parseISO8601( attributes.date + quickDraft.timezoneOffset ) );
-		if ( 'undefined' !== typeof Intl && Intl.DateTimeFormat ) {
-			attributes.formattedDate = new Intl.DateTimeFormat( undefined, {
-				month: 'long',
-				day: 'numeric',
-				year: 'numeric'
-			} ).format( date );
-		} else {
-			attributes.formattedDate = date.toLocaleDateString();
-		}
+		// Format the date
+		attributes.formattedDate = wp.formatting.date( wp.api.utils.parseISO8601( attributes.date ) );
 
 		// Output the rendered template.
 		this.$el.html( this.template( attributes ) );

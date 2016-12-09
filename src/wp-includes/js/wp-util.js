@@ -164,6 +164,94 @@ window.wp = window.wp || {};
 			}
 
 			return words.slice( 0, numWords ).join( separator ) + more;
+		},
+
+		/**
+		 * Given optional date and format string, returns a localized date
+		 * string approximating specified format. Uses browser i18n features
+		 * when available, with fallback. Undefined arguments default to now
+		 * and site configured date format respectively.
+		 *
+		 * @see http://php.net/manual/en/function.date.php
+		 *
+		 * @param  {?*}      date   Optional date object or timestamp, defaults
+		 *                          to now
+		 * @param  {?String} format Optional PHP date format string, defaults
+		 *                          to site date format option
+		 * @return {String}         Localized formatted date string
+		 */
+		date: function( date, format ) {
+			var options, matches, m, ml, character, locales;
+
+			// Cast date parameter to date object. This accommodates timestamp,
+			// Date object, ISO8601 string, and undefined (defaulting to now).
+			date = new Date( date );
+
+			// Adjust JavaScript date from local browser timezone to GMT+0
+			date.setTime( date.getTime() + ( date.getTimezoneOffset() * 60000 ) );
+
+			// If no browser support for Intl, return fallback
+			if ( 'undefined' === typeof Intl || ! Intl.DateTimeFormat ) {
+				return date.toLocaleDateString();
+			}
+
+			// Default format to site date option
+			if ( 'undefined' === typeof format ) {
+				format = wp.formatting.settings.dateFormat;
+			}
+
+			matches = format.match( /\\?[a-zA-Z]/g );
+			if ( ! matches ) {
+				return format;
+			}
+
+			options = {};
+			for ( m = 0, ml = matches.length; m < ml; m++ ) {
+				character = matches[ m ];
+
+				// Ignore characters prefixed with backslash
+				if ( 0 === character.indexOf( '\\' ) ) {
+					continue;
+				}
+
+				switch ( character ) {
+					// Supported:
+					case 'd': options.day = '2-digit'; break;
+					case 'D': options.weekday = 'short'; break;
+					case 'j': options.day = 'numeric'; break;
+					case 'l': options.weekday = 'long'; break;
+					case 'F': options.month = 'long'; break;
+					case 'm': options.month = '2-digit'; break;
+					case 'M': options.month = 'short'; break;
+					case 'n': options.month = 'numeric'; break;
+					case 'Y': options.year = 'numeric'; break;
+					case 'y': options.year = '2-digit'; break;
+					case 'g': options.hour = 'numeric'; options.hour12 = true; break;
+					case 'G': options.hour = 'numeric'; options.hour12 = false; break;
+					case 'h': options.hour = '2-digit'; options.hour12 = true; break;
+					case 'H': options.hour = '2-digit'; options.hour12 = false; break;
+					case 'i': options.minute = '2-digit'; break;
+					case 's': options.second = '2-digit'; break;
+					case 'e': options.timeZoneName = 'long'; break;
+					case 'T': options.timeZoneName = 'short'; break;
+					case 'c': return date.toISOString();
+					case 'U': return Number( date );
+
+					// Unsupported with fallback:
+					case 'N': options.weekday = 'narrow'; break;
+					case 'w': options.weekday = 'narrow'; break;
+					case 'o': options.year = 'numeric'; break;
+					case 'O': options.timeZoneName = 'short'; break;
+					case 'P': options.timeZoneName = 'short'; break;
+					case 'Z': options.timeZoneName = 'short'; break;
+					case 'r': return String( time );
+
+					// Unsupported: 'S', 'z', 'W', 't', 'L', 'a', 'A', 'B', 'u', 'v', 'I'
+				}
+			}
+
+			locales = wp.formatting.settings.userLocale.replace( '_', '-' );
+			return new Intl.DateTimeFormat( locales, options ).format( date );
 		}
 	};
 
