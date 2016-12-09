@@ -210,7 +210,7 @@ window.wp = window.wp || {};
 				character = matches[ m ];
 
 				// Ignore characters prefixed with backslash
-				if ( 0 === character.indexOf( '\\' ) ) {
+				if ( '\\' === character[ 0 ] ) {
 					continue;
 				}
 
