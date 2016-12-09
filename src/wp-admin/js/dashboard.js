@@ -431,7 +431,7 @@ QuickDraft.Views.DraftListItem = wp.Backbone.View.extend( {
 
 	// Render a single draft list item.
 	render: function() {
-		var attributes, date;
+		var attributes;
 
 		// Clone the original model attributes, so we can leave the model untouched.
 		attributes = _.clone( this.model.attributes );
