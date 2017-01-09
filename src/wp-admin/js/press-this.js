@@ -257,7 +257,7 @@
 		}
 
 		/**
-		 * Submit the post form via AJAX, and redirect to the proper screen if published vs saved as a draft.
+		 * Submit the post form via AJAX and the REST API. Redirect to the proper screen if published vs saved as a draft.
 		 *
 		 * @param action string publish|draft
 		 */
@@ -275,6 +275,7 @@
 
 			data = $( '#pressthis-form' ).serializeArray();
 
+			// Prepare the data to send.
 			toSend = {
 				'title':     $( '#post_title' ).val(),
 				'content':   $( '#post_content' ).val(),
@@ -283,7 +284,7 @@
 				'_wpnonce':  wpApi.nonce
 			}
 
-
+			// Send the data to the REST API.
 			$.ajax( {
 				'type':     'POST',
 				'url':      wpApi.url + 'posts?press-this-post-save=true&pt-force-redirect=' + $( '#pt-force-redirect' ).val(),
@@ -352,12 +353,11 @@
 		}
 
 		/**
-		 * Save a new user-generated category via AJAX
+		 * Save a new user-generated category via AJAX and the REST API.
 		 */
 		function saveNewCategory() {
 			var data,
 				name     = $( '#new-category' ).val(),
-				catNonce = $( '#_ajax_nonce-add-category' ).val() || '',
 				parent   = $( '#new-category-parent' ).val() || 0;
 
 			// Don't save if we don't have a category name.
@@ -368,7 +368,6 @@
 			// Set up the save data.
 			data = {
 				'name':     name,
-				'catNonce': catNonce,
 				'_wpnonce': wpApi.nonce
 			};
 
@@ -380,15 +379,14 @@
 			//  Send the data to the REST API.
 			$.ajax( {
 				'type':      'POST',
-				'url':       wpApi.url + 'categories?press-this-add-category=true',
+				'url':       wpApi.url + 'categories',
 				'data':      data,
 				'dataType': 'json'
-			}).always( function() {
 			}).done( function( newCat ) {
+
+				// Add the newly created category to the interface.
 				var $parent, $ul,
 					$wrap = $( 'ul.categories-select' );
-
-				console.log (newCat);
 
 				var $node = $( '<li>' ).append( $( '<div class="category selected" tabindex="0" role="checkbox" aria-checked="true">' )
 					.attr( 'data-term-id', newCat.term_id )
