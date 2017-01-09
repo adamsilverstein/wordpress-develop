@@ -1325,13 +1325,14 @@ function has_header_video() {
 	return (bool) get_header_video_url();
 }
 
-/* Retrieve header video URL for custom header.
+/**
+ * Retrieve header video URL for custom header.
  *
- * Uses a local video if present, or falls back to an external video. Returns false if there is no video.
+ * Uses a local video if present, or falls back to an external video.
  *
  * @since 4.7.0
  *
- * @return string|false
+ * @return string|false Header video URL or false if there is no video.
  */
 function get_header_video_url() {
 	$id = absint( get_theme_mod( 'header_video' ) );
@@ -1643,7 +1644,8 @@ function wp_get_custom_css_post( $stylesheet = '' ) {
 		'no_found_rows'          => true,
 		'cache_results'          => true,
 		'update_post_meta_cache' => false,
-		'update_term_meta_cache' => false,
+		'update_post_term_cache' => false,
+		'lazy_load_term_meta'    => false,
 	);
 
 	$post = null;
@@ -1652,18 +1654,17 @@ function wp_get_custom_css_post( $stylesheet = '' ) {
 
 		if ( $post_id > 0 && get_post( $post_id ) ) {
 			$post = get_post( $post_id );
-		} else {
+		}
+
+		// `-1` indicates no post exists; no query necessary.
+		if ( ! $post && -1 !== $post_id ) {
 			$query = new WP_Query( $custom_css_query_vars );
 			$post = $query->post;
 			/*
-			 * Cache the lookup. See WP_Customize_Custom_CSS_Setting::update().
+			 * Cache the lookup. See wp_update_custom_css_post().
 			 * @todo This should get cleared if a custom_css post is added/removed.
 			 */
-			if ( $post ) {
-				set_theme_mod( 'custom_css_post_id', $post->ID );
-			} elseif ( -1 !== $post_id ) {
-				set_theme_mod( 'custom_css_post_id', -1 );
-			}
+			set_theme_mod( 'custom_css_post_id', $post ? $post->ID : -1 );
 		}
 	} else {
 		$query = new WP_Query( $custom_css_query_vars );
@@ -1787,9 +1788,15 @@ function wp_update_custom_css_post( $css, $args = array() ) {
 	} else {
 		$r = wp_insert_post( wp_slash( $post_data ), true );
 
-		// Trigger creation of a revision. This should be removed once #30854 is resolved.
-		if ( ! is_wp_error( $r ) && 0 === count( wp_get_post_revisions( $r ) ) ) {
-			wp_save_post_revision( $r );
+		if ( ! is_wp_error( $r ) ) {
+			if ( get_stylesheet() === $args['stylesheet'] ) {
+				set_theme_mod( 'custom_css_post_id', $r );
+			}
+
+			// Trigger creation of a revision. This should be removed once #30854 is resolved.
+			if ( 0 === count( wp_get_post_revisions( $r ) ) ) {
+				wp_save_post_revision( $r );
+			}
 		}
 	}
 
@@ -1970,7 +1977,7 @@ function get_theme_starter_content() {
 				'title' => _x( 'Home', 'Theme starter content' ),
 				'url' => home_url(),
 			),
-			'page_home' => array( // Deprecated in favor of home_link.
+			'page_home' => array( // Deprecated in favor of link_home.
 				'type' => 'post_type',
 				'object' => 'page',
 				'object_id' => '{{home}}',
