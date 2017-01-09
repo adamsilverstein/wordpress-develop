@@ -1358,7 +1358,6 @@ class WP_Press_This {
 		<?php
 
 		wp_nonce_field( 'update-post_' . $post_ID, '_wpnonce', false );
-		wp_nonce_field( 'add-category', '_ajax_nonce-add-category', false );
 
 		?>
 
