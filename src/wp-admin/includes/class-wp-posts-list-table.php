@@ -1420,7 +1420,7 @@ class WP_Posts_List_Table extends WP_List_Table {
 		if ( post_type_supports( $screen->post_type, 'author' ) ) :
 			$authors_dropdown = '';
 
-			if ( is_super_admin() || current_user_can( $post_type_object->cap->edit_others_posts ) ) :
+			if ( current_user_can( $post_type_object->cap->edit_others_posts ) ) :
 				$users_opt = array(
 					'hide_if_only_one_author' => false,
 					'who' => 'authors',
@@ -1555,7 +1555,7 @@ class WP_Posts_List_Table extends WP_List_Table {
 				$default_title = apply_filters( 'default_page_template_title',  __( 'Default Template' ), 'quick-edit' );
                 ?>
 				<option value="default"><?php echo esc_html( $default_title ); ?></option>
-				<?php page_template_dropdown( $post->page_template, $screen->post_type ) ?>
+				<?php page_template_dropdown( '', $screen->post_type ) ?>
 			</select>
 		</label>
 	<?php endif; ?>

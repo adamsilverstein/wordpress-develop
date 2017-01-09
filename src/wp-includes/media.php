@@ -1045,6 +1045,8 @@ function wp_calculate_image_srcset( $size_array, $image_src, $image_meta, $attac
 	/**
 	 * Let plugins pre-filter the image meta to be able to fix inconsistencies in the stored data.
 	 *
+	 * @since 4.5.0
+	 *
 	 * @param array  $image_meta    The image meta data as returned by 'wp_get_attachment_metadata()'.
 	 * @param array  $size_array    Array of width and height values in pixels (in that order).
 	 * @param string $image_src     The 'src' of the image.
@@ -3063,6 +3065,7 @@ function wp_prepare_attachment_for_js( $attachment ) {
 		list( $type, $subtype ) = array( $attachment->post_mime_type, '' );
 
 	$attachment_url = wp_get_attachment_url( $attachment->ID );
+	$base_url = str_replace( wp_basename( $attachment_url ), '', $attachment_url );
 
 	$response = array(
 		'id'          => $attachment->ID,
@@ -3139,7 +3142,7 @@ function wp_prepare_attachment_for_js( $attachment ) {
 	if ( current_user_can( 'delete_post', $attachment->ID ) )
 		$response['nonces']['delete'] = wp_create_nonce( 'delete-post_' . $attachment->ID );
 
-	if ( $meta && ! empty( $meta['sizes'] ) ) {
+	if ( $meta && ( 'image' === $type || ! empty( $meta['sizes'] ) ) ) {
 		$sizes = array();
 
 		/** This filter is documented in wp-admin/includes/media.php */
@@ -3170,9 +3173,6 @@ function wp_prepare_attachment_for_js( $attachment ) {
 					'orientation' => $downsize[2] > $downsize[1] ? 'portrait' : 'landscape',
 				);
 			} elseif ( isset( $meta['sizes'][ $size ] ) ) {
-				if ( ! isset( $base_url ) )
-					$base_url = str_replace( wp_basename( $attachment_url ), '', $attachment_url );
-
 				// Nothing from the filter, so consult image metadata if we have it.
 				$size_meta = $meta['sizes'][ $size ];
 

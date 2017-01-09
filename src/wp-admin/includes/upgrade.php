@@ -375,6 +375,7 @@ function wp_new_blog_notification($blog_title, $blog_url, $user_id, $password) {
 	$email = $user->user_email;
 	$name = $user->user_login;
 	$login_url = wp_login_url();
+	/* translators: New site notification email. 1: New site URL, 2: User login, 3: User password or password reset link, 4: Login URL */
 	$message = sprintf( __( "Your new WordPress site has been successfully set up at:
 
 %1\$s
@@ -2859,6 +2860,7 @@ function pre_schema_upgrade() {
 	}
 }
 
+if ( !function_exists( 'install_global_terms' ) ) :
 /**
  * Install global terms.
  *
@@ -2867,7 +2869,6 @@ function pre_schema_upgrade() {
  * @global wpdb   $wpdb
  * @global string $charset_collate
  */
-if ( !function_exists( 'install_global_terms' ) ) :
 function install_global_terms() {
 	global $wpdb, $charset_collate;
 	$ms_queries = "

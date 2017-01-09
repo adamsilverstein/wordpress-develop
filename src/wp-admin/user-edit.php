@@ -172,7 +172,7 @@ include(ABSPATH . 'wp-admin/admin-header.php');
 ?>
 
 <?php if ( !IS_PROFILE_PAGE && is_super_admin( $profileuser->ID ) && current_user_can( 'manage_network_options' ) ) { ?>
-	<div class="updated"><p><strong><?php _e('Important:'); ?></strong> <?php _e('This user has super admin privileges.'); ?></p></div>
+	<div class="notice notice-info"><p><strong><?php _e('Important:'); ?></strong> <?php _e('This user has super admin privileges.'); ?></p></div>
 <?php } ?>
 <?php if ( isset($_GET['updated']) ) : ?>
 <div id="message" class="updated notice is-dismissible">
@@ -198,17 +198,22 @@ include(ABSPATH . 'wp-admin/admin-header.php');
 <?php endif; ?>
 
 <div class="wrap" id="profile-page">
-<h1>
-<?php
+<h1 class="wp-heading-inline"><?php
 echo esc_html( $title );
+?></h1>
+
+<?php
 if ( ! IS_PROFILE_PAGE ) {
 	if ( current_user_can( 'create_users' ) ) { ?>
 		<a href="user-new.php" class="page-title-action"><?php echo esc_html_x( 'Add New', 'user' ); ?></a>
 	<?php } elseif ( is_multisite() && current_user_can( 'promote_users' ) ) { ?>
 		<a href="user-new.php" class="page-title-action"><?php echo esc_html_x( 'Add Existing', 'user' ); ?></a>
 	<?php }
-} ?>
-</h1>
+}
+?>
+
+<hr class="wp-header-end">
+
 <form id="your-profile" action="<?php echo esc_url( self_admin_url( IS_PROFILE_PAGE ? 'profile.php' : 'user-edit.php' ) ); ?>" method="post" novalidate="novalidate"<?php
 	/**
 	 * Fires inside the your-profile form tag on the user editing screen.
@@ -284,9 +289,9 @@ if ( $languages ) : ?>
 		$user_locale = $profileuser->locale;
 
 		if ( 'en_US' === $user_locale ) {
-			$user_locale = false;
-		} elseif ( ! in_array( $user_locale, $languages, true ) ) {
-			$user_locale = get_locale();
+			$user_locale = '';
+		} elseif ( '' === $user_locale || ! in_array( $user_locale, $languages, true ) ) {
+			$user_locale = 'site-default';
 		}
 
 		wp_dropdown_languages( array(
@@ -294,7 +299,8 @@ if ( $languages ) : ?>
 			'id'                          => 'locale',
 			'selected'                    => $user_locale,
 			'languages'                   => $languages,
-			'show_available_translations' => false
+			'show_available_translations' => false,
+			'show_option_site_default'    => true
 		) );
 		?>
 	</td>

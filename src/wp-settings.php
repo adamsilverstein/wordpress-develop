@@ -80,8 +80,13 @@ wp_debug_mode();
  *                                    Default true.
  */
 if ( WP_CACHE && apply_filters( 'enable_loading_advanced_cache_dropin', true ) ) {
-// For an advanced caching plugin to use. Uses a static drop-in because you would only want one.
+	// For an advanced caching plugin to use. Uses a static drop-in because you would only want one.
 	WP_DEBUG ? include( WP_CONTENT_DIR . '/advanced-cache.php' ) : @include( WP_CONTENT_DIR . '/advanced-cache.php' );
+
+	// Re-initialize any hooks added manually by advanced-cache.php
+	if ( $wp_filter ) {
+		$wp_filter = WP_Hook::build_preinitialized_hooks( $wp_filter );
+	}
 }
 
 // Define WP_LANG_DIR if not set.
@@ -208,6 +213,7 @@ require( ABSPATH . WPINC . '/class-wp-http-cookie.php' );
 require( ABSPATH . WPINC . '/class-wp-http-encoding.php' );
 require( ABSPATH . WPINC . '/class-wp-http-response.php' );
 require( ABSPATH . WPINC . '/class-wp-http-requests-response.php' );
+require( ABSPATH . WPINC . '/class-wp-http-requests-hooks.php' );
 require( ABSPATH . WPINC . '/widgets.php' );
 require( ABSPATH . WPINC . '/class-wp-widget.php' );
 require( ABSPATH . WPINC . '/class-wp-widget-factory.php' );

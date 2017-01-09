@@ -146,17 +146,16 @@ class WP_Image_Editor_Imagick extends WP_Image_Editor {
 
 		try {
 			$this->image = new Imagick();
-			$file_parts = pathinfo( $this->file );
+			$file_extension = strtolower( pathinfo( $this->file, PATHINFO_EXTENSION ) );
+			$filename = $this->file;
 
-			// By default, PDFs are rendered in a very low resolution.
-			// We want the thumbnail to be readable, so increase the rendering dpi.
-			if ( 'pdf' == strtolower( $file_parts['extension'] ) ) {
-				$this->image->setResolution( 128, 128 );
+			if ( 'pdf' == $file_extension ) {
+				$filename = $this->pdf_setup();
 			}
 
 			// Reading image after Imagick instantiation because `setResolution`
 			// only applies correctly before the image is read.
-			$this->image->readImage( $this->file );
+			$this->image->readImage( $filename );
 
 			if ( ! $this->image->valid() )
 				return new WP_Error( 'invalid_image', __('File is not an image.'), $this->file);
@@ -737,6 +736,29 @@ class WP_Image_Editor_Imagick extends WP_Image_Editor {
 		}
 
 		return true;
+	}
+
+	/**
+	 * Sets up Imagick for PDF processing.
+	 * Increases rendering DPI and only loads first page.
+	 *
+	 * @since 4.7.0
+	 * @access protected
+	 *
+	 * @return string|WP_Error File to load or WP_Error on failure.
+	 */
+	protected function pdf_setup() {
+		try {
+			// By default, PDFs are rendered in a very low resolution.
+			// We want the thumbnail to be readable, so increase the rendering DPI.
+			$this->image->setResolution( 128, 128 );
+
+			// Only load the first page.
+			return $this->file . '[0]';
+		}
+		catch ( Exception $e ) {
+			return new WP_Error( 'pdf_setup_failed', $e->getMessage(), $this->file );
+		}
 	}
 
 }

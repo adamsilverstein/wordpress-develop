@@ -1592,6 +1592,7 @@ function get_comment_reply_link( $args = array(), $comment = null, $post = null 
 		'add_below'     => 'comment',
 		'respond_id'    => 'respond',
 		'reply_text'    => __( 'Reply' ),
+		/* translators: Comment reply button text. 1: Comment author name */
 		'reply_to_text' => __( 'Reply to %s' ),
 		'login_text'    => __( 'Log in to Reply' ),
 		'max_depth'     => 0,
@@ -2157,7 +2158,7 @@ function wp_list_comments( $args = array(), $comments = null ) {
  *     @type string $submit_button        HTML format for the Submit button.
  *                                        Default: '<input name="%1$s" type="submit" id="%2$s" class="%3$s" value="%4$s" />'.
  *     @type string $submit_field         HTML format for the markup surrounding the Submit button and comment hidden
- *                                        fields. Default: '<p class="form-submit">%1$s %2$s</a>', where %1$s is the
+ *                                        fields. Default: '<p class="form-submit">%1$s %2$s</p>', where %1$s is the
  *                                        submit button markup and %2$s is the comment hidden fields.
  *     @type string $format               The comment form format. Default 'xhtml'. Accepts 'xhtml', 'html5'.
  * }

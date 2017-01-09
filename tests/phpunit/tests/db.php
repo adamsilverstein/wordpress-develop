@@ -20,6 +20,7 @@ class Tests_DB extends WP_UnitTestCase {
 	protected static $_wpdb;
 
 	public static function setUpBeforeClass() {
+		parent::setUpBeforeClass();
 		self::$_wpdb = new wpdb_exposed_methods_for_testing();
 	}
 
@@ -63,6 +64,11 @@ class Tests_DB extends WP_UnitTestCase {
 		$wpdb->close();
 
 		$var = $wpdb->get_var( "SELECT ID FROM $wpdb->users LIMIT 1" );
+
+		// Ensure all database handles have been properly reconnected after this test.
+		$wpdb->db_connect();
+		self::$_wpdb->db_connect();
+
 		$this->assertGreaterThan( 0, $var );
 	}
 
@@ -565,14 +571,6 @@ class Tests_DB extends WP_UnitTestCase {
 			"DELETE a FROM $table a",
 			"DELETE `a` FROM $table a",
 
-			// STATUS
-			"SHOW TABLE STATUS LIKE '$table'",
-			"SHOW TABLE STATUS WHERE NAME='$table'",
-
-			"SHOW TABLES LIKE '$table'",
-			"SHOW FULL TABLES LIKE '$table'",
-			"SHOW TABLES WHERE NAME='$table'",
-
 			// Extended
 			"EXPLAIN SELECT * FROM $table",
 			"EXPLAIN EXTENDED SELECT * FROM $table",
@@ -668,6 +666,33 @@ class Tests_DB extends WP_UnitTestCase {
 	 */
 	function test_get_table_from_query_false( $query ) {
 		$this->assertFalse( self::$_wpdb->get_table_from_query( $query ) );
+	}
+
+	/**
+	 * @ticket 38751
+	 */
+	function data_get_escaped_table_from_show_query() {
+		return array(
+			// Equality
+			array( "SHOW TABLE STATUS WHERE Name = 'test_name'", 'test_name' ),
+			array( "SHOW TABLE STATUS WHERE NAME=\"test_name\"", 'test_name' ),
+			array( "SHOW TABLES WHERE Name = \"test_name\"",     'test_name' ),
+			array( "SHOW FULL TABLES WHERE Name='test_name'",    'test_name' ),
+
+			// LIKE
+			array( "SHOW TABLE STATUS LIKE 'test\_prefix\_%'",   'test_prefix_' ),
+			array( "SHOW TABLE STATUS LIKE \"test\_prefix\_%\"", 'test_prefix_' ),
+			array( "SHOW TABLES LIKE 'test\_prefix\_%'",         'test_prefix_' ),
+			array( "SHOW FULL TABLES LIKE \"test\_prefix\_%\"",  'test_prefix_' ),
+		);
+	}
+
+	/**
+	 * @dataProvider data_get_escaped_table_from_show_query
+	 * @ticket 38751
+	 */
+	function test_get_escaped_table_from_show_query( $query, $table ) {
+		$this->assertEquals( $table, self::$_wpdb->get_table_from_query( $query ) );
 	}
 
 	/**

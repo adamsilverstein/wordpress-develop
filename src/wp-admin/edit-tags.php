@@ -18,13 +18,13 @@ if ( ! $tax )
 	wp_die( __( 'Invalid taxonomy.' ) );
 
 if ( ! in_array( $tax->name, get_taxonomies( array( 'show_ui' => true ) ) ) ) {
-   wp_die( __( 'Sorry, you are not allowed to manage these items.' ) );
+   wp_die( __( 'Sorry, you are not allowed to edit terms in this taxonomy.' ) );
 }
 
 if ( ! current_user_can( $tax->cap->manage_terms ) ) {
 	wp_die(
 		'<h1>' . __( 'Cheatin&#8217; uh?' ) . '</h1>' .
-		'<p>' . __( 'Sorry, you are not allowed to manage these items.' ) . '</p>',
+		'<p>' . __( 'Sorry, you are not allowed to manage terms in this taxonomy.' ) . '</p>',
 		403
 	);
 }
@@ -74,14 +74,14 @@ case 'add-tag':
 	if ( ! current_user_can( $tax->cap->edit_terms ) ) {
 		wp_die(
 			'<h1>' . __( 'Cheatin&#8217; uh?' ) . '</h1>' .
-			'<p>' . __( 'Sorry, you are not allowed to add this item.' ) . '</p>',
+			'<p>' . __( 'Sorry, you are not allowed to create terms in this taxonomy.' ) . '</p>',
 			403
 		);
 	}
 
 	$ret = wp_insert_term( $_POST['tag-name'], $taxonomy, $_POST );
 	if ( $ret && !is_wp_error( $ret ) )
-		$location = add_query_arg( 'message', 1, $location );
+		$location = add_query_arg( 'message', 1, $referer );
 	else
 		$location = add_query_arg( array( 'error' => true, 'message' => 4 ), $referer );
 
@@ -290,13 +290,16 @@ if ( is_plugin_active( 'wpcat2tag-importer/wpcat2tag-importer.php' ) ) {
 ?>
 
 <div class="wrap nosubsub">
-<h1><?php echo esc_html( $title );
+<h1 class="wp-heading-inline"><?php echo esc_html( $title ); ?></h1>
+
+<?php
 if ( isset( $_REQUEST['s'] ) && strlen( $_REQUEST['s'] ) ) {
 	/* translators: %s: search keywords */
 	printf( '<span class="subtitle">' . __( 'Search results for &#8220;%s&#8221;' ) . '</span>', esc_html( wp_unslash( $_REQUEST['s'] ) ) );
 }
 ?>
-</h1>
+
+<hr class="wp-header-end">
 
 <?php if ( $message ) : ?>
 <div id="message" class="<?php echo $class; ?> notice is-dismissible"><p><?php echo $message; ?></p></div>

@@ -321,12 +321,17 @@
 				// Create the new getModel model.
 				getModel = new wp.api.models[ modelName ]( attributes );
 
-				// If we didn’t have an embedded getModel, fetch the getModel data.
 				if ( ! getModel.get( embedCheckField ) ) {
-					getModel.fetch( { success: function( getModel ) {
-						deferred.resolve( getModel );
-					} } );
+					getModel.fetch( {
+						success: function( getModel ) {
+							deferred.resolve( getModel );
+						},
+						error: function( getModel, response ) {
+							deferred.reject( response );
+						}
+					} );
 				} else {
+					// Resolve with the embedded model.
 					deferred.resolve( getModel );
 				}
 
@@ -392,12 +397,17 @@
 
 				// If we didn’t have embedded getObjects, fetch the getObjects data.
 				if ( _.isUndefined( getObjects.models[0] ) ) {
-					getObjects.fetch( { success: function( getObjects ) {
+					getObjects.fetch( {
+						success: function( getObjects ) {
 
-						// Add a helper 'parent_post' attribute onto the model.
-						setHelperParentPost( getObjects, postId );
-						deferred.resolve( getObjects );
-					} } );
+							// Add a helper 'parent_post' attribute onto the model.
+							setHelperParentPost( getObjects, postId );
+							deferred.resolve( getObjects );
+						},
+						error: function( getModel, response ) {
+							deferred.reject( response );
+						}
+					} );
 				} else {
 
 					// Add a helper 'parent_post' attribute onto the model.
@@ -1017,7 +1027,7 @@
 					success: function( newSchemaModel ) {
 
 						// Store a copy of the schema model in the session cache if available.
-						if ( ! _.isUndefined( sessionStorage ) && wpApiSettings.cacheSchema ) {
+						if ( ! _.isUndefined( sessionStorage ) && ( _.isUndefined( wpApiSettings.cacheSchema ) || wpApiSettings.cacheSchema ) ) {
 							try {
 								sessionStorage.setItem( 'wp-api-schema-model' + model.get( 'apiRoot' ) + model.get( 'versionString' ), JSON.stringify( newSchemaModel ) );
 							} catch ( error ) {
@@ -1234,7 +1244,9 @@
 						},
 
 						// Specify the model that this collection contains.
-						model: loadingObjects.models[ modelClassName ],
+						model: function( attrs, options ) {
+							return new loadingObjects.models[ modelClassName ]( attrs, options );
+						},
 
 						// Include a reference to the original class name.
 						name: collectionClassName,
@@ -1257,7 +1269,9 @@
 						url: routeModel.get( 'apiRoot' ) + routeModel.get( 'versionString' ) + routeName,
 
 						// Specify the model that this collection contains.
-						model: loadingObjects.models[ modelClassName ],
+						model: function( attrs, options ) {
+							return new loadingObjects.models[ modelClassName ]( attrs, options );
+						},
 
 						// Include a reference to the original class name.
 						name: collectionClassName,

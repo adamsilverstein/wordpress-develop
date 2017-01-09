@@ -21,10 +21,9 @@ final class WP_Customize_Custom_CSS_Setting extends WP_Customize_Setting {
 	/**
 	 * The setting type.
 	 *
-	 * @var string
-	 *
 	 * @since 4.7.0
 	 * @access public
+	 * @var string
 	 */
 	public $type = 'custom_css';
 
@@ -33,7 +32,6 @@ final class WP_Customize_Custom_CSS_Setting extends WP_Customize_Setting {
 	 *
 	 * @since 4.7.0
 	 * @access public
-	 *
 	 * @var string
 	 */
 	public $transport = 'postMessage';
@@ -43,17 +41,15 @@ final class WP_Customize_Custom_CSS_Setting extends WP_Customize_Setting {
 	 *
 	 * @since 4.7.0
 	 * @access public
-	 *
 	 * @var string
 	 */
-	public $capability = 'unfiltered_css';
+	public $capability = 'edit_css';
 
 	/**
 	 * Stylesheet
 	 *
 	 * @since 4.7.0
 	 * @access public
-	 *
 	 * @var string
 	 */
 	public $stylesheet = '';
@@ -100,10 +96,13 @@ final class WP_Customize_Custom_CSS_Setting extends WP_Customize_Setting {
 	}
 
 	/**
-	 * Filter wp_get_custom_css for applying customized value to return value.
+	 * Filter `wp_get_custom_css` for applying the customized value.
+	 *
+	 * This is used in the preview when `wp_get_custom_css()` is called for rendering the styles.
 	 *
 	 * @since 4.7.0
 	 * @access private
+	 * @see wp_get_custom_css()
 	 *
 	 * @param string $css        Original CSS.
 	 * @param string $stylesheet Current stylesheet.
@@ -120,15 +119,35 @@ final class WP_Customize_Custom_CSS_Setting extends WP_Customize_Setting {
 	}
 
 	/**
-	 * Fetch the value of the setting.
+	 * Fetch the value of the setting. Will return the previewed value when `preview()` is called.
 	 *
 	 * @since 4.7.0
 	 * @access public
+	 * @see WP_Customize_Setting::value()
 	 *
 	 * @return string
 	 */
 	public function value() {
-		return wp_get_custom_css( $this->stylesheet );
+		if ( $this->is_previewed ) {
+			$post_value = $this->post_value( null );
+			if ( null !== $post_value ) {
+				return $post_value;
+			}
+		}
+		$id_base = $this->id_data['base'];
+		$value = '';
+		$post = wp_get_custom_css_post( $this->stylesheet );
+		if ( $post ) {
+			$value = $post->post_content;
+		}
+		if ( empty( $value ) ) {
+			$value = $this->default;
+		}
+
+		/** This filter is documented in wp-includes/class-wp-customize-setting.php */
+		$value = apply_filters( "customize_value_{$id_base}", $value, $this );
+
+		return $value;
 	}
 
 	/**
@@ -172,13 +191,7 @@ final class WP_Customize_Custom_CSS_Setting extends WP_Customize_Setting {
 			$imbalanced = true;
 		}
 
-		// Ensure single quotes are equal.
-		if ( ! $this->validate_equal_characters( '\'', $css ) ) {
-			$validity->add( 'unequal_single_quotes', __( 'Your single quotes <code>\'</code> are uneven. Make sure there is a closing <code>\'</code> for every opening <code>\'</code>.' ) );
-			$imbalanced = true;
-		}
-
-		// Ensure single quotes are equal.
+		// Ensure double quotes are equal.
 		if ( ! $this->validate_equal_characters( '"', $css ) ) {
 			$validity->add( 'unequal_double_quotes', __( 'Your double quotes <code>"</code> are uneven. Make sure there is a closing <code>"</code> for every opening <code>"</code>.' ) );
 			$imbalanced = true;
@@ -222,37 +235,18 @@ final class WP_Customize_Custom_CSS_Setting extends WP_Customize_Setting {
 	 * @return int|false The post ID or false if the value could not be saved.
 	 */
 	public function update( $css ) {
-
-		$args = array(
-			'post_content' => $css ? $css : '',
-			'post_title' => $this->stylesheet,
-			'post_name' => sanitize_title( $this->stylesheet ),
-			'post_type' => 'custom_css',
-			'post_status' => 'publish',
-		);
-
-		// Update post if it already exists, otherwise create a new one.
-		$post_id = null;
-		$query = new WP_Query( array(
-			'post_type' => 'custom_css',
-			'post_status' => get_post_stati(),
-			'name' => sanitize_title( $this->stylesheet ),
-			'number' => 1,
-			'no_found_rows' => true,
-			'cache_results' => true,
-			'update_post_meta_cache' => false,
-			'update_term_meta_cache' => false,
-			'suppress_filters' => true,
-		) );
-		if ( ! empty( $query->post ) ) {
-			$args['ID'] = $query->post->ID;
-			$post_id = wp_update_post( wp_slash( $args ) );
-		} else {
-			$post_id = wp_insert_post( wp_slash( $args ) );
+		if ( empty( $css ) ) {
+			$css = '';
 		}
-		if ( ! $post_id ) {
+
+		$r = wp_update_custom_css_post( $css, array(
+			'stylesheet' => $this->stylesheet,
+		) );
+
+		if ( $r instanceof WP_Error ) {
 			return false;
 		}
+		$post_id = $r->ID;
 
 		// Cache post ID in theme mod for performance to avoid additional DB query.
 		if ( $this->manager->get_stylesheet() === $this->stylesheet ) {
