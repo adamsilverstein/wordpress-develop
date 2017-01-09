@@ -262,7 +262,7 @@
 		 * @param action string publish|draft
 		 */
 		function submitPost( action ) {
-			var data, toSend, headerParams;
+			var data, toSend;
 
 			saveAlert = false;
 			showSpinner();
@@ -273,7 +273,6 @@
 
 			prepareFormData();
 
-			$( '#_wpnonce' ).val( wpApi.nonce );
 			data = $( '#pressthis-form' ).serializeArray();
 
 			toSend = {
@@ -281,16 +280,15 @@
 				'content':   $( '#post_content' ).val(),
 				'excerpt':   $( '#post_excerpt' ).val(),
 				'post_status': action,
-				'_wpnonce':  $( '#_wpnonce' ).val()
+				'_wpnonce':  wpApi.nonce
 			}
 
 
 			$.ajax( {
-				type: 'POST',
-				url: wpApi.url + 'posts?press-this-post-save=true&pt-force-redirect=' + $( '#pt-force-redirect' ).val(),
-				data: toSend,
-				dataType: 'json',
-				headers: headerParams
+				'type':     'POST',
+				'url':      wpApi.url + 'posts?press-this-post-save=true&pt-force-redirect=' + $( '#pt-force-redirect' ).val(),
+				'data':     toSend,
+				'dataType': 'json'
 			}).always( function() {
 				hideSpinner();
 				clearNotices();
@@ -358,53 +356,66 @@
 		 */
 		function saveNewCategory() {
 			var data,
-				name = $( '#new-category' ).val();
+				name     = $( '#new-category' ).val(),
+				catNonce = $( '#_ajax_nonce-add-category' ).val() || '',
+				parent   = $( '#new-category-parent' ).val() || 0;
 
+			// Don't save if we don't have a category name.
 			if ( ! name ) {
 				return;
 			}
 
+			// Set up the save data.
 			data = {
-				action: 'press-this-add-category',
-				post_id: $( '#post_ID' ).val() || 0,
-				name: name,
-				new_cat_nonce: $( '#_ajax_nonce-add-category' ).val() || '',
-				parent: $( '#new-category-parent' ).val() || 0
+				'name':     name,
+				'catNonce': catNonce,
+				'_wpnonce': wpApi.nonce
 			};
 
-			$.post( window.ajaxurl, data, function( response ) {
-				if ( ! response.success ) {
-					renderError( response.data.errorMessage );
-				} else {
-					var $parent, $ul,
-						$wrap = $( 'ul.categories-select' );
+			// Set a parent if selected.
+			if ( parent > 0 ) {
+				data['parent'] = parent;
+			}
 
-					$.each( response.data, function( i, newCat ) {
-						var $node = $( '<li>' ).append( $( '<div class="category selected" tabindex="0" role="checkbox" aria-checked="true">' )
-							.attr( 'data-term-id', newCat.term_id )
-							.text( newCat.name ) );
+			//  Send the data to the REST API.
+			$.ajax( {
+				'type':      'POST',
+				'url':       wpApi.url + 'categories?press-this-add-category=true',
+				'data':      data,
+				'dataType': 'json'
+			}).always( function() {
+			}).done( function( newCat ) {
+				var $parent, $ul,
+					$wrap = $( 'ul.categories-select' );
 
-						if ( newCat.parent ) {
-							if ( ! $ul || ! $ul.length ) {
-								$parent = $wrap.find( 'div[data-term-id="' + newCat.parent + '"]' ).parent();
-								$ul = $parent.find( 'ul.children:first' );
+				console.log (newCat);
 
-								if ( ! $ul.length ) {
-									$ul = $( '<ul class="children">' ).appendTo( $parent );
-								}
-							}
+				var $node = $( '<li>' ).append( $( '<div class="category selected" tabindex="0" role="checkbox" aria-checked="true">' )
+					.attr( 'data-term-id', newCat.term_id )
+					.text( newCat.name ) );
 
-							$ul.prepend( $node );
-						} else {
-							$wrap.prepend( $node );
+				if ( newCat.parent ) {
+					if ( ! $ul || ! $ul.length ) {
+						$parent = $wrap.find( 'div[data-term-id="' + newCat.parent + '"]' ).parent();
+						$ul = $parent.find( 'ul.children:first' );
+
+						if ( ! $ul.length ) {
+							$ul = $( '<ul class="children">' ).appendTo( $parent );
 						}
+					}
 
-						$node.focus();
-					} );
-
-					refreshCatsCache();
+					$ul.prepend( $node );
+				} else {
+					$wrap.prepend( $node );
 				}
-			} );
+
+				$node.focus();
+
+				refreshCatsCache();
+			}).fail( function( response ) {
+				renderError( response.data.errorMessage );
+			});
+
 		}
 
 		/* ***************************************************************
