@@ -1815,7 +1815,7 @@ function wp_autosave( $post_data ) {
 function redirect_post($post_id = '') {
 	if ( isset($_POST['save']) || isset($_POST['publish']) ) {
 		$status = get_post_status( $post_id );
-
+		$error = false;
 		if ( isset( $_POST['publish'] ) ) {
 			switch ( $status ) {
 				case 'pending':
@@ -1824,6 +1824,11 @@ function redirect_post($post_id = '') {
 				case 'future':
 					$message = 9;
 					break;
+				case 'auto-draft':
+				case 'draft':
+					$message = 11;
+					$error   = true;
+					break;
 				default:
 					$message = 6;
 			}
@@ -1831,7 +1836,7 @@ function redirect_post($post_id = '') {
 			$message = 'draft' == $status ? 10 : 1;
 		}
 
-		$location = add_query_arg( 'message', $message, get_edit_post_link( $post_id, 'url' ) );
+		$location = add_query_arg( array( 'error' => $error, 'message' => $message ), get_edit_post_link( $post_id, 'url' ) );
 	} elseif ( isset($_POST['addmeta']) && $_POST['addmeta'] ) {
 		$location = add_query_arg( 'message', 2, wp_get_referer() );
 		$location = explode('#', $location);

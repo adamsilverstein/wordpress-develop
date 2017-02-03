@@ -145,6 +145,7 @@ $messages['post'] = array(
 	 8 => __( 'Post submitted.' ) . $preview_post_link_html,
 	 9 => sprintf( __( 'Post scheduled for: %s.' ), '<strong>' . $scheduled_date . '</strong>' ) . $scheduled_post_link_html,
 	10 => __( 'Post draft updated.' ) . $preview_post_link_html,
+	11 => __( 'You attempted to publish an empty post. Provide some content before saving.' ),
 );
 $messages['page'] = array(
 	 0 => '', // Unused. Messages start at index 1.
@@ -159,6 +160,7 @@ $messages['page'] = array(
 	 8 => __( 'Page submitted.' ) . $preview_page_link_html,
 	 9 => sprintf( __( 'Page scheduled for: %s.' ), '<strong>' . $scheduled_date . '</strong>' ) . $scheduled_page_link_html,
 	10 => __( 'Page draft updated.' ) . $preview_page_link_html,
+	11 => __( 'You attempted to publish an empty page. Provide some content before saving.' ),
 );
 $messages['attachment'] = array_fill( 1, 10, __( 'Media file updated.' ) ); // Hack, for now.
 
@@ -489,7 +491,7 @@ if ( isset( $post_new_file ) && current_user_can( $post_type_object->cap->create
 <div id="notice" class="notice notice-warning"><p id="has-newer-autosave"><?php echo $notice ?></p></div>
 <?php endif; ?>
 <?php if ( $message ) : ?>
-<div id="message" class="updated notice notice-success is-dismissible"><p><?php echo $message; ?></p></div>
+<div id="message" class="notice <?php echo ( isset( $_GET['error'] ) && '1' === $_GET['error'] ) ? 'notice-error' : 'updated notice-success'; ?> is-dismissible"><p><?php echo $message; ?></p></div>
 <?php endif; ?>
 <div id="lost-connection-notice" class="error hidden">
 	<p><span class="spinner"></span> <?php _e( '<strong>Connection lost.</strong> Saving has been disabled until you&#8217;re reconnected.' ); ?>

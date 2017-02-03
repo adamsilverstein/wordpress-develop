@@ -3032,11 +3032,17 @@ function wp_insert_post( $postarr, $wp_error = false ) {
 		$post_name = $post_before->post_name;
 	}
 
+	$post_status = empty( $postarr['post_status'] ) ? 'draft' : $postarr['post_status'];
+	if ( 'attachment' === $post_type && ! in_array( $post_status, array( 'inherit', 'private', 'trash', 'auto-draft' ), true ) ) {
+		$post_status = 'inherit';
+	}
+
 	$maybe_empty = 'attachment' !== $post_type
 		&& ! $post_content && ! $post_title && ! $post_excerpt
 		&& post_type_supports( $post_type, 'editor' )
 		&& post_type_supports( $post_type, 'title' )
-		&& post_type_supports( $post_type, 'excerpt' );
+		&& post_type_supports( $post_type, 'excerpt' )
+		&& ( 'draft' !== $post_status && isset( $_POST['publish'] ) );
 
 	/**
 	 * Filters whether the post should be considered "empty".
@@ -3060,11 +3066,6 @@ function wp_insert_post( $postarr, $wp_error = false ) {
 		} else {
 			return 0;
 		}
-	}
-
-	$post_status = empty( $postarr['post_status'] ) ? 'draft' : $postarr['post_status'];
-	if ( 'attachment' === $post_type && ! in_array( $post_status, array( 'inherit', 'private', 'trash', 'auto-draft' ), true ) ) {
-		$post_status = 'inherit';
 	}
 
 	if ( ! empty( $postarr['post_category'] ) ) {
