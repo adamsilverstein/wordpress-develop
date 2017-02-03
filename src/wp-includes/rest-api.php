@@ -46,6 +46,13 @@ function register_rest_route( $namespace, $route, $args = array(), $override = f
 		return false;
 	}
 
+	if ( isset( $args['args'] ) ) {
+		$common_args = $args['args'];
+		unset( $args['args'] );
+	} else {
+		$common_args = array();
+	}
+
 	if ( isset( $args['callback'] ) ) {
 		// Upgrade a single set to multiple.
 		$args = array( $args );
@@ -57,12 +64,13 @@ function register_rest_route( $namespace, $route, $args = array(), $override = f
 		'args'            => array(),
 	);
 	foreach ( $args as $key => &$arg_group ) {
-		if ( ! is_numeric( $arg_group ) ) {
+		if ( ! is_numeric( $key ) ) {
 			// Route option, skip here.
 			continue;
 		}
 
 		$arg_group = array_merge( $defaults, $arg_group );
+		$arg_group['args'] = array_merge( $common_args, $arg_group['args'] );
 	}
 
 	$full_route = '/' . trim( $namespace, '/' ) . '/' . trim( $route, '/' );
@@ -256,7 +264,11 @@ function rest_api_loaded() {
 	$server = rest_get_server();
 
 	// Fire off the request.
-	$server->serve_request( untrailingslashit( $GLOBALS['wp']->query_vars['rest_route'] ) );
+	$route = untrailingslashit( $GLOBALS['wp']->query_vars['rest_route'] );
+	if ( empty( $route ) ) {
+		$route = '/';
+	}
+	$server->serve_request( $route );
 
 	// We're done.
 	die();
@@ -1068,18 +1080,18 @@ function rest_validate_value_from_schema( $value, $args, $param = '' ) {
 		if ( isset( $args['minimum'] ) && ! isset( $args['maximum'] ) ) {
 			if ( ! empty( $args['exclusiveMinimum'] ) && $value <= $args['minimum'] ) {
 				/* translators: 1: parameter, 2: minimum number */
-				return new WP_Error( 'rest_invalid_param', sprintf( __( '%1$s must be greater than %2$d (exclusive)' ), $param, $args['minimum'] ) );
+				return new WP_Error( 'rest_invalid_param', sprintf( __( '%1$s must be greater than %2$d' ), $param, $args['minimum'] ) );
 			} elseif ( empty( $args['exclusiveMinimum'] ) && $value < $args['minimum'] ) {
 				/* translators: 1: parameter, 2: minimum number */
-				return new WP_Error( 'rest_invalid_param', sprintf( __( '%1$s must be greater than %2$d (inclusive)' ), $param, $args['minimum'] ) );
+				return new WP_Error( 'rest_invalid_param', sprintf( __( '%1$s must be greater than or equal to %2$d' ), $param, $args['minimum'] ) );
 			}
 		} elseif ( isset( $args['maximum'] ) && ! isset( $args['minimum'] ) ) {
 			if ( ! empty( $args['exclusiveMaximum'] ) && $value >= $args['maximum'] ) {
 				/* translators: 1: parameter, 2: maximum number */
-				return new WP_Error( 'rest_invalid_param', sprintf( __( '%1$s must be less than %2$d (exclusive)' ), $param, $args['maximum'] ) );
+				return new WP_Error( 'rest_invalid_param', sprintf( __( '%1$s must be less than %2$d' ), $param, $args['maximum'] ) );
 			} elseif ( empty( $args['exclusiveMaximum'] ) && $value > $args['maximum'] ) {
 				/* translators: 1: parameter, 2: maximum number */
-				return new WP_Error( 'rest_invalid_param', sprintf( __( '%1$s must be less than %2$d (inclusive)' ), $param, $args['maximum'] ) );
+				return new WP_Error( 'rest_invalid_param', sprintf( __( '%1$s must be less than or equal to %2$d' ), $param, $args['maximum'] ) );
 			}
 		} elseif ( isset( $args['maximum'] ) && isset( $args['minimum'] ) ) {
 			if ( ! empty( $args['exclusiveMinimum'] ) && ! empty( $args['exclusiveMaximum'] ) ) {

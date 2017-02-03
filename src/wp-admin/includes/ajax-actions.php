@@ -246,7 +246,7 @@ function wp_ajax_autocomplete_user() {
 		wp_die( -1 );
 
 	/** This filter is documented in wp-admin/user-new.php */
-	if ( ! is_super_admin() && ! apply_filters( 'autocomplete_users_for_site_admins', false ) )
+	if ( ! current_user_can( 'manage_network_users' ) && ! apply_filters( 'autocomplete_users_for_site_admins', false ) )
 		wp_die( -1 );
 
 	$return = array();
@@ -3004,7 +3004,6 @@ function wp_ajax_parse_embed() {
 		$parsed = $styles . $html . $scripts;
 	}
 
-
 	if ( ! empty( $no_ssl_support ) || ( is_ssl() && ( preg_match( '%<(iframe|script|embed) [^>]*src="http://%', $parsed ) ||
 		preg_match( '%<link [^>]*href="http://%', $parsed ) ) ) ) {
 		// Admin is ssl and the embed is not. Iframes, scripts, and other "active content" will be blocked.
@@ -3014,10 +3013,23 @@ function wp_ajax_parse_embed() {
 		) );
 	}
 
-	wp_send_json_success( array(
+	$return = array(
 		'body' => $parsed,
 		'attr' => $wp_embed->last_attr
-	) );
+	);
+
+	if ( strpos( $parsed, 'class="wp-embedded-content' ) ) {
+		if ( defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ) {
+			$script_src = includes_url( 'js/wp-embed.js' );
+		} else {
+			$script_src = includes_url( 'js/wp-embed.min.js' );
+		}
+
+		$return['head'] = '<script src="' . $script_src . '"></script>';
+		$return['sandbox'] = true;
+	}
+
+	wp_send_json_success( $return );
 }
 
 /**
@@ -3114,7 +3126,7 @@ function wp_ajax_destroy_sessions() {
 		$message = __( 'You are now logged out everywhere else.' );
 	} else {
 		$sessions->destroy_all();
-		/* translators: 1: User's display name. */
+		/* translators: %s: User's display name. */
 		$message = sprintf( __( '%s has been logged out.' ), $user->display_name );
 	}
 

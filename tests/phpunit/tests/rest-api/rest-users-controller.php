@@ -13,6 +13,9 @@ class WP_Test_REST_Users_Controller extends WP_Test_REST_Controller_Testcase {
 	protected static $superadmin;
 	protected static $user;
 	protected static $editor;
+	protected static $draft_editor;
+	protected static $authors = array();
+	protected static $posts = array();
 	protected static $site;
 
 	public static function wpSetUpBeforeClass( $factory ) {
@@ -27,6 +30,39 @@ class WP_Test_REST_Users_Controller extends WP_Test_REST_Controller_Testcase {
 			'role'       => 'editor',
 			'user_email' => 'editor@example.com',
 		) );
+		self::$draft_editor = $factory->user->create( array(
+			'role'       => 'editor',
+			'user_email' => 'draft-editor@example.com',
+		) );
+
+		foreach ( array( true, false ) as $show_in_rest ) {
+			foreach ( array( true, false ) as $public ) {
+				$post_type_name = 'r_' . json_encode( $show_in_rest ) . '_p_' . json_encode( $public );
+				register_post_type( $post_type_name, array(
+					'public'                   => $public,
+					'show_in_rest'             => $show_in_rest,
+					'tests_no_auto_unregister' => true,
+				) );
+				self::$authors[ $post_type_name ] = $factory->user->create( array(
+					'role'       => 'editor',
+					'user_email' => 'author_' . $post_type_name . '@example.com',
+				) );
+				self::$posts[ $post_type_name ] = $factory->post->create( array(
+					'post_type'   => $post_type_name,
+					'post_author' => self::$authors[ $post_type_name ],
+				) );
+			}
+		}
+
+		self::$posts['post'] = $factory->post->create( array(
+			'post_type'   => 'post',
+			'post_author' => self::$editor,
+		) );
+		self::$posts['r_true_p_true_DRAFT'] = $factory->post->create( array(
+			'post_type'   => 'r_true_p_true',
+			'post_author' => self::$draft_editor,
+			'post_status' => 'draft',
+		) );
 
 		if ( is_multisite() ) {
 			self::$site = $factory->blog->create( array( 'domain' => 'rest.wordpress.org', 'path' => '/' ) );
@@ -37,6 +73,18 @@ class WP_Test_REST_Users_Controller extends WP_Test_REST_Controller_Testcase {
 	public static function wpTearDownAfterClass() {
 		self::delete_user( self::$user );
 		self::delete_user( self::$editor );
+		self::delete_user( self::$draft_editor );
+
+		foreach ( self::$posts as $post ) {
+			wp_delete_post( $post, true );
+		}
+		foreach ( self::$authors as $author ) {
+			self::delete_user( $author );
+		}
+		_unregister_post_type( 'r_true_p_true' );
+		_unregister_post_type( 'r_true_p_false' );
+		_unregister_post_type( 'r_false_p_true' );
+		_unregister_post_type( 'r_false_p_false' );
 
 		if ( is_multisite() ) {
 			wpmu_delete_blog( self::$site, true );
@@ -144,41 +192,68 @@ class WP_Test_REST_Users_Controller extends WP_Test_REST_Controller_Testcase {
 		$this->assertEquals( 403, $response->get_status() );
 	}
 
-	public function test_get_items_unauthenticated_only_shows_public_users() {
-		$request = new WP_REST_Request( 'GET', '/wp/v2/users' );
-		$response = $this->server->dispatch( $request );
-
-		$this->assertEquals( array(), $response->get_data() );
-
-		$this->factory->post->create( array( 'post_author' => self::$editor ) );
-		$this->factory->post->create( array( 'post_author' => self::$user, 'post_status' => 'draft' ) );
-
+	public function test_get_items_unauthenticated_includes_authors_of_post_types_shown_in_rest() {
 		$request = new WP_REST_Request( 'GET', '/wp/v2/users' );
 		$response = $this->server->dispatch( $request );
 		$users = $response->get_data();
 
-		foreach ( $users as $user ) {
-			$this->assertTrue( count_user_posts( $user['id'] ) > 0 );
+		$rest_post_types = array_values( get_post_types( array( 'show_in_rest' => true ), 'names' ) );
 
-			// Ensure we don't expose non-public data
+		foreach ( $users as $user ) {
+			$this->assertTrue( count_user_posts( $user['id'], $rest_post_types ) > 0 );
+
+			// Ensure we don't expose non-public data.
 			$this->assertArrayNotHasKey( 'capabilities', $user );
+			$this->assertArrayNotHasKey( 'registered_date', $user );
+			$this->assertArrayNotHasKey( 'first_name', $user );
+			$this->assertArrayNotHasKey( 'last_name', $user );
+			$this->assertArrayNotHasKey( 'nickname', $user );
+			$this->assertArrayNotHasKey( 'extra_capabilities', $user );
+			$this->assertArrayNotHasKey( 'username', $user );
 			$this->assertArrayNotHasKey( 'email', $user );
 			$this->assertArrayNotHasKey( 'roles', $user );
+			$this->assertArrayNotHasKey( 'locale', $user );
 		}
+
+		$user_ids = wp_list_pluck( $users, 'id' );
+
+		$this->assertTrue( in_array( self::$editor                   , $user_ids, true ) );
+		$this->assertTrue( in_array( self::$authors['r_true_p_true'] , $user_ids, true ) );
+		$this->assertTrue( in_array( self::$authors['r_true_p_false'], $user_ids, true ) );
+		$this->assertCount( 3, $user_ids );
+	}
+
+	public function test_get_items_unauthenticated_does_not_include_authors_of_post_types_not_shown_in_rest() {
+		$request = new WP_REST_Request( 'GET', '/wp/v2/users' );
+		$response = $this->server->dispatch( $request );
+		$users = $response->get_data();
+		$user_ids = wp_list_pluck( $users, 'id' );
+
+		$this->assertFalse( in_array( self::$authors['r_false_p_true'] , $user_ids, true ) );
+		$this->assertFalse( in_array( self::$authors['r_false_p_false'], $user_ids, true ) );
+	}
+
+	public function test_get_items_unauthenticated_does_not_include_users_without_published_posts() {
+		$request = new WP_REST_Request( 'GET', '/wp/v2/users' );
+		$response = $this->server->dispatch( $request );
+		$users = $response->get_data();
+		$user_ids = wp_list_pluck( $users, 'id' );
+
+		$this->assertFalse( in_array( self::$draft_editor, $user_ids, true ) );
+		$this->assertFalse( in_array( self::$user        , $user_ids, true ) );
 	}
 
 	public function test_get_items_pagination_headers() {
 		wp_set_current_user( self::$user );
-		// Start of the index, including the three existing users
-		for ( $i = 0; $i < 47; $i++ ) {
+		for ( $i = 0; $i < 44; $i++ ) {
 			$this->factory->user->create( array(
-				'name'   => "User {$i}",
-				) );
+				'name' => "User {$i}",
+			) );
 		}
 		$request = new WP_REST_Request( 'GET', '/wp/v2/users' );
 		$response = $this->server->dispatch( $request );
 		$headers = $response->get_headers();
-		$this->assertEquals( 51, $headers['X-WP-Total'] );
+		$this->assertEquals( 53, $headers['X-WP-Total'] );
 		$this->assertEquals( 6, $headers['X-WP-TotalPages'] );
 		$next_link = add_query_arg( array(
 			'page'    => 2,
@@ -193,7 +268,7 @@ class WP_Test_REST_Users_Controller extends WP_Test_REST_Controller_Testcase {
 		$request->set_param( 'page', 3 );
 		$response = $this->server->dispatch( $request );
 		$headers = $response->get_headers();
-		$this->assertEquals( 52, $headers['X-WP-Total'] );
+		$this->assertEquals( 54, $headers['X-WP-Total'] );
 		$this->assertEquals( 6, $headers['X-WP-TotalPages'] );
 		$prev_link = add_query_arg( array(
 			'page'    => 2,
@@ -208,7 +283,7 @@ class WP_Test_REST_Users_Controller extends WP_Test_REST_Controller_Testcase {
 		$request->set_param( 'page', 6 );
 		$response = $this->server->dispatch( $request );
 		$headers = $response->get_headers();
-		$this->assertEquals( 52, $headers['X-WP-Total'] );
+		$this->assertEquals( 54, $headers['X-WP-Total'] );
 		$this->assertEquals( 6, $headers['X-WP-TotalPages'] );
 		$prev_link = add_query_arg( array(
 			'page'    => 5,
@@ -220,7 +295,7 @@ class WP_Test_REST_Users_Controller extends WP_Test_REST_Controller_Testcase {
 		$request->set_param( 'page', 8 );
 		$response = $this->server->dispatch( $request );
 		$headers = $response->get_headers();
-		$this->assertEquals( 52, $headers['X-WP-Total'] );
+		$this->assertEquals( 54, $headers['X-WP-Total'] );
 		$this->assertEquals( 6, $headers['X-WP-TotalPages'] );
 		$prev_link = add_query_arg( array(
 			'page'    => 6,
@@ -391,12 +466,12 @@ class WP_Test_REST_Users_Controller extends WP_Test_REST_Controller_Testcase {
 
 	public function test_get_items_offset() {
 		wp_set_current_user( self::$user );
-		// 2 users created in __construct(), plus default user
+		// 7 users created in wpSetUpBeforeClass(), plus default user.
 		$this->factory->user->create();
 		$request = new WP_REST_Request( 'GET', '/wp/v2/users' );
 		$request->set_param( 'offset', 1 );
 		$response = $this->server->dispatch( $request );
-		$this->assertCount( 4, $response->get_data() );
+		$this->assertCount( 9, $response->get_data() );
 		// 'offset' works with 'per_page'
 		$request->set_param( 'per_page', 2 );
 		$response = $this->server->dispatch( $request );
@@ -447,6 +522,7 @@ class WP_Test_REST_Users_Controller extends WP_Test_REST_Controller_Testcase {
 		$id1 = $this->factory->user->create();
 		$id2 = $this->factory->user->create();
 		$request = new WP_REST_Request( 'GET', '/wp/v2/users' );
+		$request->set_param( 'per_page', 20 ); // there are >10 users at this point
 		$response = $this->server->dispatch( $request );
 		$data = $response->get_data();
 		$this->assertTrue( in_array( $id1, wp_list_pluck( $data, 'id' ), true ) );
@@ -605,13 +681,61 @@ class WP_Test_REST_Users_Controller extends WP_Test_REST_Controller_Testcase {
 		$this->assertEquals( $data['extra_capabilities'], new stdClass() );
 	}
 
-	public function test_get_item_without_permission() {
+	public function test_cannot_get_item_without_permission() {
 		wp_set_current_user( self::$editor );
-
 		$request = new WP_REST_Request( 'GET', sprintf( '/wp/v2/users/%d', self::$user ) );
 		$response = $this->server->dispatch( $request );
-
 		$this->assertErrorResponse( 'rest_user_cannot_view', $response, 403 );
+	}
+
+	public function test_can_get_item_author_of_rest_true_public_true_unauthenticated() {
+		$request = new WP_REST_Request( 'GET', sprintf( '/wp/v2/users/%d', self::$authors['r_true_p_true'] ) );
+		$response = $this->server->dispatch( $request );
+		$this->assertEquals( 200, $response->get_status() );
+	}
+
+	public function test_can_get_item_author_of_rest_true_public_true_authenticated() {
+		wp_set_current_user( self::$editor );
+		$request = new WP_REST_Request( 'GET', sprintf( '/wp/v2/users/%d', self::$authors['r_true_p_true'] ) );
+		$response = $this->server->dispatch( $request );
+		$this->assertEquals( 200, $response->get_status() );
+	}
+
+	public function test_can_get_item_author_of_rest_true_public_false() {
+		$request = new WP_REST_Request( 'GET', sprintf( '/wp/v2/users/%d', self::$authors['r_true_p_false'] ) );
+		$response = $this->server->dispatch( $request );
+		$this->assertEquals( 200, $response->get_status() );
+	}
+
+	public function test_cannot_get_item_author_of_rest_false_public_true_unauthenticated() {
+		$request = new WP_REST_Request( 'GET', sprintf( '/wp/v2/users/%d', self::$authors['r_false_p_true'] ) );
+		$response = $this->server->dispatch( $request );
+		$this->assertErrorResponse( 'rest_user_cannot_view', $response, 401 );
+	}
+
+	public function test_cannot_get_item_author_of_rest_false_public_true_without_permission() {
+		wp_set_current_user( self::$editor );
+		$request = new WP_REST_Request( 'GET', sprintf( '/wp/v2/users/%d', self::$authors['r_false_p_true'] ) );
+		$response = $this->server->dispatch( $request );
+		$this->assertErrorResponse( 'rest_user_cannot_view', $response, 403 );
+	}
+
+	public function test_cannot_get_item_author_of_rest_false_public_false() {
+		$request = new WP_REST_Request( 'GET', sprintf( '/wp/v2/users/%d', self::$authors['r_false_p_false'] ) );
+		$response = $this->server->dispatch( $request );
+		$this->assertErrorResponse( 'rest_user_cannot_view', $response, 401 );
+	}
+
+	public function test_can_get_item_author_of_post() {
+		$request = new WP_REST_Request( 'GET', sprintf( '/wp/v2/users/%d', self::$editor ) );
+		$response = $this->server->dispatch( $request );
+		$this->assertEquals( 200, $response->get_status() );
+	}
+
+	public function test_cannot_get_item_author_of_draft() {
+		$request = new WP_REST_Request( 'GET', sprintf( '/wp/v2/users/%d', self::$draft_editor ) );
+		$response = $this->server->dispatch( $request );
+		$this->assertErrorResponse( 'rest_user_cannot_view', $response, 401 );
 	}
 
 	public function test_get_item_published_author_post() {
@@ -1762,12 +1886,6 @@ class WP_Test_REST_Users_Controller extends WP_Test_REST_Controller_Testcase {
 		$request['force'] = true;
 		$request->set_param( 'reassign', false );
 		$response = $this->server->dispatch( $request );
-
-		// Not implemented in multisite.
-		if ( is_multisite() ) {
-			$this->assertErrorResponse( 'rest_cannot_delete', $response, 501 );
-			return;
-		}
 
 		$this->assertErrorResponse( 'rest_user_invalid_id', $response, 404 );
 	}

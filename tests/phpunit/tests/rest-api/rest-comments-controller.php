@@ -76,7 +76,9 @@ class WP_Test_REST_Comments_Controller extends WP_Test_REST_Controller_Testcase 
 	}
 
 	public static function wpTearDownAfterClass() {
+		self::delete_user( self::$superadmin_id );
 		self::delete_user( self::$admin_id );
+		self::delete_user( self::$editor_id );
 		self::delete_user( self::$subscriber_id );
 		self::delete_user( self::$author_id );
 
@@ -835,7 +837,7 @@ class WP_Test_REST_Comments_Controller extends WP_Test_REST_Controller_Testcase 
 		$request = new WP_REST_Request( 'GET', '/wp/v2/comments/' . $comment_id );
 
 		$response = $this->server->dispatch( $request );
-		$this->assertErrorResponse( 'rest_cannot_read', $response, 401 );
+		$this->assertErrorResponse( 'rest_post_invalid_id', $response, 404 );
 	}
 
 	public function test_get_comment_invalid_post_id_as_admin() {
@@ -981,6 +983,32 @@ class WP_Test_REST_Comments_Controller extends WP_Test_REST_Controller_Testcase 
 		$data = $response->get_data();
 		$new_comment = get_comment( $data['id'] );
 		$this->assertEquals( $params['content']['raw'], $new_comment->comment_content );
+	}
+
+	public function test_create_item_error_from_filter() {
+		add_filter( 'rest_pre_insert_comment', array( $this, 'return_premade_error' ) );
+		wp_set_current_user( self::$admin_id );
+
+		$params = array(
+			'post'         => self::$post_id,
+			'author_name'  => 'Homer Jay Simpson',
+			'author_email' => 'homer@example.org',
+			'content'      => array(
+				'raw' => 'Aw, he loves beer. Here, little fella.'
+			),
+		);
+
+		$request = new WP_REST_Request( 'POST', '/wp/v2/comments' );
+		$request->add_header( 'content-type', 'application/json' );
+		$request->set_body( wp_json_encode( $params ) );
+
+		$response = $this->server->dispatch( $request );
+
+		$this->assertErrorResponse( 'test_rest_premade_error', $response, 418 );
+	}
+
+	public function return_premade_error() {
+		return new WP_Error( 'test_rest_premade_error', "I'm sorry, I thought he was a party robot.", array( 'status' => 418 ) );
 	}
 
 	public function test_create_comment_missing_required_author_name() {

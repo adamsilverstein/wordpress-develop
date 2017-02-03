@@ -135,8 +135,9 @@ function get_post_type_archive_template() {
 		$post_type = reset( $post_type );
 
 	$obj = get_post_type_object( $post_type );
-	if ( ! $obj->has_archive )
+	if ( ! ( $obj instanceof WP_Post_Type ) || ! $obj->has_archive ) {
 		return '';
+	}
 
 	return get_archive_template();
 }
@@ -418,10 +419,10 @@ function get_page_template() {
 		if ( $pagename_decoded !== $pagename ) {
 			$templates[] = "page-{$pagename_decoded}.php";
 		}
-		$templates[] = "page-$pagename.php";
+		$templates[] = "page-{$pagename}.php";
 	}
 	if ( $id )
-		$templates[] = "page-$id.php";
+		$templates[] = "page-{$id}.php";
 	$templates[] = 'page.php';
 
 	return get_query_template( 'page', $templates );
