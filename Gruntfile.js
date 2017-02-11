@@ -439,7 +439,12 @@ module.exports = function(grunt) {
 			'external-http': {
 				cmd: 'phpunit',
 				args: ['-c', 'phpunit.xml.dist', '--group', 'external-http']
+			},
+			'wp-api-jsclient': {
+				cmd: 'phpunit',
+				args: ['-c', 'phpunit.xml.dist', '--group', 'restapi-jsclient']
 			}
+
 		},
 		uglify: {
 			options: {
@@ -671,6 +676,12 @@ module.exports = function(grunt) {
 		'jshint:core',
 		'jshint:media'
 	] );
+
+
+	grunt.registerTask( 'rest-api-jsclient',[
+		'phpunit:wp-api-jsclient',
+		'qunit'
+	]);
 
 	grunt.renameTask( 'watch', '_watch' );
 
