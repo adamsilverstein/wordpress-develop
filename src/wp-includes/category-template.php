@@ -32,35 +32,30 @@ function get_category_link( $category ) {
  * Retrieve category parents with separator.
  *
  * @since 1.2.0
+ * @since 4.8.0 The `$visited` parameter was deprecated and renamed to `$deprecated`.
  *
  * @param int $id Category ID.
  * @param bool $link Optional, default is false. Whether to format with link.
  * @param string $separator Optional, default is '/'. How to separate categories.
  * @param bool $nicename Optional, default is false. Whether to use nice name for display.
- * @param array $visited Optional. Already linked to categories to prevent duplicates.
+ * @param array $deprecated Not used.
  * @return string|WP_Error A list of category parents on success, WP_Error on failure.
  */
-function get_category_parents( $id, $link = false, $separator = '/', $nicename = false, $visited = array() ) {
-	$chain = '';
-	$parent = get_term( $id, 'category' );
-	if ( is_wp_error( $parent ) )
-		return $parent;
+function get_category_parents( $id, $link = false, $separator = '/', $nicename = false, $deprecated = array() ) {
 
-	if ( $nicename )
-		$name = $parent->slug;
-	else
-		$name = $parent->name;
-
-	if ( $parent->parent && ( $parent->parent != $parent->term_id ) && !in_array( $parent->parent, $visited ) ) {
-		$visited[] = $parent->parent;
-		$chain .= get_category_parents( $parent->parent, $link, $separator, $nicename, $visited );
+	if ( ! empty( $deprecated ) ) {
+		_deprecated_argument( __FUNCTION__, '4.8.0' );
 	}
 
-	if ( $link )
-		$chain .= '<a href="' . esc_url( get_category_link( $parent->term_id ) ) . '">'.$name.'</a>' . $separator;
-	else
-		$chain .= $name.$separator;
-	return $chain;
+	$format = $nicename ? 'slug' : 'name';
+
+	$args = array(
+		'separator' => $separator,
+		'link'      => $link,
+		'format'    => $format,
+	);
+
+	return get_term_parents_list( $id, 'category', $args );
 }
 
 /**
@@ -118,18 +113,19 @@ function get_the_category_by_ID( $cat_ID ) {
 }
 
 /**
- * Retrieve category list in either HTML list or custom format.
+ * Retrieve category list for a post in either HTML list or custom format.
  *
  * @since 1.5.1
  *
  * @global WP_Rewrite $wp_rewrite
  *
- * @param string $separator Optional, default is empty string. Separator for between the categories.
+ * @param string $separator Optional. Separator between the categories. By default, the links are placed
+ *                          in an unordered list. An empty string will result in the default behavior.
  * @param string $parents Optional. How to display the parents.
  * @param int $post_id Optional. Post ID to retrieve categories.
  * @return string
  */
-function get_the_category_list( $separator = '', $parents='', $post_id = false ) {
+function get_the_category_list( $separator = '', $parents = '', $post_id = false ) {
 	global $wp_rewrite;
 	if ( ! is_object_in_taxonomy( get_post_type( $post_id ), 'category' ) ) {
 		/** This filter is documented in wp-includes/category-template.php */
@@ -207,7 +203,7 @@ function get_the_category_list( $separator = '', $parents='', $post_id = false )
 	 *
 	 * @since 1.2.0
 	 *
-	 * @param array  $thelist   List of categories for the current post.
+	 * @param string $thelist   List of categories for the current post.
 	 * @param string $separator Separator used between the categories.
 	 * @param string $parents   How to display the category parents. Accepts 'multiple',
 	 *                          'single', or empty.
@@ -241,15 +237,16 @@ function in_category( $category, $post = null ) {
 }
 
 /**
- * Display the category list for the post.
+ * Display category list for a post in either HTML list or custom format.
  *
  * @since 0.71
  *
- * @param string $separator Optional, default is empty string. Separator for between the categories.
+ * @param string $separator Optional. Separator between the categories. By default, the links are placed
+ *                          in an unordered list. An empty string will result in the default behavior.
  * @param string $parents Optional. How to display the parents.
  * @param int $post_id Optional. Post ID to retrieve categories.
  */
-function the_category( $separator = '', $parents='', $post_id = false ) {
+function the_category( $separator = '', $parents = '', $post_id = false ) {
 	echo get_the_category_list( $separator, $parents, $post_id );
 }
 
@@ -347,8 +344,8 @@ function wp_dropdown_categories( $args = '' ) {
 
 	// Back compat.
 	if ( isset( $args['type'] ) && 'link' == $args['type'] ) {
-		/* translators: 1: "type => link", 2: "taxonomy => link_category" alternative */
 		_deprecated_argument( __FUNCTION__, '3.0.0',
+			/* translators: 1: "type => link", 2: "taxonomy => link_category" */
 			sprintf( __( '%1$s is deprecated. Use %2$s instead.' ),
 				'<code>type => link</code>',
 				'<code>taxonomy => link_category</code>'
@@ -723,10 +720,12 @@ function wp_tag_cloud( $args = '' ) {
 }
 
 /**
- * Default topic count scaling for tag links
+ * Default topic count scaling for tag links.
  *
- * @param int $count number of posts with that tag
- * @return int scaled count
+ * @since 2.9.0
+ *
+ * @param int $count Number of posts with that tag.
+ * @return int Scaled count.
  */
 function default_topic_count_scale( $count ) {
 	return round(log10($count + 1) * 100);
@@ -1230,6 +1229,71 @@ function get_the_term_list( $id, $taxonomy, $before = '', $sep = '', $after = ''
 	$term_links = apply_filters( "term_links-{$taxonomy}", $links );
 
 	return $before . join( $sep, $term_links ) . $after;
+}
+
+/**
+ * Retrieve term parents with separator.
+ *
+ * @since 4.8.0
+ *
+ * @param int     $term_id  Term ID.
+ * @param string  $taxonomy Taxonomy name.
+ * @param string|array $args {
+ *     Array of optional arguments.
+ *
+ *     @type string $format    Use term names or slugs for display. Accepts 'name' or 'slug'.
+ *                             Default 'name'.
+ *     @type string $separator Separator for between the terms. Default '/'.
+ *     @type bool   $link      Whether to format as a link. Default true.
+ *     @type bool   $inclusive Include the term to get the parents for. Default true.
+ * }
+ * @return string|WP_Error A list of term parents on success, WP_Error or empty string on failure.
+ */
+function get_term_parents_list( $term_id, $taxonomy, $args = array() ) {
+	$list = '';
+	$term = get_term( $term_id, $taxonomy );
+
+	if ( is_wp_error( $term ) ) {
+		return $term;
+	}
+
+	if ( ! $term ) {
+		return $list;
+	}
+
+	$term_id = $term->term_id;
+
+	$defaults = array(
+		'format'    => 'name',
+		'separator' => '/',
+		'link'      => true,
+		'inclusive' => true,
+	);
+
+	$args = wp_parse_args( $args, $defaults );
+
+	foreach ( array( 'link', 'inclusive' ) as $bool ) {
+		$args[ $bool ] = wp_validate_boolean( $args[ $bool ] );
+	}
+
+	$parents = get_ancestors( $term_id, $taxonomy, 'taxonomy' );
+
+	if ( $args['inclusive'] ) {
+		array_unshift( $parents, $term_id );
+	}
+
+	foreach ( array_reverse( $parents ) as $term_id ) {
+		$parent = get_term( $term_id, $taxonomy );
+		$name   = ( 'slug' === $args['format'] ) ? $parent->slug : $parent->name;
+
+		if ( $args['link'] ) {
+			$list .= '<a href="' . esc_url( get_term_link( $parent->term_id, $taxonomy ) ) . '">' . $name . '</a>' . $args['separator'];
+		} else {
+			$list .= $name . $args['separator'];
+		}
+	}
+
+	return $list;
 }
 
 /**

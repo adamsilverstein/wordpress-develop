@@ -294,6 +294,8 @@ function is_taxonomy_hierarchical($taxonomy) {
  * @since 4.4.0 The `show_ui` argument is now enforced on the term editing screen.
  * @since 4.4.0 The `public` argument now controls whether the taxonomy can be queried on the front end.
  * @since 4.5.0 Introduced `publicly_queryable` argument.
+ * @since 4.7.0 Introduced `show_in_rest`, 'rest_base' and 'rest_controller_class'
+ *              arguments to register the Taxonomy in REST API.
  *
  * @global array $wp_taxonomies Registered taxonomies.
  *
@@ -323,6 +325,9 @@ function is_taxonomy_hierarchical($taxonomy) {
  *                                                (default true).
  *     @type bool          $show_in_nav_menus     Makes this taxonomy available for selection in navigation menus. If not
  *                                                set, the default is inherited from `$public` (default true).
+ *     @type bool          $show_in_rest          Whether to include the taxonomy in the REST API.
+ *     @type string        $rest_base             To change the base url of REST API route. Default is $taxonomy.
+ *     @type string        $rest_controller_class REST API Controller class name. Default is 'WP_REST_Terms_Controller'.
  *     @type bool          $show_tagcloud         Whether to list the taxonomy in the Tag Cloud Widget controls. If not set,
  *                                                the default is inherited from `$show_ui` (default true).
  *     @type bool          $show_in_quick_edit    Whether to show the taxonomy in the quick/bulk edit panel. It not set,
@@ -1072,9 +1077,12 @@ function get_term_to_edit( $id, $taxonomy ) {
  *     @type array        $meta_query             Meta query clauses to limit retrieved terms by.
  *                                                See `WP_Meta_Query`. Default empty.
  *     @type string       $meta_key               Limit terms to those matching a specific metadata key. Can be used in
- *                                                conjunction with `$meta_value`.
+ *                                                conjunction with `$meta_value`. Default empty.
  *     @type string       $meta_value             Limit terms to those matching a specific metadata value. Usually used
- *                                                in conjunction with `$meta_key`.
+ *                                                in conjunction with `$meta_key`. Default empty.
+ *     @type string       $meta_type              Type of object metadata is for (e.g., comment, post, or user).
+ *                                                Default empty.
+ *     @type string       $meta_compare           Comparison operator to test the 'meta_value'. Default empty.
  * }
  * @param array $deprecated Argument array, when using the legacy function parameter format. If present, this
  *                          parameter will be interpreted as `$args`, and the first function parameter will
@@ -1872,6 +1880,8 @@ function wp_get_object_terms($object_ids, $taxonomies, $args = array()) {
 		$object_ids = array($object_ids);
 	$object_ids = array_map('intval', $object_ids);
 
+	$args = wp_parse_args( $args );
+
 	$args['taxonomy'] = $taxonomies;
 	$args['object_ids'] = $object_ids;
 
@@ -2206,8 +2216,9 @@ function wp_insert_term( $term, $taxonomy, $args = array() ) {
  * @global wpdb $wpdb The WordPress database abstraction object.
  *
  * @param int              $object_id The object to relate to.
- * @param array|int|string $terms     A single term slug, single term id, or array of either term slugs or ids.
- *                                    Will replace all existing related terms in this taxonomy.
+ * @param string|int|array $terms     A single term slug, single term id, or array of either term slugs or ids.
+ *                                    Will replace all existing related terms in this taxonomy. Passing an
+ *                                    empty value will remove all related terms.
  * @param string           $taxonomy  The context in which to relate the term to the object.
  * @param bool             $append    Optional. If false will delete difference of terms. Default false.
  * @return array|WP_Error Term taxonomy IDs of the affected terms.
@@ -2334,7 +2345,7 @@ function wp_set_object_terms( $object_id, $terms, $taxonomy, $append = false ) {
  * @since 3.6.0
  *
  * @param int              $object_id The ID of the object to which the terms will be added.
- * @param array|int|string $terms     The slug(s) or ID(s) of the term(s) to add.
+ * @param string|int|array $terms     The slug(s) or ID(s) of the term(s) to add.
  * @param array|string     $taxonomy  Taxonomy name.
  * @return array|WP_Error Term taxonomy IDs of the affected terms.
  */
@@ -2350,7 +2361,7 @@ function wp_add_object_terms( $object_id, $terms, $taxonomy ) {
  * @global wpdb $wpdb WordPress database abstraction object.
  *
  * @param int              $object_id The ID of the object from which the terms will be removed.
- * @param array|int|string $terms     The slug(s) or ID(s) of the term(s) to remove.
+ * @param string|int|array $terms     The slug(s) or ID(s) of the term(s) to remove.
  * @param array|string     $taxonomy  Taxonomy name.
  * @return bool|WP_Error True on success, false or WP_Error on failure.
  */
@@ -2936,7 +2947,7 @@ function clean_object_term_cache($object_ids, $object_type) {
 	 * @since 2.5.0
 	 *
 	 * @param array  $object_ids An array of object IDs.
-	 * @param string $objet_type Object type.
+	 * @param string $object_type Object type.
 	 */
 	do_action( 'clean_object_term_cache', $object_ids, $object_type );
 }
@@ -3020,7 +3031,7 @@ function clean_term_cache($ids, $taxonomy = '', $clean_taxonomy = true) {
  * function only fetches relationship data that is already in the cache.
  *
  * @since 2.3.0
- * @since 4.6.2 Returns a WP_Error object if get_term() returns an error for
+ * @since 4.7.0 Returns a WP_Error object if get_term() returns an error for
  *              any of the matched terms.
  *
  * @param int    $id       Term object ID.

@@ -420,7 +420,7 @@ function count_many_users_posts( $users, $post_type = 'post', $public_only = fal
  *
  * @since MU
  *
- * @return int The current user's ID
+ * @return int The current user's ID, or 0 if no user is logged in.
  */
 function get_current_user_id() {
 	if ( ! function_exists( 'wp_get_current_user' ) )
@@ -1208,7 +1208,7 @@ function sanitize_user_field($field, $value, $user_id, $context) {
 		if ( $prefixed ) {
 
 			/** This filter is documented in wp-includes/post.php */
-			$value = apply_filters( $field, $value, $user_id, $context );
+			$value = apply_filters( "{$field}", $value, $user_id, $context );
 		} else {
 
 			/**

@@ -480,17 +480,19 @@ class WP_Customize_Setting {
 			return false;
 		}
 
+		$id_base = $this->id_data['base'];
+
 		/**
 		 * Fires when the WP_Customize_Setting::save() method is called.
 		 *
-		 * The dynamic portion of the hook name, `$this->id_data['base']` refers to
+		 * The dynamic portion of the hook name, `$id_base` refers to
 		 * the base slug of the setting name.
 		 *
 		 * @since 3.4.0
 		 *
 		 * @param WP_Customize_Setting $this WP_Customize_Setting instance.
 		 */
-		do_action( 'customize_save_' . $this->id_data['base'], $this );
+		do_action( "customize_save_{$id_base}", $this );
 
 		$this->update( $value );
 	}
@@ -585,7 +587,7 @@ class WP_Customize_Setting {
 		$id_base = $this->id_data['base'];
 		if ( 'option' === $this->type ) {
 			return get_option( $id_base, $default );
-		} else if ( 'theme_mod' ) {
+		} elseif ( 'theme_mod' === $this->type ) {
 			return get_theme_mod( $id_base, $default );
 		} else {
 			/*
@@ -614,7 +616,7 @@ class WP_Customize_Setting {
 				$autoload = self::$aggregated_multidimensionals[ $this->type ][ $this->id_data['base'] ]['autoload'];
 			}
 			return update_option( $id_base, $value, $autoload );
-		} else if ( 'theme_mod' ) {
+		} elseif ( 'theme_mod' === $this->type ) {
 			set_theme_mod( $id_base, $value );
 			return true;
 		} else {
