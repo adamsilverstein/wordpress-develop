@@ -13,7 +13,6 @@
 	// Link settings
 	api.Widgets.data = _wpCustomizeWidgetsSettings || {};
 	l10n = api.Widgets.data.l10n;
-	delete api.Widgets.data.l10n;
 
 	/**
 	 * wp.customize.Widgets.WidgetModel
@@ -1577,36 +1576,86 @@
 			api.Panel.prototype.ready.call( panel );
 
 			panel.deferred.embedded.done(function() {
-				var panelMetaContainer, noRenderedAreasNotice, shouldShowNotice;
+				var panelMetaContainer, noticeContainer, updateNotice, getActiveSectionCount, shouldShowNotice;
 				panelMetaContainer = panel.container.find( '.panel-meta' );
-				noRenderedAreasNotice = $( '<div></div>', {
+
+				// @todo This should use the Notifications API introduced to panels. See <https://core.trac.wordpress.org/ticket/38794>.
+				noticeContainer = $( '<div></div>', {
 					'class': 'no-widget-areas-rendered-notice'
 				});
-				noRenderedAreasNotice.append( $( '<em></em>', {
-					text: l10n.noAreasRendered
-				} ) );
-				panelMetaContainer.append( noRenderedAreasNotice );
+				panelMetaContainer.append( noticeContainer );
 
-				shouldShowNotice = function() {
-					return ( 0 === _.filter( panel.sections(), function( section ) {
+				/**
+				 * Get the number of active sections in the panel.
+				 *
+				 * @return {number} Number of active sidebar sections.
+				 */
+				getActiveSectionCount = function() {
+					return _.filter( panel.sections(), function( section ) {
 						return section.active();
-					} ).length );
+					} ).length;
 				};
+
+				/**
+				 * Determine whether or not the notice should be displayed.
+				 *
+				 * @return {boolean}
+				 */
+				shouldShowNotice = function() {
+					var activeSectionCount = getActiveSectionCount();
+					if ( 0 === activeSectionCount ) {
+						return true;
+					} else {
+						return activeSectionCount !== api.Widgets.data.registeredSidebars.length;
+					}
+				};
+
+				/**
+				 * Update the notice.
+				 *
+				 * @returns {void}
+				 */
+				updateNotice = function() {
+					var activeSectionCount = getActiveSectionCount(), someRenderedMessage, nonRenderedAreaCount, registeredAreaCount;
+					noticeContainer.empty();
+
+					registeredAreaCount = api.Widgets.data.registeredSidebars.length;
+					if ( activeSectionCount !== registeredAreaCount ) {
+
+						if ( 0 !== activeSectionCount ) {
+							nonRenderedAreaCount = registeredAreaCount - activeSectionCount;
+							someRenderedMessage = l10n.someAreasShown[ nonRenderedAreaCount ];
+						} else {
+							someRenderedMessage = l10n.noAreasShown;
+						}
+						if ( someRenderedMessage ) {
+							noticeContainer.append( $( '<p></p>', {
+								text: someRenderedMessage
+							} ) );
+						}
+
+						noticeContainer.append( $( '<p></p>', {
+							text: l10n.navigatePreview
+						} ) );
+					}
+				};
+				updateNotice();
 
 				/*
 				 * Set the initial visibility state for rendered notice.
 				 * Update the visibility of the notice whenever a reflow happens.
 				 */
-				noRenderedAreasNotice.toggle( shouldShowNotice() );
+				noticeContainer.toggle( shouldShowNotice() );
 				api.previewer.deferred.active.done( function () {
-					noRenderedAreasNotice.toggle( shouldShowNotice() );
+					noticeContainer.toggle( shouldShowNotice() );
 				});
 				api.bind( 'pane-contents-reflowed', function() {
 					var duration = ( 'resolved' === api.previewer.deferred.active.state() ) ? 'fast' : 0;
+					updateNotice();
 					if ( shouldShowNotice() ) {
-						noRenderedAreasNotice.slideDown( duration );
+						noticeContainer.slideDown( duration );
 					} else {
-						noRenderedAreasNotice.slideUp( duration );
+						noticeContainer.slideUp( duration );
 					}
 				});
 			});

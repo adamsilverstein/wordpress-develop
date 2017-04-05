@@ -323,7 +323,7 @@ class WP_Term_Query {
 		 */
 		do_action( 'pre_get_terms', $this );
 
-		$taxonomies = $args['taxonomy'];
+		$taxonomies = (array) $args['taxonomy'];
 
 		// Save queries by not crawling the tree in the case of multiple taxes or a flat tax.
 		$has_hierarchical_tax = false;
@@ -474,7 +474,10 @@ class WP_Term_Query {
 			$this->sql_clauses['where']['exclusions'] = preg_replace( '/^\s*AND\s*/', '', $exclusions );
 		}
 
-		if ( ! empty( $args['name'] ) ) {
+		if (
+			( ! empty( $args['name'] ) ) ||
+			( is_string( $args['name'] ) && 0 !== strlen( $args['name'] ) )
+		) {
 			$names = (array) $args['name'];
 			foreach ( $names as &$_name ) {
 				// `sanitize_term_field()` returns slashed data.
@@ -484,7 +487,10 @@ class WP_Term_Query {
 			$this->sql_clauses['where']['name'] = "t.name IN ('" . implode( "', '", array_map( 'esc_sql', $names ) ) . "')";
 		}
 
-		if ( ! empty( $args['slug'] ) ) {
+		if (
+			( ! empty( $args['slug'] ) ) ||
+			( is_string( $args['slug'] ) && 0 !== strlen( $args['slug'] ) )
+		) {
 			if ( is_array( $args['slug'] ) ) {
 				$slug = array_map( 'sanitize_title', $args['slug'] );
 				$this->sql_clauses['where']['slug'] = "t.slug IN ('" . implode( "', '", $slug ) . "')";

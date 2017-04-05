@@ -20,7 +20,7 @@ class WP_Test_REST_Posts_Controller extends WP_Test_REST_Post_Type_Controller_Te
 	protected static $supported_formats;
 
 	protected $forbidden_cat;
-	protected $posts_orderby;
+	protected $posts_clauses;
 
 	public static function wpSetUpBeforeClass( $factory ) {
 		self::$post_id = $factory->post->create();
@@ -68,23 +68,32 @@ class WP_Test_REST_Posts_Controller extends WP_Test_REST_Post_Type_Controller_Te
 		parent::setUp();
 		register_post_type( 'youseeme', array( 'supports' => array(), 'show_in_rest' => true ) );
 		add_filter( 'rest_pre_dispatch', array( $this, 'wpSetUpBeforeRequest' ), 10, 3 );
-		add_filter( 'posts_orderby', array( $this, 'save_posts_orderby' ), 10, 2 );
+		add_filter( 'posts_clauses', array( $this, 'save_posts_clauses' ), 10, 2 );
 	}
 
 	public function wpSetUpBeforeRequest( $result, $server, $request ) {
-		$this->posts_orderby = array();
+		$this->posts_clauses = array();
 		return $result;
 	}
 
-	public function save_posts_orderby( $orderby, $query ) {
-		array_push( $this->posts_orderby, $orderby );
+	public function save_posts_clauses( $orderby, $query ) {
+		array_push( $this->posts_clauses, $orderby );
 		return $orderby;
 	}
 
-	public function assertPostsOrderedBy( $pattern ) {
+	public function assertPostsClause( $clause, $pattern ) {
 		global $wpdb;
-		$orderby = str_replace( '{posts}', $wpdb->posts, $pattern );
-		$this->assertEquals( array( $orderby ), $this->posts_orderby );
+		$expected_clause = str_replace( '{posts}', $wpdb->posts, $pattern );
+		$this->assertCount( 1, $this->posts_clauses );
+		$this->assertEquals( $expected_clause, $this->posts_clauses[0][ $clause ] );
+	}
+
+	public function assertPostsOrderedBy( $pattern ) {
+		$this->assertPostsClause( 'orderby', $pattern );
+	}
+
+	public function assertPostsWhere( $pattern ) {
+		$this->assertPostsClause( 'where', $pattern );
 	}
 
 	public function test_register_routes() {
@@ -690,7 +699,7 @@ class WP_Test_REST_Posts_Controller extends WP_Test_REST_Post_Type_Controller_Te
 		$this->assertErrorResponse( 'rest_invalid_param', $response, 400 );
 	}
 
-	public function test_get_items_sticky_query() {
+	public function test_get_items_sticky() {
 		$id1 = self::$post_id;
 		$id2 = $this->factory->post->create( array( 'post_status' => 'publish' ) );
 
@@ -711,7 +720,7 @@ class WP_Test_REST_Posts_Controller extends WP_Test_REST_Post_Type_Controller_Te
 		$this->assertErrorResponse( 'rest_invalid_param', $response, 400 );
 	}
 
-	public function test_get_items_sticky_with_post__in_query() {
+	public function test_get_items_sticky_with_include() {
 		$id1 = self::$post_id;
 		$id2 = $this->factory->post->create( array( 'post_status' => 'publish' ) );
 		$id3 = $this->factory->post->create( array( 'post_status' => 'publish' ) );
@@ -724,6 +733,12 @@ class WP_Test_REST_Posts_Controller extends WP_Test_REST_Post_Type_Controller_Te
 
 		$response = $this->server->dispatch( $request );
 		$this->assertCount( 0, $response->get_data() );
+
+		// FIXME Since this request returns zero posts, the query is executed twice.
+		$this->assertCount( 2, $this->posts_clauses );
+		$this->posts_clauses = array_slice( $this->posts_clauses, 0, 1 );
+
+		$this->assertPostsWhere( " AND {posts}.ID IN (0) AND {posts}.post_type = 'post' AND (({posts}.post_status = 'publish'))" );
 
 		update_option( 'sticky_posts', array( $id1, $id2 ) );
 
@@ -738,9 +753,48 @@ class WP_Test_REST_Posts_Controller extends WP_Test_REST_Post_Type_Controller_Te
 		$posts = $response->get_data();
 		$post = $posts[0];
 		$this->assertEquals( $id1, $post['id'] );
+
+		$this->assertPostsWhere( " AND {posts}.ID IN ($id1) AND {posts}.post_type = 'post' AND (({posts}.post_status = 'publish'))" );
 	}
 
-	public function test_get_items_not_sticky_query() {
+	public function test_get_items_sticky_no_sticky_posts() {
+		$id1 = self::$post_id;
+
+		update_option( 'sticky_posts', array() );
+
+		$request = new WP_REST_Request( 'GET', '/wp/v2/posts' );
+		$request->set_param( 'sticky', true );
+
+		$response = $this->server->dispatch( $request );
+		$this->assertCount( 0, $response->get_data() );
+
+		// FIXME Since this request returns zero posts, the query is executed twice.
+		$this->assertCount( 2, $this->posts_clauses );
+		$this->posts_clauses = array_slice( $this->posts_clauses, 0, 1 );
+
+		$this->assertPostsWhere( " AND {posts}.ID IN (0) AND {posts}.post_type = 'post' AND (({posts}.post_status = 'publish'))" );
+	}
+
+	public function test_get_items_sticky_with_include_no_sticky_posts() {
+		$id1 = self::$post_id;
+
+		update_option( 'sticky_posts', array() );
+
+		$request = new WP_REST_Request( 'GET', '/wp/v2/posts' );
+		$request->set_param( 'sticky', true );
+		$request->set_param( 'include', array( $id1 ) );
+
+		$response = $this->server->dispatch( $request );
+		$this->assertCount( 0, $response->get_data() );
+
+		// FIXME Since this request returns zero posts, the query is executed twice.
+		$this->assertCount( 2, $this->posts_clauses );
+		$this->posts_clauses = array_slice( $this->posts_clauses, 0, 1 );
+
+		$this->assertPostsWhere( " AND {posts}.ID IN (0) AND {posts}.post_type = 'post' AND (({posts}.post_status = 'publish'))" );
+	}
+
+	public function test_get_items_not_sticky() {
 		$id1 = self::$post_id;
 		$id2 = $this->factory->post->create( array( 'post_status' => 'publish' ) );
 
@@ -755,9 +809,11 @@ class WP_Test_REST_Posts_Controller extends WP_Test_REST_Post_Type_Controller_Te
 		$posts = $response->get_data();
 		$post = $posts[0];
 		$this->assertEquals( $id1, $post['id'] );
+
+		$this->assertPostsWhere( " AND {posts}.ID NOT IN ($id2) AND {posts}.post_type = 'post' AND (({posts}.post_status = 'publish'))" );
 	}
 
-	public function test_get_items_sticky_with_post__not_in_query() {
+	public function test_get_items_not_sticky_with_exclude() {
 		$id1 = self::$post_id;
 		$id2 = $this->factory->post->create( array( 'post_status' => 'publish' ) );
 		$id3 = $this->factory->post->create( array( 'post_status' => 'publish' ) );
@@ -774,6 +830,30 @@ class WP_Test_REST_Posts_Controller extends WP_Test_REST_Post_Type_Controller_Te
 		$posts = $response->get_data();
 		$post = $posts[0];
 		$this->assertEquals( $id1, $post['id'] );
+
+		$this->assertPostsWhere( " AND {posts}.ID NOT IN ($id3,$id2) AND {posts}.post_type = 'post' AND (({posts}.post_status = 'publish'))" );
+	}
+
+	public function test_get_items_not_sticky_with_exclude_no_sticky_posts() {
+		$id1 = self::$post_id;
+		$id2 = $this->factory->post->create( array( 'post_status' => 'publish' ) );
+		$id3 = $this->factory->post->create( array( 'post_status' => 'publish' ) );
+
+		update_option( 'sticky_posts', array() );
+
+		$request = new WP_REST_Request( 'GET', '/wp/v2/posts' );
+		$request->set_param( 'sticky', false );
+		$request->set_param( 'exclude', array( $id3 ) );
+
+		$response = $this->server->dispatch( $request );
+		$this->assertCount( 2, $response->get_data() );
+
+		$posts = $response->get_data();
+		$ids = wp_list_pluck( $posts, 'id' );
+		sort( $ids );
+		$this->assertEquals( array( $id1, $id2 ), $ids );
+
+		$this->assertPostsWhere( " AND {posts}.ID NOT IN ($id3) AND {posts}.post_type = 'post' AND (({posts}.post_status = 'publish'))" );
 	}
 
 	public function test_get_items_pagination_headers() {
@@ -914,20 +994,12 @@ class WP_Test_REST_Posts_Controller extends WP_Test_REST_Post_Type_Controller_Te
 		$this->assertEquals( $post2, $data[0]['id'] );
 	}
 
-	public function test_get_items_no_supported_post_formats() {
-		// This causes get_theme_support( 'post-formats' ) to return `true` (not an array)
-		add_theme_support( 'post-formats' );
-
+	public function test_get_items_all_post_formats() {
 		$request = new WP_REST_Request( 'OPTIONS', '/wp/v2/posts' );
 		$response = $this->server->dispatch( $request );
 		$data = $response->get_data();
 
-		// Set the expected state back for the rest of the tests.
-		global $_wp_theme_features;
-		unset( $_wp_theme_features['post-formats'] );
-		add_theme_support( 'post-formats', array( 'post', 'gallery' ) );
-
-		$formats = array( 'standard' );
+		$formats = array_values( get_post_format_slugs() );
 
 		$this->assertEquals( $formats, $data['schema']['properties']['format']['enum'] );
 	}
@@ -1251,7 +1323,6 @@ class WP_Test_REST_Posts_Controller extends WP_Test_REST_Post_Type_Controller_Te
 		$this->assertEquals( $post_date, $post->post_date );
 
 		$this->assertEquals( $results['date_gmt'], $data['date_gmt'] );
-		// TODO expect null here for drafts (see https://core.trac.wordpress.org/ticket/5698#comment:14)
 		$post_date_gmt = str_replace( 'T', ' ', $results['date_gmt'] );
 		$this->assertEquals( $post_date_gmt, $post->post_date_gmt );
 	}
@@ -1350,15 +1421,27 @@ class WP_Test_REST_Posts_Controller extends WP_Test_REST_Post_Type_Controller_Te
 
 	public function test_create_post_as_contributor() {
 		wp_set_current_user( self::$contributor_id );
+		update_option( 'timezone_string', 'America/Chicago' );
 
 		$request = new WP_REST_Request( 'POST', '/wp/v2/posts' );
-		$params = $this->set_post_data(array(
+		$params = $this->set_post_data( array(
+			// This results in a special `post_date_gmt` value of
+			// '0000-00-00 00:00:00'.  See #38883.
 			'status' => 'pending',
-		));
+		) );
 
 		$request->set_body_params( $params );
 		$response = $this->server->dispatch( $request );
+		$this->assertEquals( 201, $response->get_status() );
+
+		$data = $response->get_data();
+		$post = get_post( $data['id'] );
+		$this->assertEquals( '0000-00-00 00:00:00', $post->post_date_gmt );
+		$this->assertNotEquals( '0000-00-00T00:00:00', $data['date_gmt'] );
+
 		$this->check_create_post_response( $response );
+
+		update_option( 'timezone_string', '' );
 	}
 
 	public function test_create_post_sticky() {
@@ -1431,9 +1514,12 @@ class WP_Test_REST_Posts_Controller extends WP_Test_REST_Post_Type_Controller_Te
 		$new_post = get_post( $data['id'] );
 		$this->assertEquals( 'draft', $data['status'] );
 		$this->assertEquals( 'draft', $new_post->post_status );
-		// Confirm dates are null
-		$this->assertNull( $data['date_gmt'] );
-		$this->assertNull( $data['modified_gmt'] );
+		// Confirm dates are shimmed for gmt_offset
+		$post_modified_gmt = date( 'Y-m-d H:i:s', strtotime( $new_post->post_modified ) + ( get_option( 'gmt_offset' ) * 3600 ) );
+		$post_date_gmt = date( 'Y-m-d H:i:s', strtotime( $new_post->post_date ) + ( get_option( 'gmt_offset' ) * 3600 ) );
+
+		$this->assertEquals( mysql_to_rfc3339( $post_modified_gmt ), $data['modified_gmt'] );
+		$this->assertEquals( mysql_to_rfc3339( $post_date_gmt ), $data['date_gmt'] );
 	}
 
 	public function test_create_post_private() {
@@ -1561,8 +1647,10 @@ class WP_Test_REST_Posts_Controller extends WP_Test_REST_Post_Type_Controller_Te
 		) );
 		$request->set_body_params( $params );
 		$response = $this->server->dispatch( $request );
+		$this->assertEquals( 201, $response->get_status() );
 
-		$this->assertErrorResponse( 'rest_invalid_param', $response, 400 );
+		$data = $response->get_data();
+		$this->assertEquals( 'link', $data['format'] );
 	}
 
 	public function test_create_update_post_with_featured_media() {
@@ -2059,8 +2147,10 @@ class WP_Test_REST_Posts_Controller extends WP_Test_REST_Post_Type_Controller_Te
 		) );
 		$request->set_body_params( $params );
 		$response = $this->server->dispatch( $request );
+		$this->assertEquals( 200, $response->get_status() );
 
-		$this->assertErrorResponse( 'rest_invalid_param', $response, 400 );
+		$data = $response->get_data();
+		$this->assertEquals( 'link', $data['format'] );
 	}
 
 	public function test_update_post_ignore_readonly() {
@@ -2118,7 +2208,6 @@ class WP_Test_REST_Posts_Controller extends WP_Test_REST_Post_Type_Controller_Te
 		$this->assertEquals( $post_date, $post->post_date );
 
 		$this->assertEquals( $results['date_gmt'], $data['date_gmt'] );
-		// TODO expect null here for drafts (see https://core.trac.wordpress.org/ticket/5698#comment:14)
 		$post_date_gmt = str_replace( 'T', ' ', $results['date_gmt'] );
 		$this->assertEquals( $post_date_gmt, $post->post_date_gmt );
 	}
@@ -2147,6 +2236,57 @@ class WP_Test_REST_Posts_Controller extends WP_Test_REST_Post_Type_Controller_Te
 		$response = $this->server->dispatch( $request );
 
 		$this->assertErrorResponse( 'rest_invalid_param', $response, 400 );
+	}
+
+	public function test_empty_post_date_gmt_shimmed_using_post_date() {
+		global $wpdb;
+
+		wp_set_current_user( self::$editor_id );
+		update_option( 'timezone_string', 'America/Chicago' );
+
+		// Need to set dates using wpdb directly because `wp_update_post` and
+		// `wp_insert_post` have additional validation on dates.
+		$post_id = $this->factory->post->create();
+		$wpdb->update(
+			$wpdb->posts,
+			array(
+				'post_date'     => '2016-02-23 12:00:00',
+				'post_date_gmt' => '0000-00-00 00:00:00',
+			),
+			array(
+				'ID' => $post_id,
+			),
+			array( '%s', '%s' ),
+			array( '%d' )
+		);
+		wp_cache_delete( $post_id, 'posts' );
+
+		$post = get_post( $post_id );
+		$this->assertEquals( $post->post_date,     '2016-02-23 12:00:00' );
+		$this->assertEquals( $post->post_date_gmt, '0000-00-00 00:00:00' );
+
+		$request = new WP_REST_Request( 'GET', sprintf( '/wp/v2/posts/%d', $post_id ) );
+		$response = $this->server->dispatch( $request );
+		$this->assertEquals( 200, $response->get_status() );
+		$data = $response->get_data();
+
+		$this->assertEquals( '2016-02-23T12:00:00', $data['date'] );
+		$this->assertEquals( '2016-02-23T18:00:00', $data['date_gmt'] );
+
+		$request = new WP_REST_Request( 'PUT', sprintf( '/wp/v2/posts/%d', $post_id ) );
+		$request->set_param( 'date', '2016-02-23T13:00:00' );
+		$response = $this->server->dispatch( $request );
+		$this->assertEquals( 200, $response->get_status() );
+		$data = $response->get_data();
+
+		$this->assertEquals( '2016-02-23T13:00:00', $data['date'] );
+		$this->assertEquals( '2016-02-23T19:00:00', $data['date_gmt'] );
+
+		$post = get_post( $post_id );
+		$this->assertEquals( $post->post_date,     '2016-02-23 13:00:00' );
+		$this->assertEquals( $post->post_date_gmt, '2016-02-23 19:00:00' );
+
+		update_option( 'timezone_string', '' );
 	}
 
 	public function test_update_post_slug() {
@@ -2695,7 +2835,6 @@ class WP_Test_REST_Posts_Controller extends WP_Test_REST_Post_Type_Controller_Te
 		$request->set_param( 'force', 'false' );
 		$response = $this->server->dispatch( $request );
 
-		$this->assertNotInstanceOf( 'WP_Error', $response );
 		$this->assertEquals( 200, $response->get_status() );
 		$data = $response->get_data();
 		$this->assertEquals( 'Deleted post', $data['title']['raw'] );
@@ -2710,7 +2849,6 @@ class WP_Test_REST_Posts_Controller extends WP_Test_REST_Post_Type_Controller_Te
 		$request['force'] = true;
 		$response = $this->server->dispatch( $request );
 
-		$this->assertNotInstanceOf( 'WP_Error', $response );
 		$this->assertEquals( 200, $response->get_status() );
 		$data = $response->get_data();
 		$this->assertTrue( $data['deleted'] );
@@ -2910,7 +3048,7 @@ class WP_Test_REST_Posts_Controller extends WP_Test_REST_Post_Type_Controller_Te
 			$this->remove_added_uploads();
 		}
 		remove_filter( 'rest_pre_dispatch', array( $this, 'wpSetUpBeforeRequest' ), 10, 3 );
-		remove_filter( 'posts_orderby', array( $this, 'save_posts_orderby' ), 10, 2 );
+		remove_filter( 'posts_clauses', array( $this, 'save_posts_clauses' ), 10, 2 );
 		parent::tearDown();
 	}
 

@@ -10,6 +10,8 @@ mockedApiResponse.Schema = {
     "description": "Just another WordPress site",
     "url": "http://example.org",
     "home": "http://example.org",
+    "gmt_offset": "0",
+    "timezone_string": "",
     "namespaces": [
         "oembed/1.0",
         "wp/v2"
@@ -388,7 +390,16 @@ mockedApiResponse.Schema = {
                         "format": {
                             "required": false,
                             "enum": [
-                                "standard"
+                                "standard",
+                                "aside",
+                                "chat",
+                                "gallery",
+                                "link",
+                                "image",
+                                "quote",
+                                "status",
+                                "video",
+                                "audio"
                             ],
                             "description": "The format for the object.",
                             "type": "string"
@@ -562,7 +573,16 @@ mockedApiResponse.Schema = {
                         "format": {
                             "required": false,
                             "enum": [
-                                "standard"
+                                "standard",
+                                "aside",
+                                "chat",
+                                "gallery",
+                                "link",
+                                "image",
+                                "quote",
+                                "status",
+                                "video",
+                                "audio"
                             ],
                             "description": "The format for the object.",
                             "type": "string"

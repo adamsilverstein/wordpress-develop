@@ -528,10 +528,11 @@
 		 *
 		 * @since 4.1.0
 		 *
-		 * @param {Boolean} active
-		 * @param {Object}  args
-		 * @param {Object}  args.duration
-		 * @param {Object}  args.completeCallback
+		 * @param {boolean}  active - The active state to transiution to.
+		 * @param {Object}   [args] - Args.
+		 * @param {Object}   [args.duration] - The duration for the slideUp/slideDown animation.
+		 * @param {boolean}  [args.unchanged] - Whether the state is already known to not be changed, and so short-circuit with calling completeCallback early.
+		 * @param {Function} [args.completeCallback] - Function to call when the slideUp/slideDown has completed.
 		 */
 		onChangeActive: function( active, args ) {
 			var construct = this,
@@ -564,24 +565,24 @@
 				}
 			}
 
-			if ( ! $.contains( document, headContainer ) ) {
-				// jQuery.fn.slideUp is not hiding an element if it is not in the DOM
+			if ( ! $.contains( document, headContainer.get( 0 ) ) ) {
+				// If the element is not in the DOM, then jQuery.fn.slideUp() does nothing. In this case, a hard toggle is required instead.
 				headContainer.toggle( active );
 				if ( args.completeCallback ) {
 					args.completeCallback();
 				}
 			} else if ( active ) {
-				headContainer.stop( true, true ).slideDown( duration, args.completeCallback );
+				headContainer.slideDown( duration, args.completeCallback );
 			} else {
 				if ( construct.expanded() ) {
 					construct.collapse({
 						duration: duration,
 						completeCallback: function() {
-							headContainer.stop( true, true ).slideUp( duration, args.completeCallback );
+							headContainer.slideUp( duration, args.completeCallback );
 						}
 					});
 				} else {
-					headContainer.stop( true, true ).slideUp( duration, args.completeCallback );
+					headContainer.slideUp( duration, args.completeCallback );
 				}
 			}
 		},
@@ -4122,7 +4123,7 @@
 
 				// Remove notification errors that are no longer valid.
 				setting.notifications.each( function( notification ) {
-					if ( 'error' === notification.type && ( true === validity || ! validity[ notification.code ] ) ) {
+					if ( notification.fromServer && 'error' === notification.type && ( true === validity || ! validity[ notification.code ] ) ) {
 						setting.notifications.remove( notification.code );
 					}
 				} );
