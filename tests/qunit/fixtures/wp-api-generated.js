@@ -1989,8 +1989,11 @@ mockedApiResponse.Schema = {
                         },
                         "slug": {
                             "required": false,
-                            "description": "Limit result set to terms with a specific slug.",
-                            "type": "string"
+                            "description": "Limit result set to terms with one or more specific slugs.",
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
                         }
                     }
                 },
@@ -2224,8 +2227,11 @@ mockedApiResponse.Schema = {
                         },
                         "slug": {
                             "required": false,
-                            "description": "Limit result set to terms with a specific slug.",
-                            "type": "string"
+                            "description": "Limit result set to terms with one or more specific slugs.",
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
                         }
                     }
                 },
@@ -2438,8 +2444,11 @@ mockedApiResponse.Schema = {
                         },
                         "slug": {
                             "required": false,
-                            "description": "Limit result set to users with a specific slug.",
-                            "type": "string"
+                            "description": "Limit result set to users with one or more specific slugs.",
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
                         },
                         "roles": {
                             "required": false,
