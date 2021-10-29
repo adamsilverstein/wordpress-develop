@@ -638,7 +638,7 @@
 				setTimeout( function() {
 					$card
 						.removeClass( 'plugin-card-update-failed' )
-						.find( '.column-name a' ).focus();
+						.find( '.column-name a' ).trigger( 'focus' );
 
 					$card.find( '.update-now' )
 						.attr( 'aria-label', false )
@@ -810,7 +810,7 @@
 			setTimeout( function() {
 				$card
 					.removeClass( 'plugin-card-update-failed' )
-					.find( '.column-name a' ).focus();
+					.find( '.column-name a' ).trigger( 'focus' );
 			}, 200 );
 		} );
 
@@ -1224,10 +1224,10 @@
 
 			// Focus on Customize button after updating.
 			if ( isModalOpen ) {
-				$( '.load-customize:visible' ).focus();
+				$( '.load-customize:visible' ).trigger( 'focus' );
 				$( '.theme-info .theme-autoupdate' ).find( '.auto-update-time' ).empty();
 			} else {
-				$theme.find( '.load-customize' ).focus();
+				$theme.find( '.load-customize' ).trigger( 'focus' );
 			}
 		}
 
@@ -1280,7 +1280,7 @@
 		} else {
 			$notice = $( '.theme-info .notice' ).add( $theme.find( '.notice' ) );
 
-			$( 'body.modal-open' ).length ? $( '.load-customize:visible' ).focus() : $theme.find( '.load-customize' ).focus();
+			$( 'body.modal-open' ).length ? $( '.load-customize:visible' ).trigger( 'focus' ) : $theme.find( '.load-customize' ).trigger( 'focus');
 		}
 
 		wp.updates.addAdminNotice( {
@@ -1777,11 +1777,11 @@
 
 			// #upgrade button must always be the last focus-able element in the dialog.
 			if ( 'upgrade' === event.target.id && ! event.shiftKey ) {
-				$( '#hostname' ).focus();
+				$( '#hostname' ).trigger( 'focus' );
 
 				event.preventDefault();
 			} else if ( 'hostname' === event.target.id && event.shiftKey ) {
-				$( '#upgrade' ).focus();
+				$( '#upgrade' ).trigger( 'focus' );
 
 				event.preventDefault();
 			}
@@ -1798,7 +1798,7 @@
 
 		$( 'body' ).addClass( 'modal-open' );
 		$modal.show();
-		$modal.find( 'input:enabled:first' ).focus();
+		$modal.find( 'input:enabled:first' ).trigger( 'focus' );
 		$modal.on( 'keydown', wp.updates.keydown );
 	};
 
@@ -1812,7 +1812,7 @@
 		$( 'body' ).removeClass( 'modal-open' );
 
 		if ( wp.updates.$elToReturnFocusToFromCredentialsModal ) {
-			wp.updates.$elToReturnFocusToFromCredentialsModal.focus();
+			wp.updates.$elToReturnFocusToFromCredentialsModal.trigger( 'focus' );
 		}
 	};
 
