@@ -227,6 +227,9 @@ class WP_Filesystem_FTPext extends WP_Filesystem_Base {
 	 * @return string|false The current working directory on success, false on failure.
 	 */
 	public function cwd() {
+		if ( is_null( $this->link ) ) {
+			return false;
+		}
 		$cwd = ftp_pwd( $this->link );
 
 		if ( $cwd ) {
@@ -417,6 +420,9 @@ class WP_Filesystem_FTPext extends WP_Filesystem_Base {
 	 * @return bool Whether $file exists or not.
 	 */
 	public function exists( $file ) {
+		if ( is_null( $this->link ) ) {
+			return false;
+		}
 		$list = ftp_nlist( $this->link, $file );
 
 		if ( empty( $list ) && $this->is_dir( $file ) ) {
@@ -447,6 +453,9 @@ class WP_Filesystem_FTPext extends WP_Filesystem_Base {
 	 * @return bool Whether $path is a directory.
 	 */
 	public function is_dir( $path ) {
+		if ( is_null( $this->link ) ) {
+			return false;
+		}
 		$cwd    = $this->cwd();
 		$result = @ftp_chdir( $this->link, trailingslashit( $path ) );
 
@@ -712,6 +721,10 @@ class WP_Filesystem_FTPext extends WP_Filesystem_Base {
 			$path       = dirname( $path ) . '/';
 		} else {
 			$limit_file = false;
+		}
+
+		if ( is_null( $this->link ) ){
+			return false;
 		}
 
 		$pwd = ftp_pwd( $this->link );
