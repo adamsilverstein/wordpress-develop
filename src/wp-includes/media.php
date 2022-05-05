@@ -1915,6 +1915,18 @@ function wp_image_use_alternate_mime_types( $image, $context, $attachment_id ) {
 		return $image;
 	};
 
+	/**
+	 * Filters whether the smaller image should be used regardless of which MIME type is preferred overall.
+	 *
+	 * By enabling this, the plugin will compare the image file sizes and prefer the smaller file regardless of MIME
+	 * type.
+	 *
+	 * @since 6.1.0
+	 *
+	 * @param bool $prefer_smaller_image_file Whether to prefer the smaller image file.
+	 */
+	$prefer_smaller_image_file = apply_filters( 'wp_content_prefer_smaller_image_file', true );
+
 	$target_mimes = array( 'image/webp', 'image/jpeg' );
 
 	/**
@@ -1922,7 +1934,7 @@ function wp_image_use_alternate_mime_types( $image, $context, $attachment_id ) {
 	 *
 	 * When outputting images in the content, the first mime type available will be used.
 	 *
-	 * @since 6.0.0
+	 * @since 6.1.0
 	 *
 	 * @param array  $target_mimes  The image output mime type and order. Default is array( 'image/webp', 'image/jpeg' ).
 	 * @param int    $attachment_id The attachment ID.
@@ -1952,7 +1964,21 @@ function wp_image_use_alternate_mime_types( $image, $context, $attachment_id ) {
 			if ( empty( $size_data['sources'][ $target_mime ]['file'] ) ) {
 				continue;
 			}
-			$target_file = $size_data['sources'][ $target_mime ]['file'];
+
+			$target = $size_data['sources'][ $target_mime ];
+			if (
+				$prefer_smaller_image_file &&
+				count( $size_data['sources'] ) > 1 &&
+				! empty( target['filesize'] )
+			) {
+				$target = _wp_get_smallest_file_from_sources( $size_data['sources'], $target );
+			}
+
+			if ( empty( $target['file'] ) ) {
+				continue;
+			}
+
+			$target_file = $target['file'];
 
 			// Replace the existing output image for this size.
 			$src_filename = wp_basename( $size_data['file'] );
@@ -1964,20 +1990,61 @@ function wp_image_use_alternate_mime_types( $image, $context, $attachment_id ) {
 
 			// Found a match, replace with the new filename and stop searching.
 			$image = str_replace( $src_filename, $size_data['sources'][ $target_mime ]['file'], $image );
-			continue;
 		}
 
 		// Handle full size image replacement.
+		if ( empty( $metadata['sources'] ) ) {
+			return $image;
+		}
+
 		$src_filename = wp_basename( $metadata['file'] );
+		$target       = $metadata['sources'][ $target_mime ];
+		if (
+			$prefer_smaller_image_file &&
+			count( $metadata['sources'] ) > 1 &&
+			! empty( target['filesize'] )
+		) {
+			$target = _wp_get_smallest_file_from_sources( $size_data['sources'], $target );
+		}
+
+		if ( empty( $target['file'] ) ) {
+			return $image;
+		}
+
+		$target_file = $target['file'];
 
 		// This is the same as the file we want to replace nothing else to do here.
-		if ( $metadata['sources'][ $target_mime ]['file'] === $src_filename ) {
+		if ( $target_file === $src_filename ) {
 			return $image;
 		}
 
 		$image = str_replace( $src_filename, $metadata['sources'][ $target_mime ]['file'], $image );
 	}
 	return $image;
+}
+
+/**
+ * Helper function find the smallest image from a given sizes sources array.
+ *
+ * @param array $sources The media meta sizes->sources array.
+ * @param string $target_file The initial target file to find the smallest file for.
+ * @return array The smallest image size in the sources array.
+ */
+function _wp_get_smallest_file_from_sources( $sources, $target_file ) {
+	// Choose the smallest image size available.
+	if ( empty ( target_file['filesize'] ) ) {
+		return $target_file;
+	}
+
+	foreach( $metadata['sources'] as $source ) {
+		if ( empty( $source['filesize'] ) ) {
+			continue;
+		}
+		if ( $source['filesize'] < $target_file['filesize'] ) {
+			$target_file = $source;
+		}
+	}
+	return $target_file;
 }
 
 /**

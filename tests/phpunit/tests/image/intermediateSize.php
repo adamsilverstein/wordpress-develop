@@ -89,6 +89,20 @@ class Tests_Image_Intermediate_Size extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test that smaller sized images used when enabled.
+	 */
+	public function it_should_use_smaller_jpg_image_when_smaller_size_preferred() {
+		// File generates smallest WebP version of the 'full' image size, all other sub sizes have a smaller JPG version.
+		$attachment_id = $this->factory->attachment->create_upload_object( TESTS_PLUGIN_DIR . '/tests/testdata/modules/images/leafs.jpg' );
+		$metadata      = wp_get_attachment_metadata( $attachment_id );
+		$tag           = wp_get_attachment_image( $attachment_id, 'full', false, array( 'class' => "wp-image-{$attachment_id}" ) );
+		$updated_tag   = webp_uploads_img_tag_update_mime_type( $tag, 'the_content', $attachment_id );
+
+		// Replace the 'full' image size with the WebP version, all other sub sizes will use the smaller JPG version.
+		$expected_tag = str_replace( $metadata['sources']['image/jpeg']['file'], $metadata['sources']['image/webp']['file'], $tag );
+	}
+
+	/**
 	 * @ticket 17626
 	 * @requires function imagejpeg
 	 */
