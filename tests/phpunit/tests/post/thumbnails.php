@@ -166,6 +166,7 @@ class Tests_Post_Thumbnail_Template extends WP_UnitTestCase {
 				'class' => 'attachment-post-thumbnail size-post-thumbnail wp-post-image',
 			)
 		);
+		$expected = wp_image_use_alternate_mime_types( $expected, 'post_thumbnail_html', self::$attachment_id );
 
 		$this->assertSame( $expected, get_the_post_thumbnail( self::$post ) );
 
@@ -194,6 +195,7 @@ class Tests_Post_Thumbnail_Template extends WP_UnitTestCase {
 				'class' => 'attachment-post-thumbnail size-post-thumbnail wp-post-image',
 			)
 		);
+		$expected = wp_image_use_alternate_mime_types( $expected, 'post_thumbnail_html', self::$attachment_id );
 
 		$this->expectOutputString( $expected );
 		the_post_thumbnail();
