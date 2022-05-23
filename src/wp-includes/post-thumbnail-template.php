@@ -200,6 +200,7 @@ function get_the_post_thumbnail( $post = null, $size = 'post-thumbnail', $attr =
 		}
 
 		$html = wp_get_attachment_image( $post_thumbnail_id, $size, false, $attr );
+		$html = wp_image_use_alternate_mime_types( $html, 'post_thumbnail_html', $post_thumbnail_id );
 
 		/**
 		 * Fires after fetching the post thumbnail HTML.
