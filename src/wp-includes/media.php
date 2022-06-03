@@ -2036,6 +2036,10 @@ function _wp_get_smallest_file_from_sources( $sources, $target_file ) {
 		return $target_file;
 	}
 
+	if ( empty( $sources ) || ! is_array( $sources ) ) {
+		return $target_file;
+	}
+
 	foreach( $sources as $source ) {
 		if ( empty( $source['filesize'] ) ) {
 			continue;
