@@ -384,6 +384,116 @@ function wp_save_image_file( $filename, $image, $mime_type, $post_id ) {
 			return $saved;
 		}
 
+		$transforms = webp_uploads_get_upload_image_mime_transforms();
+
+		$mime_transforms = $transforms[ $mime_type ];
+		add_filter(
+				'wp_update_attachment_metadata',
+				function ( $metadata, $post_meta_id ) use ( $post_id, $filename, $mime_type, $image, $mime_transforms ) {
+					if ( $post_meta_id !== $post_id ) {
+						return $metadata;
+					}
+
+					// No sizes to be created.
+					if ( empty( $metadata['sizes'] ) ) {
+						return $metadata;
+					}
+
+					$old_metadata = wp_get_attachment_metadata( $post_id );
+					$resize_sizes = array();
+					$target       = isset( $_REQUEST['target'] ) ? $_REQUEST['target'] : 'all';
+
+					foreach ( $old_metadata['sizes'] as $size_name => $size_details ) {
+						// If the target is 'nothumb', skip generating the 'thumbnail' size.
+						if ( 'nothumb' === $target && 'thumbnail' === $size_name ) {
+							continue;
+						}
+
+						if ( isset( $metadata['sizes'][ $size_name ] ) && ! empty( $metadata['sizes'][ $size_name ] ) &&
+							 $metadata['sizes'][ $size_name ]['file'] !== $old_metadata['sizes'][ $size_name ]['file'] ) {
+							$resize_sizes[ $size_name ] = $metadata['sizes'][ $size_name ];
+						}
+					}
+
+					$allowed_mimes      = array_flip( wp_get_mime_types() );
+					$original_directory = pathinfo( $file_path, PATHINFO_DIRNAME );
+					$filename           = pathinfo( $file_path, PATHINFO_FILENAME );
+					$main_images        = array();
+					$subsized_images    = array();
+
+					foreach ( $mime_transforms as $targeted_mime ) {
+						if ( $targeted_mime === $mime_type ) {
+							// If the target is `thumbnail` make sure it is the only selected size.
+							if ( 'thumbnail' === $target ) {
+								if ( isset( $metadata['sizes']['thumbnail'] ) ) {
+									$subsized_images[ $targeted_mime ] = array( 'thumbnail' => $metadata['sizes']['thumbnail'] );
+								}
+								// When the targeted thumbnail is selected no additional size and subsize is set.
+								continue;
+							}
+
+							$main_images[ $targeted_mime ]     = array(
+									'path' => $file_path,
+									'file' => pathinfo( $file_path, PATHINFO_BASENAME ),
+							);
+							$subsized_images[ $targeted_mime ] = $metadata['sizes'];
+							continue;
+						}
+
+						if ( ! isset( $allowed_mimes[ $targeted_mime ] ) || ! is_string( $allowed_mimes[ $targeted_mime ] ) ) {
+							continue;
+						}
+
+						if ( ! $editor::supports_mime_type( $targeted_mime ) ) {
+							continue;
+						}
+
+						$extension = explode( '|', $allowed_mimes[ $targeted_mime ] );
+						$extension = $extension[0];
+
+						// If the target is `thumbnail` make sure only that size is generated.
+						if ( 'thumbnail' === $target ) {
+							if ( ! isset( $subsized_images[ $mime_type ]['thumbnail']['file'] ) ) {
+								continue;
+							}
+							$thumbnail_file = $subsized_images[ $mime_type ]['thumbnail']['file'];
+							$image_path     = path_join( $original_directory, $thumbnail_file );
+							$editor         = wp_get_image_editor( $image_path, array( 'mime_type' => $targeted_mime ) );
+
+							if ( is_wp_error( $editor ) ) {
+								continue;
+							}
+
+							$current_extension = pathinfo( $thumbnail_file, PATHINFO_EXTENSION );
+							// Create a file with then new extension out of the targeted file.
+							$target_file_name     = preg_replace( "/\.$current_extension$/", ".$extension", $thumbnail_file );
+							$target_file_location = path_join( $original_directory, $target_file_name );
+							$result               = $editor->save( $target_file_location, $targeted_mime );
+
+							if ( is_wp_error( $result ) ) {
+								continue;
+							}
+
+							$subsized_images[ $targeted_mime ] = array( 'thumbnail' => $result );
+						} else {
+							$destination = trailingslashit( $original_directory ) . "{$filename}.{$extension}";
+							$result      = $editor->save( $destination, $targeted_mime );
+
+							if ( is_wp_error( $result ) ) {
+								continue;
+							}
+
+							$main_images[ $targeted_mime ]     = $result;
+							$subsized_images[ $targeted_mime ] = $editor->multi_resize( $resize_sizes );
+						}
+					}
+
+					return webp_uploads_update_sources( $metadata, $mime_transforms, $main_images, $subsized_images );
+				},
+				10,
+				2
+		);
+
 		return $image->save( $filename, $mime_type );
 	} else {
 		/* translators: 1: $image, 2: WP_Image_Editor */
