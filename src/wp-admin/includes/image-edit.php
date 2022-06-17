@@ -785,6 +785,9 @@ function wp_restore_image( $post_id ) {
 		}
 	}
 
+	// Perform operations to save the sources properties, specifically for the `full` size image due this is a virtual image size.
+	wp_uploads_restore_image( $post_id, $meta );
+
 	if ( ! wp_update_attachment_metadata( $post_id, $meta ) ||
 		( $old_backup_sizes !== $backup_sizes && ! update_post_meta( $post_id, '_wp_attachment_backup_sizes', $backup_sizes ) ) ) {
 
@@ -1336,4 +1339,33 @@ function wp_uploads_get_next_full_size_key_from_backup( $attachment_id ) {
 	}
 
 	return null;
+}
+
+/**
+ * Restore an image from the backup sizes, the current hook moves the `sources` from the `full-orig` key into
+ * the top level `sources` into the metadata, in order to ensure the restore process has a reference to the right
+ * images.
+ *
+ * @since 6.1.0
+ *
+ * @param int   $attachment_id The ID of the attachment.
+ * @param array $data          The current metadata to be stored in the attachment.
+ * @return array The updated metadata of the attachment.
+ */
+function wp_uploads_restore_image( $attachment_id, $data ) {
+	$backup_sources = get_post_meta( $attachment_id, '_wp_attachment_backup_sources', true );
+
+	if ( ! is_array( $backup_sources ) ) {
+		return $data;
+	}
+
+	if ( ! isset( $backup_sources['full-orig'] ) || ! is_array( $backup_sources['full-orig'] ) ) {
+		return $data;
+	}
+
+	// TODO: Handle the case If `IMAGE_EDIT_OVERWRITE` is defined and is truthy remove any edited images if present before replacing the metadata.
+	// See: https://github.com/WordPress/performance/issues/158.
+	$data['sources'] = $backup_sources['full-orig'];
+
+	return $data;
 }
