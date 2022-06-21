@@ -1969,7 +1969,7 @@ function wp_image_use_alternate_mime_types( $image, $context, $attachment_id ) {
 			if (
 				$prefer_smaller_image_file &&
 				count( $size_data['sources'] ) > 1 &&
-				! empty( target['filesize'] )
+				! empty( $target['filesize'] )
 			) {
 				$target = _wp_get_smallest_file_from_sources( $size_data['sources'], $target );
 			}
@@ -2002,9 +2002,9 @@ function wp_image_use_alternate_mime_types( $image, $context, $attachment_id ) {
 		if (
 			$prefer_smaller_image_file &&
 			count( $metadata['sources'] ) > 1 &&
-			! empty( target['filesize'] )
+			! empty( $target['filesize'] )
 		) {
-			$target = _wp_get_smallest_file_from_sources( $size_data['sources'], $target );
+			$target = _wp_get_smallest_file_from_sources( $metadata['sources'], $target );
 		}
 
 		if ( empty( $target['file'] ) ) {
@@ -2032,11 +2032,15 @@ function wp_image_use_alternate_mime_types( $image, $context, $attachment_id ) {
  */
 function _wp_get_smallest_file_from_sources( $sources, $target_file ) {
 	// Choose the smallest image size available.
-	if ( empty ( target_file['filesize'] ) ) {
+	if ( empty ( $target_file['filesize'] ) ) {
 		return $target_file;
 	}
 
-	foreach( $metadata['sources'] as $source ) {
+	if ( empty( $sources ) || ! is_array( $sources ) ) {
+		return $target_file;
+	}
+
+	foreach( $sources as $source ) {
 		if ( empty( $source['filesize'] ) ) {
 			continue;
 		}
