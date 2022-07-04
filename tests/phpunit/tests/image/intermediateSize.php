@@ -91,7 +91,7 @@ class Tests_Image_Intermediate_Size extends WP_UnitTestCase {
 	/**
 	 * Test that smaller sized images used when enabled.
 	 */
-	public function test_it_should_use_smaller_jpg_image_when_smaller_size_preferred() {
+	public function test_wp_image_use_alternate_mime_types_prefers_smaller_file() {
 		// File generates smallest WebP version of the 'full' image size, all other sub sizes have a smaller JPG version.
 		$attachment_id = $this->factory->attachment->create_upload_object( DIR_TESTDATA . '/images/leafs.jpg' );
 		$metadata      = wp_get_attachment_metadata( $attachment_id );
