@@ -356,9 +356,8 @@ abstract class WP_Image_Editor {
 			$new_ext   = $file_ext;
 		}
 
-
-		// Check if this image size doesn't support output mapping.
-		if ( empty( $_wp_additional_image_sizes[ $this->size ]['disable_output_mapping'] ) ) {
+		// Check if this image size supports output mapping.
+		if ( ! isset( $this->size_name ) || empty( $_wp_additional_image_sizes[ $this->size_name ]['disable_output_mapping'] ) ) {
 			/**
 			 * Filters the image editor output format mapping.
 			 *

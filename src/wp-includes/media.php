@@ -289,7 +289,6 @@ function image_downsize( $id, $size = 'medium' ) {
  *                                               - y_crop_position accepts: 'top', 'center', or 'bottom'.
  * @param bool       $disable_output_mapping Optional. Whether to disable output format mapping. Default false.
  */
- */
 function add_image_size( $name, $width = 0, $height = 0, $crop = false, $disable_output_mapping = false ) {
 	global $_wp_additional_image_sizes;
 
