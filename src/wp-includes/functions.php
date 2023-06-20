@@ -2692,7 +2692,7 @@ function wp_unique_filename( $dir, $filename, $unique_filename_callback = null )
 		 */
 		if ( $is_image ) {
 			/** This filter is documented in wp-includes/class-wp-image-editor.php */
-			$output_formats = apply_filters( 'image_editor_output_format', array(), $_dir . $filename, $mime_type );
+			$output_formats = apply_filters( 'image_editor_output_format', get_default_image_editor_output_format(), $_dir . $filename, $mime_type );
 			$alt_types      = array();
 
 			if ( ! empty( $output_formats[ $mime_type ] ) ) {
@@ -2758,6 +2758,15 @@ function wp_unique_filename( $dir, $filename, $unique_filename_callback = null )
 				}
 			}
 		}
+	}
+
+	/**
+	 * Get the default output format.
+	 */
+	function get_default_image_editor_output_format() {
+		return array (
+			'image/jpeg' => 'image/webp',
+		);
 	}
 
 	/**
