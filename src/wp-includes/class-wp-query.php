@@ -15,6 +15,7 @@
  * @since 1.5.0
  * @since 4.5.0 Removed the `$comments_popup` property.
  */
+#[AllowDynamicProperties]
 class WP_Query {
 
 	/**
@@ -106,6 +107,14 @@ class WP_Query {
 	 * @var int
 	 */
 	public $current_post = -1;
+
+	/**
+	 * Whether the caller is before the loop.
+	 *
+	 * @since 6.3.0
+	 * @var bool
+	 */
+	public $before_loop = true;
 
 	/**
 	 * Whether the loop has started and the caller is in the loop.
@@ -445,6 +454,14 @@ class WP_Query {
 	public $thumbnails_cached = false;
 
 	/**
+	 * Controls whether an attachment query should include filenames or not.
+	 *
+	 * @since 6.0.3
+	 * @var bool
+	 */
+	protected $allow_query_attachment_by_filename = false;
+
+	/**
 	 * Cached list of search stopwords.
 	 *
 	 * @since 3.7.0
@@ -508,6 +525,7 @@ class WP_Query {
 		$this->post_count   = 0;
 		$this->current_post = -1;
 		$this->in_the_loop  = false;
+		$this->before_loop  = true;
 		unset( $this->request );
 		unset( $this->post );
 		unset( $this->comments );
@@ -522,7 +540,7 @@ class WP_Query {
 	}
 
 	/**
-	 * Reparse the query vars.
+	 * Reparses the query vars.
 	 *
 	 * @since 1.5.0
 	 */
@@ -601,6 +619,7 @@ class WP_Query {
 			'post_parent__not_in',
 			'author__in',
 			'author__not_in',
+			'search_columns',
 		);
 
 		foreach ( $array_keys as $key ) {
@@ -613,7 +632,7 @@ class WP_Query {
 	}
 
 	/**
-	 * Parse a query string and set query type booleans.
+	 * Parses a query string and sets query type booleans.
 	 *
 	 * @since 1.5.0
 	 * @since 4.2.0 Introduced the ability to order by specific clauses of a `$meta_query`, by passing the clause's
@@ -627,141 +646,146 @@ class WP_Query {
 	 * @since 4.9.0 Introduced the `$comment_count` parameter.
 	 * @since 5.1.0 Introduced the `$meta_compare_key` parameter.
 	 * @since 5.3.0 Introduced the `$meta_type_key` parameter.
+	 * @since 6.1.0 Introduced the `$update_menu_item_cache` parameter.
+	 * @since 6.2.0 Introduced the `$search_columns` parameter.
 	 *
 	 * @param string|array $query {
 	 *     Optional. Array or string of Query parameters.
 	 *
-	 *     @type int             $attachment_id           Attachment post ID. Used for 'attachment' post_type.
-	 *     @type int|string      $author                  Author ID, or comma-separated list of IDs.
-	 *     @type string          $author_name             User 'user_nicename'.
-	 *     @type int[]           $author__in              An array of author IDs to query from.
-	 *     @type int[]           $author__not_in          An array of author IDs not to query from.
-	 *     @type bool            $cache_results           Whether to cache post information. Default true.
-	 *     @type int|string      $cat                     Category ID or comma-separated list of IDs (this or any children).
-	 *     @type int[]           $category__and           An array of category IDs (AND in).
-	 *     @type int[]           $category__in            An array of category IDs (OR in, no children).
-	 *     @type int[]           $category__not_in        An array of category IDs (NOT in).
-	 *     @type string          $category_name           Use category slug (not name, this or any children).
-	 *     @type array|int       $comment_count           Filter results by comment count. Provide an integer to match
-	 *                                                    comment count exactly. Provide an array with integer 'value'
-	 *                                                    and 'compare' operator ('=', '!=', '>', '>=', '<', '<=' ) to
-	 *                                                    compare against comment_count in a specific way.
-	 *     @type string          $comment_status          Comment status.
-	 *     @type int             $comments_per_page       The number of comments to return per page.
-	 *                                                    Default 'comments_per_page' option.
-	 *     @type array           $date_query              An associative array of WP_Date_Query arguments.
-	 *                                                    See WP_Date_Query::__construct().
-	 *     @type int             $day                     Day of the month. Default empty. Accepts numbers 1-31.
-	 *     @type bool            $exact                   Whether to search by exact keyword. Default false.
-	 *     @type string          $fields                  Post fields to query for. Accepts:
-	 *                                                    - '' Returns an array of complete post objects (`WP_Post[]`).
-	 *                                                    - 'ids' Returns an array of post IDs (`int[]`).
-	 *                                                    - 'id=>parent' Returns an associative array of parent post IDs,
-	 *                                                      keyed by post ID (`int[]`).
-	 *                                                    Default ''.
-	 *     @type int             $hour                    Hour of the day. Default empty. Accepts numbers 0-23.
-	 *     @type int|bool        $ignore_sticky_posts     Whether to ignore sticky posts or not. Setting this to false
-	 *                                                    excludes stickies from 'post__in'. Accepts 1|true, 0|false.
-	 *                                                    Default false.
-	 *     @type int             $m                       Combination YearMonth. Accepts any four-digit year and month
-	 *                                                    numbers 1-12. Default empty.
-	 *     @type string|string[] $meta_key                Meta key or keys to filter by.
-	 *     @type string|string[] $meta_value              Meta value or values to filter by.
-	 *     @type string          $meta_compare            MySQL operator used for comparing the meta value.
-	 *                                                    See WP_Meta_Query::__construct() for accepted values and default value.
-	 *     @type string          $meta_compare_key        MySQL operator used for comparing the meta key.
-	 *                                                    See WP_Meta_Query::__construct() for accepted values and default value.
-	 *     @type string          $meta_type               MySQL data type that the meta_value column will be CAST to for comparisons.
-	 *                                                    See WP_Meta_Query::__construct() for accepted values and default value.
-	 *     @type string          $meta_type_key           MySQL data type that the meta_key column will be CAST to for comparisons.
-	 *                                                    See WP_Meta_Query::__construct() for accepted values and default value.
-	 *     @type array           $meta_query              An associative array of WP_Meta_Query arguments.
-	 *                                                    See WP_Meta_Query::__construct() for accepted values.
-	 *     @type int             $menu_order              The menu order of the posts.
-	 *     @type int             $minute                  Minute of the hour. Default empty. Accepts numbers 0-59.
-	 *     @type int             $monthnum                The two-digit month. Default empty. Accepts numbers 1-12.
-	 *     @type string          $name                    Post slug.
-	 *     @type bool            $nopaging                Show all posts (true) or paginate (false). Default false.
-	 *     @type bool            $no_found_rows           Whether to skip counting the total rows found. Enabling can improve
-	 *                                                    performance. Default false.
-	 *     @type int             $offset                  The number of posts to offset before retrieval.
-	 *     @type string          $order                   Designates ascending or descending order of posts. Default 'DESC'.
-	 *                                                    Accepts 'ASC', 'DESC'.
-	 *     @type string|array    $orderby                 Sort retrieved posts by parameter. One or more options may be passed.
-	 *                                                    To use 'meta_value', or 'meta_value_num', 'meta_key=keyname' must be
-	 *                                                    also be defined. To sort by a specific `$meta_query` clause, use that
-	 *                                                    clause's array key. Accepts:
-	 *                                                    - 'none'
-	 *                                                    - 'name'
-	 *                                                    - 'author'
-	 *                                                    - 'date'
-	 *                                                    - 'title'
-	 *                                                    - 'modified'
-	 *                                                    - 'menu_order'
-	 *                                                    - 'parent'
-	 *                                                    - 'ID'
-	 *                                                    - 'rand'
-	 *                                                    - 'relevance'
-	 *                                                    - 'RAND(x)' (where 'x' is an integer seed value)
-	 *                                                    - 'comment_count'
-	 *                                                    - 'meta_value'
-	 *                                                    - 'meta_value_num'
-	 *                                                    - 'post__in'
-	 *                                                    - 'post_name__in'
-	 *                                                    - 'post_parent__in'
-	 *                                                    - The array keys of `$meta_query`.
-	 *                                                    Default is 'date', except when a search is being performed, when
-	 *                                                    the default is 'relevance'.
-	 *     @type int             $p                       Post ID.
-	 *     @type int             $page                    Show the number of posts that would show up on page X of a
-	 *                                                    static front page.
-	 *     @type int             $paged                   The number of the current page.
-	 *     @type int             $page_id                 Page ID.
-	 *     @type string          $pagename                Page slug.
-	 *     @type string          $perm                    Show posts if user has the appropriate capability.
-	 *     @type string          $ping_status             Ping status.
-	 *     @type int[]           $post__in                An array of post IDs to retrieve, sticky posts will be included.
-	 *     @type int[]           $post__not_in            An array of post IDs not to retrieve. Note: a string of comma-
-	 *                                                    separated IDs will NOT work.
-	 *     @type string          $post_mime_type          The mime type of the post. Used for 'attachment' post_type.
-	 *     @type string[]        $post_name__in           An array of post slugs that results must match.
-	 *     @type int             $post_parent             Page ID to retrieve child pages for. Use 0 to only retrieve
-	 *                                                    top-level pages.
-	 *     @type int[]           $post_parent__in         An array containing parent page IDs to query child pages from.
-	 *     @type int[]           $post_parent__not_in     An array containing parent page IDs not to query child pages from.
-	 *     @type string|string[] $post_type               A post type slug (string) or array of post type slugs.
-	 *                                                    Default 'any' if using 'tax_query'.
-	 *     @type string|string[] $post_status             A post status (string) or array of post statuses.
-	 *     @type int             $posts_per_page          The number of posts to query for. Use -1 to request all posts.
-	 *     @type int             $posts_per_archive_page  The number of posts to query for by archive page. Overrides
-	 *                                                    'posts_per_page' when is_archive(), or is_search() are true.
-	 *     @type string          $s                       Search keyword(s). Prepending a term with a hyphen will
-	 *                                                    exclude posts matching that term. Eg, 'pillow -sofa' will
-	 *                                                    return posts containing 'pillow' but not 'sofa'. The
-	 *                                                    character used for exclusion can be modified using the
-	 *                                                    the 'wp_query_search_exclusion_prefix' filter.
-	 *     @type int             $second                  Second of the minute. Default empty. Accepts numbers 0-59.
-	 *     @type bool            $sentence                Whether to search by phrase. Default false.
-	 *     @type bool            $suppress_filters        Whether to suppress filters. Default false.
-	 *     @type string          $tag                     Tag slug. Comma-separated (either), Plus-separated (all).
-	 *     @type int[]           $tag__and                An array of tag IDs (AND in).
-	 *     @type int[]           $tag__in                 An array of tag IDs (OR in).
-	 *     @type int[]           $tag__not_in             An array of tag IDs (NOT in).
-	 *     @type int             $tag_id                  Tag id or comma-separated list of IDs.
-	 *     @type string[]        $tag_slug__and           An array of tag slugs (AND in).
-	 *     @type string[]        $tag_slug__in            An array of tag slugs (OR in). unless 'ignore_sticky_posts' is
-	 *                                                    true. Note: a string of comma-separated IDs will NOT work.
-	 *     @type array           $tax_query               An associative array of WP_Tax_Query arguments.
-	 *                                                    See WP_Tax_Query::__construct().
-	 *     @type string          $title                   Post title.
-	 *     @type bool            $update_post_meta_cache  Whether to update the post meta cache. Default true.
-	 *     @type bool            $update_post_term_cache  Whether to update the post term cache. Default true.
-	 *     @type bool            $lazy_load_term_meta     Whether to lazy-load term meta. Setting to false will
-	 *                                                    disable cache priming for term meta, so that each
-	 *                                                    get_term_meta() call will hit the database.
-	 *                                                    Defaults to the value of `$update_post_term_cache`.
-	 *     @type int             $w                       The week number of the year. Default empty. Accepts numbers 0-53.
-	 *     @type int             $year                    The four-digit year. Default empty. Accepts any four-digit year.
+	 *     @type int             $attachment_id          Attachment post ID. Used for 'attachment' post_type.
+	 *     @type int|string      $author                 Author ID, or comma-separated list of IDs.
+	 *     @type string          $author_name            User 'user_nicename'.
+	 *     @type int[]           $author__in             An array of author IDs to query from.
+	 *     @type int[]           $author__not_in         An array of author IDs not to query from.
+	 *     @type bool            $cache_results          Whether to cache post information. Default true.
+	 *     @type int|string      $cat                    Category ID or comma-separated list of IDs (this or any children).
+	 *     @type int[]           $category__and          An array of category IDs (AND in).
+	 *     @type int[]           $category__in           An array of category IDs (OR in, no children).
+	 *     @type int[]           $category__not_in       An array of category IDs (NOT in).
+	 *     @type string          $category_name          Use category slug (not name, this or any children).
+	 *     @type array|int       $comment_count          Filter results by comment count. Provide an integer to match
+	 *                                                   comment count exactly. Provide an array with integer 'value'
+	 *                                                   and 'compare' operator ('=', '!=', '>', '>=', '<', '<=' ) to
+	 *                                                   compare against comment_count in a specific way.
+	 *     @type string          $comment_status         Comment status.
+	 *     @type int             $comments_per_page      The number of comments to return per page.
+	 *                                                   Default 'comments_per_page' option.
+	 *     @type array           $date_query             An associative array of WP_Date_Query arguments.
+	 *                                                   See WP_Date_Query::__construct().
+	 *     @type int             $day                    Day of the month. Default empty. Accepts numbers 1-31.
+	 *     @type bool            $exact                  Whether to search by exact keyword. Default false.
+	 *     @type string          $fields                 Post fields to query for. Accepts:
+	 *                                                   - '' Returns an array of complete post objects (`WP_Post[]`).
+	 *                                                   - 'ids' Returns an array of post IDs (`int[]`).
+	 *                                                   - 'id=>parent' Returns an associative array of parent post IDs,
+	 *                                                     keyed by post ID (`int[]`).
+	 *                                                   Default ''.
+	 *     @type int             $hour                   Hour of the day. Default empty. Accepts numbers 0-23.
+	 *     @type int|bool        $ignore_sticky_posts    Whether to ignore sticky posts or not. Setting this to false
+	 *                                                   excludes stickies from 'post__in'. Accepts 1|true, 0|false.
+	 *                                                   Default false.
+	 *     @type int             $m                      Combination YearMonth. Accepts any four-digit year and month
+	 *                                                   numbers 01-12. Default empty.
+	 *     @type string|string[] $meta_key               Meta key or keys to filter by.
+	 *     @type string|string[] $meta_value             Meta value or values to filter by.
+	 *     @type string          $meta_compare           MySQL operator used for comparing the meta value.
+	 *                                                   See WP_Meta_Query::__construct() for accepted values and default value.
+	 *     @type string          $meta_compare_key       MySQL operator used for comparing the meta key.
+	 *                                                   See WP_Meta_Query::__construct() for accepted values and default value.
+	 *     @type string          $meta_type              MySQL data type that the meta_value column will be CAST to for comparisons.
+	 *                                                   See WP_Meta_Query::__construct() for accepted values and default value.
+	 *     @type string          $meta_type_key          MySQL data type that the meta_key column will be CAST to for comparisons.
+	 *                                                   See WP_Meta_Query::__construct() for accepted values and default value.
+	 *     @type array           $meta_query             An associative array of WP_Meta_Query arguments.
+	 *                                                   See WP_Meta_Query::__construct() for accepted values.
+	 *     @type int             $menu_order             The menu order of the posts.
+	 *     @type int             $minute                 Minute of the hour. Default empty. Accepts numbers 0-59.
+	 *     @type int             $monthnum               The two-digit month. Default empty. Accepts numbers 1-12.
+	 *     @type string          $name                   Post slug.
+	 *     @type bool            $nopaging               Show all posts (true) or paginate (false). Default false.
+	 *     @type bool            $no_found_rows          Whether to skip counting the total rows found. Enabling can improve
+	 *                                                   performance. Default false.
+	 *     @type int             $offset                 The number of posts to offset before retrieval.
+	 *     @type string          $order                  Designates ascending or descending order of posts. Default 'DESC'.
+	 *                                                   Accepts 'ASC', 'DESC'.
+	 *     @type string|array    $orderby                Sort retrieved posts by parameter. One or more options may be passed.
+	 *                                                   To use 'meta_value', or 'meta_value_num', 'meta_key=keyname' must be
+	 *                                                   also be defined. To sort by a specific `$meta_query` clause, use that
+	 *                                                   clause's array key. Accepts:
+	 *                                                   - 'none'
+	 *                                                   - 'name'
+	 *                                                   - 'author'
+	 *                                                   - 'date'
+	 *                                                   - 'title'
+	 *                                                   - 'modified'
+	 *                                                   - 'menu_order'
+	 *                                                   - 'parent'
+	 *                                                   - 'ID'
+	 *                                                   - 'rand'
+	 *                                                   - 'relevance'
+	 *                                                   - 'RAND(x)' (where 'x' is an integer seed value)
+	 *                                                   - 'comment_count'
+	 *                                                   - 'meta_value'
+	 *                                                   - 'meta_value_num'
+	 *                                                   - 'post__in'
+	 *                                                   - 'post_name__in'
+	 *                                                   - 'post_parent__in'
+	 *                                                   - The array keys of `$meta_query`.
+	 *                                                   Default is 'date', except when a search is being performed, when
+	 *                                                   the default is 'relevance'.
+	 *     @type int             $p                      Post ID.
+	 *     @type int             $page                   Show the number of posts that would show up on page X of a
+	 *                                                   static front page.
+	 *     @type int             $paged                  The number of the current page.
+	 *     @type int             $page_id                Page ID.
+	 *     @type string          $pagename               Page slug.
+	 *     @type string          $perm                   Show posts if user has the appropriate capability.
+	 *     @type string          $ping_status            Ping status.
+	 *     @type int[]           $post__in               An array of post IDs to retrieve, sticky posts will be included.
+	 *     @type int[]           $post__not_in           An array of post IDs not to retrieve. Note: a string of comma-
+	 *                                                   separated IDs will NOT work.
+	 *     @type string          $post_mime_type         The mime type of the post. Used for 'attachment' post_type.
+	 *     @type string[]        $post_name__in          An array of post slugs that results must match.
+	 *     @type int             $post_parent            Page ID to retrieve child pages for. Use 0 to only retrieve
+	 *                                                   top-level pages.
+	 *     @type int[]           $post_parent__in        An array containing parent page IDs to query child pages from.
+	 *     @type int[]           $post_parent__not_in    An array containing parent page IDs not to query child pages from.
+	 *     @type string|string[] $post_type              A post type slug (string) or array of post type slugs.
+	 *                                                   Default 'any' if using 'tax_query'.
+	 *     @type string|string[] $post_status            A post status (string) or array of post statuses.
+	 *     @type int             $posts_per_page         The number of posts to query for. Use -1 to request all posts.
+	 *     @type int             $posts_per_archive_page The number of posts to query for by archive page. Overrides
+	 *                                                   'posts_per_page' when is_archive(), or is_search() are true.
+	 *     @type string          $s                      Search keyword(s). Prepending a term with a hyphen will
+	 *                                                   exclude posts matching that term. Eg, 'pillow -sofa' will
+	 *                                                   return posts containing 'pillow' but not 'sofa'. The
+	 *                                                   character used for exclusion can be modified using the
+	 *                                                   the 'wp_query_search_exclusion_prefix' filter.
+	 *     @type string[]        $search_columns         Array of column names to be searched. Accepts 'post_title',
+	 *                                                   'post_excerpt' and 'post_content'. Default empty array.
+	 *     @type int             $second                 Second of the minute. Default empty. Accepts numbers 0-59.
+	 *     @type bool            $sentence               Whether to search by phrase. Default false.
+	 *     @type bool            $suppress_filters       Whether to suppress filters. Default false.
+	 *     @type string          $tag                    Tag slug. Comma-separated (either), Plus-separated (all).
+	 *     @type int[]           $tag__and               An array of tag IDs (AND in).
+	 *     @type int[]           $tag__in                An array of tag IDs (OR in).
+	 *     @type int[]           $tag__not_in            An array of tag IDs (NOT in).
+	 *     @type int             $tag_id                 Tag id or comma-separated list of IDs.
+	 *     @type string[]        $tag_slug__and          An array of tag slugs (AND in).
+	 *     @type string[]        $tag_slug__in           An array of tag slugs (OR in). unless 'ignore_sticky_posts' is
+	 *                                                   true. Note: a string of comma-separated IDs will NOT work.
+	 *     @type array           $tax_query              An associative array of WP_Tax_Query arguments.
+	 *                                                   See WP_Tax_Query::__construct().
+	 *     @type string          $title                  Post title.
+	 *     @type bool            $update_post_meta_cache Whether to update the post meta cache. Default true.
+	 *     @type bool            $update_post_term_cache Whether to update the post term cache. Default true.
+	 *     @type bool            $update_menu_item_cache Whether to update the menu item cache. Default false.
+	 *     @type bool            $lazy_load_term_meta    Whether to lazy-load term meta. Setting to false will
+	 *                                                   disable cache priming for term meta, so that each
+	 *                                                   get_term_meta() call will hit the database.
+	 *                                                   Defaults to the value of `$update_post_term_cache`.
+	 *     @type int             $w                      The week number of the year. Default empty. Accepts numbers 0-53.
+	 *     @type int             $year                   The four-digit year. Default empty. Accepts any four-digit year.
 	 * }
 	 */
 	public function parse_query( $query = '' ) {
@@ -790,29 +814,41 @@ class WP_Query {
 			$qv['p'] = (int) $qv['p'];
 		}
 
-		$qv['page_id']  = absint( $qv['page_id'] );
-		$qv['year']     = absint( $qv['year'] );
-		$qv['monthnum'] = absint( $qv['monthnum'] );
-		$qv['day']      = absint( $qv['day'] );
-		$qv['w']        = absint( $qv['w'] );
+		$qv['page_id']  = is_scalar( $qv['page_id'] ) ? absint( $qv['page_id'] ) : 0;
+		$qv['year']     = is_scalar( $qv['year'] ) ? absint( $qv['year'] ) : 0;
+		$qv['monthnum'] = is_scalar( $qv['monthnum'] ) ? absint( $qv['monthnum'] ) : 0;
+		$qv['day']      = is_scalar( $qv['day'] ) ? absint( $qv['day'] ) : 0;
+		$qv['w']        = is_scalar( $qv['w'] ) ? absint( $qv['w'] ) : 0;
 		$qv['m']        = is_scalar( $qv['m'] ) ? preg_replace( '|[^0-9]|', '', $qv['m'] ) : '';
-		$qv['paged']    = absint( $qv['paged'] );
-		$qv['cat']      = preg_replace( '|[^0-9,-]|', '', $qv['cat'] );    // Comma-separated list of positive or negative integers.
-		$qv['author']   = preg_replace( '|[^0-9,-]|', '', $qv['author'] ); // Comma-separated list of positive or negative integers.
-		$qv['pagename'] = trim( $qv['pagename'] );
-		$qv['name']     = trim( $qv['name'] );
-		$qv['title']    = trim( $qv['title'] );
-		if ( '' !== $qv['hour'] ) {
+		$qv['paged']    = is_scalar( $qv['paged'] ) ? absint( $qv['paged'] ) : 0;
+		$qv['cat']      = preg_replace( '|[^0-9,-]|', '', $qv['cat'] ); // Array or comma-separated list of positive or negative integers.
+		$qv['author']   = is_scalar( $qv['author'] ) ? preg_replace( '|[^0-9,-]|', '', $qv['author'] ) : ''; // Comma-separated list of positive or negative integers.
+		$qv['pagename'] = is_scalar( $qv['pagename'] ) ? trim( $qv['pagename'] ) : '';
+		$qv['name']     = is_scalar( $qv['name'] ) ? trim( $qv['name'] ) : '';
+		$qv['title']    = is_scalar( $qv['title'] ) ? trim( $qv['title'] ) : '';
+
+		if ( is_scalar( $qv['hour'] ) && '' !== $qv['hour'] ) {
 			$qv['hour'] = absint( $qv['hour'] );
+		} else {
+			$qv['hour'] = '';
 		}
-		if ( '' !== $qv['minute'] ) {
+
+		if ( is_scalar( $qv['minute'] ) && '' !== $qv['minute'] ) {
 			$qv['minute'] = absint( $qv['minute'] );
+		} else {
+			$qv['minute'] = '';
 		}
-		if ( '' !== $qv['second'] ) {
+
+		if ( is_scalar( $qv['second'] ) && '' !== $qv['second'] ) {
 			$qv['second'] = absint( $qv['second'] );
+		} else {
+			$qv['second'] = '';
 		}
-		if ( '' !== $qv['menu_order'] ) {
+
+		if ( is_scalar( $qv['menu_order'] ) && '' !== $qv['menu_order'] ) {
 			$qv['menu_order'] = absint( $qv['menu_order'] );
+		} else {
+			$qv['menu_order'] = '';
 		}
 
 		// Fairly large, potentially too large, upper bound for search string lengths.
@@ -821,14 +857,14 @@ class WP_Query {
 		}
 
 		// Compat. Map subpost to attachment.
-		if ( '' != $qv['subpost'] ) {
+		if ( is_scalar( $qv['subpost'] ) && '' != $qv['subpost'] ) {
 			$qv['attachment'] = $qv['subpost'];
 		}
-		if ( '' != $qv['subpost_id'] ) {
+		if ( is_scalar( $qv['subpost_id'] ) && '' != $qv['subpost_id'] ) {
 			$qv['attachment_id'] = $qv['subpost_id'];
 		}
 
-		$qv['attachment_id'] = absint( $qv['attachment_id'] );
+		$qv['attachment_id'] = is_scalar( $qv['attachment_id'] ) ? absint( $qv['attachment_id'] ) : 0;
 
 		if ( ( '' !== $qv['attachment'] ) || ! empty( $qv['attachment_id'] ) ) {
 			$this->is_single     = true;
@@ -1387,6 +1423,32 @@ class WP_Query {
 		$searchand                 = '';
 		$q['search_orderby_title'] = array();
 
+		$default_search_columns = array( 'post_title', 'post_excerpt', 'post_content' );
+		$search_columns         = ! empty( $q['search_columns'] ) ? $q['search_columns'] : $default_search_columns;
+		if ( ! is_array( $search_columns ) ) {
+			$search_columns = array( $search_columns );
+		}
+
+		/**
+		 * Filters the columns to search in a WP_Query search.
+		 *
+		 * The supported columns are `post_title`, `post_excerpt` and `post_content`.
+		 * They are all included by default.
+		 *
+		 * @since 6.2.0
+		 *
+		 * @param string[] $search_columns Array of column names to be searched.
+		 * @param string   $search         Text being searched.
+		 * @param WP_Query $query          The current WP_Query instance.
+		 */
+		$search_columns = (array) apply_filters( 'post_search_columns', $search_columns, $q['s'], $this );
+
+		// Use only supported search columns.
+		$search_columns = array_intersect( $search_columns, $default_search_columns );
+		if ( empty( $search_columns ) ) {
+			$search_columns = $default_search_columns;
+		}
+
 		/**
 		 * Filters the prefix that indicates that a search term should be excluded from results.
 		 *
@@ -1414,8 +1476,19 @@ class WP_Query {
 				$q['search_orderby_title'][] = $wpdb->prepare( "{$wpdb->posts}.post_title LIKE %s", $like );
 			}
 
-			$like      = $n . $wpdb->esc_like( $term ) . $n;
-			$search   .= $wpdb->prepare( "{$searchand}(({$wpdb->posts}.post_title $like_op %s) $andor_op ({$wpdb->posts}.post_excerpt $like_op %s) $andor_op ({$wpdb->posts}.post_content $like_op %s))", $like, $like, $like );
+			$like = $n . $wpdb->esc_like( $term ) . $n;
+
+			$search_columns_parts = array();
+			foreach ( $search_columns as $search_column ) {
+				$search_columns_parts[ $search_column ] = $wpdb->prepare( "({$wpdb->posts}.$search_column $like_op %s)", $like );
+			}
+
+			if ( ! empty( $this->allow_query_attachment_by_filename ) ) {
+				$search_columns_parts['attachment'] = $wpdb->prepare( "(sq1.meta_value $like_op %s)", $like );
+			}
+
+			$search .= "$searchand(" . implode( " $andor_op ", $search_columns_parts ) . ')';
+
 			$searchand = ' AND ';
 		}
 
@@ -1430,7 +1503,7 @@ class WP_Query {
 	}
 
 	/**
-	 * Check if the terms are suitable for searching.
+	 * Checks if the terms are suitable for searching.
 	 *
 	 * Uses an array of stopwords (terms) that are excluded from the separate
 	 * term matching when searching for posts. The list of English stopwords is
@@ -1471,7 +1544,7 @@ class WP_Query {
 	}
 
 	/**
-	 * Retrieve stopwords used when parsing search terms.
+	 * Retrieves stopwords used when parsing search terms.
 	 *
 	 * @since 3.7.0
 	 *
@@ -1751,7 +1824,8 @@ class WP_Query {
 	 * @since 3.9.0 The `$default_value` argument was introduced.
 	 *
 	 * @param string $query_var     Query variable key.
-	 * @param mixed  $default_value Optional. Value to return if the query variable is not set. Default empty string.
+	 * @param mixed  $default_value Optional. Value to return if the query variable is not set.
+	 *                              Default empty string.
 	 * @return mixed Contents of the query variable.
 	 */
 	public function get( $query_var, $default_value = '' ) {
@@ -1810,6 +1884,16 @@ class WP_Query {
 		// Fill again in case 'pre_get_posts' unset some vars.
 		$q = $this->fill_query_vars( $q );
 
+		/**
+		 * Filters whether an attachment query should include filenames or not.
+		 *
+		 * @since 6.0.3
+		 *
+		 * @param bool $allow_query_attachment_by_filename Whether or not to include filenames.
+		 */
+		$this->allow_query_attachment_by_filename = apply_filters( 'wp_allow_query_attachment_by_filename', false );
+		remove_all_filters( 'wp_allow_query_attachment_by_filename' );
+
 		// Parse meta query.
 		$this->meta_query = new WP_Meta_Query();
 		$this->meta_query->parse_query_vars( $q );
@@ -1860,19 +1944,21 @@ class WP_Query {
 		}
 
 		if ( ! isset( $q['cache_results'] ) ) {
-			if ( wp_using_ext_object_cache() ) {
-				$q['cache_results'] = false;
-			} else {
-				$q['cache_results'] = true;
-			}
+			$q['cache_results'] = true;
 		}
 
 		if ( ! isset( $q['update_post_term_cache'] ) ) {
 			$q['update_post_term_cache'] = true;
 		}
 
+		if ( ! isset( $q['update_menu_item_cache'] ) ) {
+			$q['update_menu_item_cache'] = false;
+		}
+
 		if ( ! isset( $q['lazy_load_term_meta'] ) ) {
 			$q['lazy_load_term_meta'] = $q['update_post_term_cache'];
+		} elseif ( $q['lazy_load_term_meta'] ) { // Lazy loading term meta only works if term caches are primed.
+			$q['update_post_term_cache'] = true;
 		}
 
 		if ( ! isset( $q['update_post_meta_cache'] ) ) {
@@ -2175,7 +2261,7 @@ class WP_Query {
 				}
 				if ( ! $post_type ) {
 					$post_type = 'any';
-				} elseif ( count( $post_type ) == 1 ) {
+				} elseif ( count( $post_type ) === 1 ) {
 					$post_type = $post_type[0];
 				}
 
@@ -2241,7 +2327,7 @@ class WP_Query {
 			}
 		}
 
-		if ( ! empty( $this->tax_query->queries ) || ! empty( $this->meta_query->queries ) ) {
+		if ( ! empty( $this->tax_query->queries ) || ! empty( $this->meta_query->queries ) || ! empty( $this->allow_query_attachment_by_filename ) ) {
 			$groupby = "{$wpdb->posts}.ID";
 		}
 
@@ -2317,6 +2403,10 @@ class WP_Query {
 			$whichmimetype = wp_post_mime_type_where( $q['post_mime_type'], $wpdb->posts );
 		}
 		$where .= $search . $whichauthor . $whichmimetype;
+
+		if ( ! empty( $this->allow_query_attachment_by_filename ) ) {
+			$join .= " LEFT JOIN {$wpdb->postmeta} AS sq1 ON ( {$wpdb->posts}.ID = sq1.post_id AND sq1.meta_key = '_wp_attached_file' )";
+		}
 
 		if ( ! empty( $this->meta_query->queries ) ) {
 			$clauses = $this->meta_query->get_sql( 'post', $wpdb->posts, 'ID', $this );
@@ -2727,12 +2817,12 @@ class WP_Query {
 			$last_changed = wp_cache_get_last_changed( 'comment' ) . ':' . wp_cache_get_last_changed( 'posts' );
 
 			$cache_key   = "comment_feed:$key:$last_changed";
-			$comment_ids = wp_cache_get( $cache_key, 'comment' );
+			$comment_ids = wp_cache_get( $cache_key, 'comment-queries' );
 			if ( false === $comment_ids ) {
 				$comment_ids = $wpdb->get_col( $comments_request );
-				wp_cache_add( $cache_key, $comment_ids, 'comment' );
+				wp_cache_add( $cache_key, $comment_ids, 'comment-queries' );
 			}
-			_prime_comment_caches( $comment_ids, false );
+			_prime_comment_caches( $comment_ids );
 
 			// Convert to WP_Comment.
 			/** @var WP_Comment[] */
@@ -3054,6 +3144,74 @@ class WP_Query {
 		 */
 		$this->posts = apply_filters_ref_array( 'posts_pre_query', array( null, &$this ) );
 
+		/*
+		 * Ensure the ID database query is able to be cached.
+		 *
+		 * Random queries are expected to have unpredictable results and
+		 * cannot be cached. Note the space before `RAND` in the string
+		 * search, that to ensure against a collision with another
+		 * function.
+		 *
+		 * If `$fields` has been modified by the `posts_fields`,
+		 * `posts_fields_request`, `post_clauses` or `posts_clauses_request`
+		 * filters, then caching is disabled to prevent caching collisions.
+		 */
+		$id_query_is_cacheable = ! str_contains( strtoupper( $orderby ), ' RAND(' );
+
+		$cacheable_field_values = array(
+			"{$wpdb->posts}.*",
+			"{$wpdb->posts}.ID, {$wpdb->posts}.post_parent",
+			"{$wpdb->posts}.ID",
+		);
+
+		if ( ! in_array( $fields, $cacheable_field_values, true ) ) {
+			$id_query_is_cacheable = false;
+		}
+
+		if ( $q['cache_results'] && $id_query_is_cacheable ) {
+			$new_request = str_replace( $fields, "{$wpdb->posts}.*", $this->request );
+			$cache_key   = $this->generate_cache_key( $q, $new_request );
+
+			$cache_found = false;
+			if ( null === $this->posts ) {
+				$cached_results = wp_cache_get( $cache_key, 'post-queries', false, $cache_found );
+
+				if ( $cached_results ) {
+					if ( 'ids' === $q['fields'] ) {
+						/** @var int[] */
+						$this->posts = array_map( 'intval', $cached_results['posts'] );
+					} else {
+						_prime_post_caches( $cached_results['posts'], $q['update_post_term_cache'], $q['update_post_meta_cache'] );
+						/** @var WP_Post[] */
+						$this->posts = array_map( 'get_post', $cached_results['posts'] );
+					}
+
+					$this->post_count    = count( $this->posts );
+					$this->found_posts   = $cached_results['found_posts'];
+					$this->max_num_pages = $cached_results['max_num_pages'];
+
+					if ( 'ids' === $q['fields'] ) {
+						return $this->posts;
+					} elseif ( 'id=>parent' === $q['fields'] ) {
+						/** @var int[] */
+						$post_parents = array();
+
+						foreach ( $this->posts as $key => $post ) {
+							$obj              = new stdClass();
+							$obj->ID          = (int) $post->ID;
+							$obj->post_parent = (int) $post->post_parent;
+
+							$this->posts[ $key ] = $obj;
+
+							$post_parents[ $obj->ID ] = $obj->post_parent;
+						}
+
+						return $post_parents;
+					}
+				}
+			}
+		}
+
 		if ( 'ids' === $q['fields'] ) {
 			if ( null === $this->posts ) {
 				$this->posts = $wpdb->get_col( $this->request );
@@ -3063,6 +3221,16 @@ class WP_Query {
 			$this->posts      = array_map( 'intval', $this->posts );
 			$this->post_count = count( $this->posts );
 			$this->set_found_posts( $q, $limits );
+
+			if ( $q['cache_results'] && $id_query_is_cacheable ) {
+				$cache_value = array(
+					'posts'         => $this->posts,
+					'found_posts'   => $this->found_posts,
+					'max_num_pages' => $this->max_num_pages,
+				);
+
+				wp_cache_set( $cache_key, $cache_value, 'post-queries' );
+			}
 
 			return $this->posts;
 		}
@@ -3076,15 +3244,28 @@ class WP_Query {
 			$this->set_found_posts( $q, $limits );
 
 			/** @var int[] */
-			$r = array();
+			$post_parents = array();
+			$post_ids     = array();
+
 			foreach ( $this->posts as $key => $post ) {
 				$this->posts[ $key ]->ID          = (int) $post->ID;
 				$this->posts[ $key ]->post_parent = (int) $post->post_parent;
 
-				$r[ (int) $post->ID ] = (int) $post->post_parent;
+				$post_parents[ (int) $post->ID ] = (int) $post->post_parent;
+				$post_ids[]                      = (int) $post->ID;
 			}
 
-			return $r;
+			if ( $q['cache_results'] && $id_query_is_cacheable ) {
+				$cache_value = array(
+					'posts'         => $post_ids,
+					'found_posts'   => $this->found_posts,
+					'max_num_pages' => $this->max_num_pages,
+				);
+
+				wp_cache_set( $cache_key, $cache_value, 'post-queries' );
+			}
+
+			return $post_parents;
 		}
 
 		if ( null === $this->posts ) {
@@ -3126,12 +3307,12 @@ class WP_Query {
 				 */
 				$this->request = apply_filters( 'posts_request_ids', $this->request, $this );
 
-				$ids = $wpdb->get_col( $this->request );
+				$post_ids = $wpdb->get_col( $this->request );
 
-				if ( $ids ) {
-					$this->posts = $ids;
+				if ( $post_ids ) {
+					$this->posts = $post_ids;
 					$this->set_found_posts( $q, $limits );
-					_prime_post_caches( $ids, $q['update_post_term_cache'], $q['update_post_meta_cache'] );
+					_prime_post_caches( $post_ids, $q['update_post_term_cache'], $q['update_post_meta_cache'] );
 				} else {
 					$this->posts = array();
 				}
@@ -3145,6 +3326,18 @@ class WP_Query {
 		if ( $this->posts ) {
 			/** @var WP_Post[] */
 			$this->posts = array_map( 'get_post', $this->posts );
+		}
+
+		if ( $q['cache_results'] && $id_query_is_cacheable && ! $cache_found ) {
+			$post_ids = wp_list_pluck( $this->posts, 'ID' );
+
+			$cache_value = array(
+				'posts'         => $post_ids,
+				'found_posts'   => $this->found_posts,
+				'max_num_pages' => $this->max_num_pages,
+			);
+
+			wp_cache_set( $cache_key, $cache_value, 'post-queries' );
 		}
 
 		if ( ! $q['suppress_filters'] ) {
@@ -3179,16 +3372,16 @@ class WP_Query {
 
 			$comments_request = "SELECT {$wpdb->comments}.comment_ID FROM {$wpdb->comments} $cjoin $cwhere $cgroupby $corderby $climits";
 
-			$key          = md5( $comments_request );
-			$last_changed = wp_cache_get_last_changed( 'comment' );
+			$comment_key          = md5( $comments_request );
+			$comment_last_changed = wp_cache_get_last_changed( 'comment' );
 
-			$cache_key   = "comment_feed:$key:$last_changed";
-			$comment_ids = wp_cache_get( $cache_key, 'comment' );
+			$comment_cache_key = "comment_feed:$comment_key:$comment_last_changed";
+			$comment_ids       = wp_cache_get( $comment_cache_key, 'comment-queries' );
 			if ( false === $comment_ids ) {
 				$comment_ids = $wpdb->get_col( $comments_request );
-				wp_cache_add( $cache_key, $comment_ids, 'comment' );
+				wp_cache_add( $comment_cache_key, $comment_ids, 'comment-queries' );
 			}
-			_prime_comment_caches( $comment_ids, false );
+			_prime_comment_caches( $comment_ids );
 
 			// Convert to WP_Comment.
 			/** @var WP_Comment[] */
@@ -3303,11 +3496,6 @@ class WP_Query {
 			}
 		}
 
-		// If comments have been fetched as part of the query, make sure comment meta lazy-loading is set up.
-		if ( ! empty( $this->comments ) ) {
-			wp_queue_comments_for_comment_meta_lazyload( $this->comments );
-		}
-
 		if ( ! $q['suppress_filters'] ) {
 			/**
 			 * Filters the array of retrieved posts after they've been fetched and
@@ -3340,6 +3528,10 @@ class WP_Query {
 			$this->posts      = array();
 		}
 
+		if ( ! empty( $this->posts ) && $q['update_menu_item_cache'] ) {
+			update_menu_item_cache( $this->posts );
+		}
+
 		if ( $q['lazy_load_term_meta'] ) {
 			wp_queue_posts_for_term_meta_lazyload( $this->posts );
 		}
@@ -3348,7 +3540,7 @@ class WP_Query {
 	}
 
 	/**
-	 * Set up the amount of found posts and the number of pages (if limit clause was used)
+	 * Sets up the amount of found posts and the number of pages (if limit clause was used)
 	 * for the current query.
 	 *
 	 * @since 3.5.0
@@ -3407,7 +3599,7 @@ class WP_Query {
 	}
 
 	/**
-	 * Set up the next post and iterate current post index.
+	 * Sets up the next post and iterate current post index.
 	 *
 	 * @since 1.5.0
 	 *
@@ -3436,10 +3628,19 @@ class WP_Query {
 		global $post;
 
 		if ( ! $this->in_the_loop ) {
-			update_post_author_caches( $this->posts );
+			// Only prime the post cache for queries limited to the ID field.
+			$post_ids = array_filter( $this->posts, 'is_numeric' );
+			// Exclude any falsey values, such as 0.
+			$post_ids = array_filter( $post_ids );
+			if ( $post_ids ) {
+				_prime_post_caches( $post_ids, $this->query_vars['update_post_term_cache'], $this->query_vars['update_post_meta_cache'] );
+			}
+			$post_objects = array_map( 'get_post', $this->posts );
+			update_post_author_caches( $post_objects );
 		}
 
 		$this->in_the_loop = true;
+		$this->before_loop = false;
 
 		if ( -1 == $this->current_post ) { // Loop has just started.
 			/**
@@ -3480,6 +3681,8 @@ class WP_Query {
 			// Do some cleaning up after the loop.
 			$this->rewind_posts();
 		} elseif ( 0 === $this->post_count ) {
+			$this->before_loop = false;
+
 			/**
 			 * Fires if no results are found in a post query.
 			 *
@@ -3495,7 +3698,7 @@ class WP_Query {
 	}
 
 	/**
-	 * Rewind the posts and reset post index.
+	 * Rewinds the posts and resets post index.
 	 *
 	 * @since 1.5.0
 	 */
@@ -3507,7 +3710,7 @@ class WP_Query {
 	}
 
 	/**
-	 * Iterate current comment index and return WP_Comment object.
+	 * Iterates current comment index and returns WP_Comment object.
 	 *
 	 * @since 2.2.0
 	 *
@@ -3544,7 +3747,7 @@ class WP_Query {
 	}
 
 	/**
-	 * Whether there are more comments available.
+	 * Determines whether there are more comments available.
 	 *
 	 * Automatically rewinds comments when finished.
 	 *
@@ -3563,7 +3766,7 @@ class WP_Query {
 	}
 
 	/**
-	 * Rewind the comments, resets the comment index and comment to first.
+	 * Rewinds the comments, resets the comment index and comment to first.
 	 *
 	 * @since 2.2.0
 	 */
@@ -3725,7 +3928,7 @@ class WP_Query {
 	}
 
 	/**
-	 * Make private properties readable for backward compatibility.
+	 * Makes private properties readable for backward compatibility.
 	 *
 	 * @since 4.0.0
 	 *
@@ -3739,7 +3942,7 @@ class WP_Query {
 	}
 
 	/**
-	 * Make private properties checkable for backward compatibility.
+	 * Makes private properties checkable for backward compatibility.
 	 *
 	 * @since 4.0.0
 	 *
@@ -3753,7 +3956,7 @@ class WP_Query {
 	}
 
 	/**
-	 * Make private/protected methods readable for backward compatibility.
+	 * Makes private/protected methods readable for backward compatibility.
 	 *
 	 * @since 4.0.0
 	 *
@@ -3769,7 +3972,7 @@ class WP_Query {
 	}
 
 	/**
-	 * Is the query for an existing archive page?
+	 * Determines whether the query is for an existing archive page.
 	 *
 	 * Archive pages include category, tag, author, date, custom post type,
 	 * and custom taxonomy based archives.
@@ -3790,7 +3993,7 @@ class WP_Query {
 	}
 
 	/**
-	 * Is the query for an existing post type archive page?
+	 * Determines whether the query is for an existing post type archive page.
 	 *
 	 * @since 3.1.0
 	 *
@@ -3809,11 +4012,15 @@ class WP_Query {
 		}
 		$post_type_object = get_post_type_object( $post_type );
 
+		if ( ! $post_type_object ) {
+			return false;
+		}
+
 		return in_array( $post_type_object->name, (array) $post_types, true );
 	}
 
 	/**
-	 * Is the query for an existing attachment page?
+	 * Determines whether the query is for an existing attachment page.
 	 *
 	 * @since 3.1.0
 	 *
@@ -3833,6 +4040,9 @@ class WP_Query {
 		$attachment = array_map( 'strval', (array) $attachment );
 
 		$post_obj = $this->get_queried_object();
+		if ( ! $post_obj ) {
+			return false;
+		}
 
 		if ( in_array( (string) $post_obj->ID, $attachment, true ) ) {
 			return true;
@@ -3845,7 +4055,7 @@ class WP_Query {
 	}
 
 	/**
-	 * Is the query for an existing author archive page?
+	 * Determines whether the query is for an existing author archive page.
 	 *
 	 * If the $author parameter is specified, this function will additionally
 	 * check if the query is for one of the authors specified.
@@ -3866,6 +4076,9 @@ class WP_Query {
 		}
 
 		$author_obj = $this->get_queried_object();
+		if ( ! $author_obj ) {
+			return false;
+		}
 
 		$author = array_map( 'strval', (array) $author );
 
@@ -3881,7 +4094,7 @@ class WP_Query {
 	}
 
 	/**
-	 * Is the query for an existing category archive page?
+	 * Determines whether the query is for an existing category archive page.
 	 *
 	 * If the $category parameter is specified, this function will additionally
 	 * check if the query is for one of the categories specified.
@@ -3902,6 +4115,9 @@ class WP_Query {
 		}
 
 		$cat_obj = $this->get_queried_object();
+		if ( ! $cat_obj ) {
+			return false;
+		}
 
 		$category = array_map( 'strval', (array) $category );
 
@@ -3917,7 +4133,7 @@ class WP_Query {
 	}
 
 	/**
-	 * Is the query for an existing tag archive page?
+	 * Determines whether the query is for an existing tag archive page.
 	 *
 	 * If the $tag parameter is specified, this function will additionally
 	 * check if the query is for one of the tags specified.
@@ -3938,6 +4154,9 @@ class WP_Query {
 		}
 
 		$tag_obj = $this->get_queried_object();
+		if ( ! $tag_obj ) {
+			return false;
+		}
 
 		$tag = array_map( 'strval', (array) $tag );
 
@@ -3953,7 +4172,7 @@ class WP_Query {
 	}
 
 	/**
-	 * Is the query for an existing custom taxonomy archive page?
+	 * Determines whether the query is for an existing custom taxonomy archive page.
 	 *
 	 * If the $taxonomy parameter is specified, this function will additionally
 	 * check if the query is for that specific $taxonomy.
@@ -4009,7 +4228,7 @@ class WP_Query {
 	}
 
 	/**
-	 * Whether the current URL is within the comments popup window.
+	 * Determines whether the current URL is within the comments popup window.
 	 *
 	 * @since 3.1.0
 	 * @deprecated 4.5.0
@@ -4023,7 +4242,7 @@ class WP_Query {
 	}
 
 	/**
-	 * Is the query for an existing date archive?
+	 * Determines whether the query is for an existing date archive.
 	 *
 	 * @since 3.1.0
 	 *
@@ -4034,7 +4253,7 @@ class WP_Query {
 	}
 
 	/**
-	 * Is the query for an existing day archive?
+	 * Determines whether the query is for an existing day archive.
 	 *
 	 * @since 3.1.0
 	 *
@@ -4045,7 +4264,7 @@ class WP_Query {
 	}
 
 	/**
-	 * Is the query for a feed?
+	 * Determines whether the query is for a feed.
 	 *
 	 * @since 3.1.0
 	 *
@@ -4067,7 +4286,7 @@ class WP_Query {
 	}
 
 	/**
-	 * Is the query for a comments feed?
+	 * Determines whether the query is for a comments feed.
 	 *
 	 * @since 3.1.0
 	 *
@@ -4078,7 +4297,7 @@ class WP_Query {
 	}
 
 	/**
-	 * Is the query for the front page of the site?
+	 * Determines whether the query is for the front page of the site.
 	 *
 	 * This is for what is displayed at your site's main URL.
 	 *
@@ -4107,7 +4326,7 @@ class WP_Query {
 	}
 
 	/**
-	 * Is the query for the blog homepage?
+	 * Determines whether the query is for the blog homepage.
 	 *
 	 * This is the page which shows the time based blog content of your site.
 	 *
@@ -4127,7 +4346,7 @@ class WP_Query {
 	}
 
 	/**
-	 * Is the query for the Privacy Policy page?
+	 * Determines whether the query is for the Privacy Policy page.
 	 *
 	 * This is the page which shows the Privacy Policy content of your site.
 	 *
@@ -4150,7 +4369,7 @@ class WP_Query {
 	}
 
 	/**
-	 * Is the query for an existing month archive?
+	 * Determines whether the query is for an existing month archive.
 	 *
 	 * @since 3.1.0
 	 *
@@ -4161,7 +4380,7 @@ class WP_Query {
 	}
 
 	/**
-	 * Is the query for an existing single page?
+	 * Determines whether the query is for an existing single page.
 	 *
 	 * If the $page parameter is specified, this function will additionally
 	 * check if the query is for one of the pages specified.
@@ -4185,6 +4404,9 @@ class WP_Query {
 		}
 
 		$page_obj = $this->get_queried_object();
+		if ( ! $page_obj ) {
+			return false;
+		}
 
 		$page = array_map( 'strval', (array) $page );
 
@@ -4211,7 +4433,7 @@ class WP_Query {
 	}
 
 	/**
-	 * Is the query for a paged result and not for the first page?
+	 * Determines whether the query is for a paged result and not for the first page.
 	 *
 	 * @since 3.1.0
 	 *
@@ -4222,7 +4444,7 @@ class WP_Query {
 	}
 
 	/**
-	 * Is the query for a post or page preview?
+	 * Determines whether the query is for a post or page preview.
 	 *
 	 * @since 3.1.0
 	 *
@@ -4233,7 +4455,7 @@ class WP_Query {
 	}
 
 	/**
-	 * Is the query for the robots.txt file?
+	 * Determines whether the query is for the robots.txt file.
 	 *
 	 * @since 3.1.0
 	 *
@@ -4244,7 +4466,7 @@ class WP_Query {
 	}
 
 	/**
-	 * Is the query for the favicon.ico file?
+	 * Determines whether the query is for the favicon.ico file.
 	 *
 	 * @since 5.4.0
 	 *
@@ -4255,7 +4477,7 @@ class WP_Query {
 	}
 
 	/**
-	 * Is the query for a search?
+	 * Determines whether the query is for a search.
 	 *
 	 * @since 3.1.0
 	 *
@@ -4266,7 +4488,7 @@ class WP_Query {
 	}
 
 	/**
-	 * Is the query for an existing single post?
+	 * Determines whether the query is for an existing single post.
 	 *
 	 * Works for any post type excluding pages.
 	 *
@@ -4292,6 +4514,9 @@ class WP_Query {
 		}
 
 		$post_obj = $this->get_queried_object();
+		if ( ! $post_obj ) {
+			return false;
+		}
 
 		$post = array_map( 'strval', (array) $post );
 
@@ -4317,8 +4542,8 @@ class WP_Query {
 	}
 
 	/**
-	 * Is the query for an existing single post of any post type (post, attachment, page,
-	 * custom post types)?
+	 * Determines whether the query is for an existing single post of any post type
+	 * (post, attachment, page, custom post types).
 	 *
 	 * If the $post_types parameter is specified, this function will additionally
 	 * check if the query is for one of the Posts Types specified.
@@ -4339,12 +4564,15 @@ class WP_Query {
 		}
 
 		$post_obj = $this->get_queried_object();
+		if ( ! $post_obj ) {
+			return false;
+		}
 
 		return in_array( $post_obj->post_type, (array) $post_types, true );
 	}
 
 	/**
-	 * Is the query for a specific time?
+	 * Determines whether the query is for a specific time.
 	 *
 	 * @since 3.1.0
 	 *
@@ -4355,7 +4583,7 @@ class WP_Query {
 	}
 
 	/**
-	 * Is the query for a trackback endpoint call?
+	 * Determines whether the query is for a trackback endpoint call.
 	 *
 	 * @since 3.1.0
 	 *
@@ -4366,7 +4594,7 @@ class WP_Query {
 	}
 
 	/**
-	 * Is the query for an existing year archive?
+	 * Determines whether the query is for an existing year archive.
 	 *
 	 * @since 3.1.0
 	 *
@@ -4377,7 +4605,7 @@ class WP_Query {
 	}
 
 	/**
-	 * Is the query a 404 (returns no results)?
+	 * Determines whether the query is a 404 (returns no results).
 	 *
 	 * @since 3.1.0
 	 *
@@ -4388,7 +4616,7 @@ class WP_Query {
 	}
 
 	/**
-	 * Is the query for an embedded post?
+	 * Determines whether the query is for an embedded post.
 	 *
 	 * @since 4.4.0
 	 *
@@ -4399,7 +4627,7 @@ class WP_Query {
 	}
 
 	/**
-	 * Is the query the main query?
+	 * Determines whether the query is the main query.
 	 *
 	 * @since 3.3.0
 	 *
@@ -4413,7 +4641,7 @@ class WP_Query {
 	}
 
 	/**
-	 * Set up global post data.
+	 * Sets up global post data.
 	 *
 	 * @since 4.1.0
 	 * @since 4.4.0 Added the ability to pass a post ID to `$post`.
@@ -4472,7 +4700,7 @@ class WP_Query {
 	}
 
 	/**
-	 * Generate post data.
+	 * Generates post data.
 	 *
 	 * @since 5.2.0
 	 *
@@ -4493,11 +4721,22 @@ class WP_Query {
 
 		$authordata = get_userdata( $post->post_author );
 
-		$currentday   = mysql2date( 'd.m.y', $post->post_date, false );
-		$currentmonth = mysql2date( 'm', $post->post_date, false );
-		$numpages     = 1;
-		$multipage    = 0;
-		$page         = $this->get( 'page' );
+		$currentday   = false;
+		$currentmonth = false;
+
+		$post_date = $post->post_date;
+		if ( ! empty( $post_date ) && '0000-00-00 00:00:00' !== $post_date ) {
+			// Avoid using mysql2date for performance reasons.
+			$currentmonth = substr( $post_date, 5, 2 );
+			$day          = substr( $post_date, 8, 2 );
+			$year         = substr( $post_date, 2, 2 );
+
+			$currentday = sprintf( '%s.%s.%s', $day, $currentmonth, $year );
+		}
+
+		$numpages  = 1;
+		$multipage = 0;
+		$page      = $this->get( 'page' );
 		if ( ! $page ) {
 			$page = 1;
 		}
@@ -4525,7 +4764,7 @@ class WP_Query {
 			$content = str_replace( '<!-- /wp:nextpage -->', '', $content );
 
 			// Ignore nextpage at the beginning of the content.
-			if ( 0 === strpos( $content, '<!--nextpage-->' ) ) {
+			if ( str_starts_with( $content, '<!--nextpage-->' ) ) {
 				$content = substr( $content, 15 );
 			}
 
@@ -4562,6 +4801,61 @@ class WP_Query {
 
 		return $elements;
 	}
+
+	/**
+	 * Generates cache key.
+	 *
+	 * @since 6.1.0
+	 *
+	 * @global wpdb $wpdb WordPress database abstraction object.
+	 *
+	 * @param array  $args Query arguments.
+	 * @param string $sql  SQL statement.
+	 * @return string Cache key.
+	 */
+	protected function generate_cache_key( array $args, $sql ) {
+		global $wpdb;
+
+		unset(
+			$args['cache_results'],
+			$args['fields'],
+			$args['lazy_load_term_meta'],
+			$args['update_post_meta_cache'],
+			$args['update_post_term_cache'],
+			$args['update_menu_item_cache'],
+			$args['suppress_filters']
+		);
+
+		$placeholder = $wpdb->placeholder_escape();
+		array_walk_recursive(
+			$args,
+			/*
+			 * Replace wpdb placeholders with the string used in the database
+			 * query to avoid unreachable cache keys. This is necessary because
+			 * the placeholder is randomly generated in each request.
+			 *
+			 * $value is passed by reference to allow it to be modified.
+			 * array_walk_recursive() does not return an array.
+			 */
+			static function ( &$value ) use ( $wpdb, $placeholder ) {
+				if ( is_string( $value ) && str_contains( $value, $placeholder ) ) {
+					$value = $wpdb->remove_placeholder_escape( $value );
+				}
+			}
+		);
+
+		// Replace wpdb placeholder in the SQL statement used by the cache key.
+		$sql = $wpdb->remove_placeholder_escape( $sql );
+		$key = md5( serialize( $args ) . $sql );
+
+		$last_changed = wp_cache_get_last_changed( 'posts' );
+		if ( ! empty( $this->tax_query->queries ) ) {
+			$last_changed .= wp_cache_get_last_changed( 'terms' );
+		}
+
+		return "wp_query:$key:$last_changed";
+	}
+
 	/**
 	 * After looping through a nested query, this function
 	 * restores the $post global to the current post in this query.
@@ -4578,7 +4872,7 @@ class WP_Query {
 	}
 
 	/**
-	 * Lazyload term meta for posts in the loop.
+	 * Lazyloads term meta for posts in the loop.
 	 *
 	 * @since 4.4.0
 	 * @deprecated 4.5.0 See wp_queue_posts_for_term_meta_lazyload().
@@ -4593,10 +4887,10 @@ class WP_Query {
 	}
 
 	/**
-	 * Lazyload comment meta for comments in the loop.
+	 * Lazyloads comment meta for comments in the loop.
 	 *
 	 * @since 4.4.0
-	 * @deprecated 4.5.0 See wp_queue_comments_for_comment_meta_lazyload().
+	 * @deprecated 4.5.0 See wp_lazyload_comment_meta().
 	 *
 	 * @param mixed $check
 	 * @param int   $comment_id
