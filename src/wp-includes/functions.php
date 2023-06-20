@@ -2692,7 +2692,7 @@ function wp_unique_filename( $dir, $filename, $unique_filename_callback = null )
 		 */
 		if ( $is_image ) {
 			/** This filter is documented in wp-includes/class-wp-image-editor.php */
-			$output_formats = apply_filters( 'image_editor_output_format', get_default_image_editor_output_format(), $_dir . $filename, $mime_type );
+			$output_formats = get_default_image_editor_output_format( $_dir . $filename, $mime_type );
 			$alt_types      = array();
 
 			if ( ! empty( $output_formats[ $mime_type ] ) ) {
@@ -2761,12 +2761,44 @@ function wp_unique_filename( $dir, $filename, $unique_filename_callback = null )
 	}
 
 	/**
-	 * Get the default output format.
+	 * Get the default output format. Return is filtered by `image_editor_output_format`.
+	 *
+	 * @since 6.4.0
+	 *
+	 * @param string $filename  Path to the image.
+	 * @param string $mime_type The source image mime type.
+	 *
+	 * @return string[] $output_format {
+	 *     An array of mime type mappings. Maps a source mime type to a new
+	 *     destination mime type. Default maps jpeg to webp.
+	 *
+	 *     @type string ...$0 The new mime type.
+	 * }
 	 */
-	function get_default_image_editor_output_format() {
-		return array (
+	function get_default_image_editor_output_format( $filename, $mime_type ) {
+		$default = array (
 			'image/jpeg' => 'image/webp',
 		);
+		/**
+		 * Filters the image editor output format mapping.
+		 *
+		 * Enables filtering the mime type used to save images. By default,
+		 * the mapping array is empty, so the mime type matches the source image.
+		 *
+		 * @see WP_Image_Editor::get_output_format()
+		 *
+		 * @since 5.8.0
+		 *
+		 * @param string[] $output_format {
+		 *     An array of mime type mappings. Maps a source mime type to a new
+		 *     destination mime type. Default maps jpeg to webp.
+		 *
+		 *     @type string ...$0 The new mime type.
+		 * }
+		 * @param string $filename  Path to the image.
+		 * @param string $mime_type The source image mime type.
+		 */
+		return apply_filters( 'image_editor_output_format', $default(), $filename, $mime_type );
 	}
 
 	/**
