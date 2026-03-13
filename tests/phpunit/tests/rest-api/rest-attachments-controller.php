@@ -3456,6 +3456,12 @@ class WP_Test_REST_Attachments_Controller extends WP_Test_REST_Post_Type_Control
 	 * @requires function imagejpeg
 	 */
 	public function test_finalize_item(): void {
+		add_filter( 'wp_client_side_media_processing_enabled', '__return_true' );
+		// Reinitialize REST server so the finalize route is registered.
+		global $wp_rest_server;
+		$wp_rest_server = new Spy_REST_Server();
+		do_action( 'rest_api_init', $wp_rest_server );
+
 		wp_set_current_user( self::$author_id );
 
 		// Create an attachment.
@@ -3508,6 +3514,12 @@ class WP_Test_REST_Attachments_Controller extends WP_Test_REST_Post_Type_Control
 	 * @requires function imagejpeg
 	 */
 	public function test_finalize_item_requires_auth(): void {
+		add_filter( 'wp_client_side_media_processing_enabled', '__return_true' );
+		// Reinitialize REST server so the finalize route is registered.
+		global $wp_rest_server;
+		$wp_rest_server = new Spy_REST_Server();
+		do_action( 'rest_api_init', $wp_rest_server );
+
 		wp_set_current_user( self::$author_id );
 
 		// Create an attachment.
@@ -3534,6 +3546,12 @@ class WP_Test_REST_Attachments_Controller extends WP_Test_REST_Post_Type_Control
 	 * @covers WP_REST_Attachments_Controller::finalize_item
 	 */
 	public function test_finalize_item_invalid_id(): void {
+		add_filter( 'wp_client_side_media_processing_enabled', '__return_true' );
+		// Reinitialize REST server so the finalize route is registered.
+		global $wp_rest_server;
+		$wp_rest_server = new Spy_REST_Server();
+		do_action( 'rest_api_init', $wp_rest_server );
+
 		wp_set_current_user( self::$author_id );
 
 		$invalid_id = PHP_INT_MAX;
