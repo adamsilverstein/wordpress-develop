@@ -95,6 +95,17 @@ final class WP_Comment_Type {
 	public $show_ui;
 
 	/**
+	 * Whether to include this comment type in the REST API.
+	 *
+	 * Comment types with this enabled are exposed by the `/wp/v2/comment-types`
+	 * endpoint. Default is the value of $public.
+	 *
+	 * @since 7.1.0
+	 * @var bool
+	 */
+	public $show_in_rest;
+
+	/**
 	 * Whether this comment type is a native or "built-in" comment type.
 	 *
 	 * Default false.
@@ -187,12 +198,13 @@ final class WP_Comment_Type {
 		 * treated as a provided value and overwrite the default name with false.
 		 */
 		$defaults = array(
-			'labels'      => array(),
-			'description' => '',
-			'public'      => true,
-			'internal'    => false,
-			'show_ui'     => null,
-			'_builtin'    => false,
+			'labels'       => array(),
+			'description'  => '',
+			'public'       => true,
+			'internal'     => false,
+			'show_ui'      => null,
+			'show_in_rest' => null,
+			'_builtin'     => false,
 		);
 
 		$args = array_merge( $defaults, $args );
@@ -200,6 +212,11 @@ final class WP_Comment_Type {
 		// If not set, default to the setting for 'public'.
 		if ( null === $args['show_ui'] ) {
 			$args['show_ui'] = $args['public'];
+		}
+
+		// If not set, default to the setting for 'public'.
+		if ( null === $args['show_in_rest'] ) {
+			$args['show_in_rest'] = $args['public'];
 		}
 
 		$args['name'] = $this->name;
