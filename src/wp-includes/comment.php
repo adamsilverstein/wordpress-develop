@@ -365,8 +365,16 @@ function create_initial_comment_types() {
  *                                   the admin interface or by front-end users. Default true.
  *     @type bool       $internal    Whether the comment type is for internal use only and should be
  *                                   excluded from default public-facing contexts. Default false.
- *     @type bool       $show_ui     Whether to generate and allow a UI for managing this comment type
- *                                   in the admin. Default is value of $public.
+ *     @type bool          $show_ui         Whether to generate and allow a UI for managing this comment
+ *                                          type in the admin. Default is value of $public.
+ *     @type string|array  $capability_type The string to use to build the read, edit, and delete
+ *                                          capabilities. May be passed as an array to allow for
+ *                                          alternative plurals when using this argument as a base to
+ *                                          construct the capabilities, e.g. array( 'story', 'stories' ).
+ *                                          Default 'comment'.
+ *     @type string[]      $capabilities    Array of capabilities for this comment type. $capability_type
+ *                                          is used as a base to construct capabilities by default.
+ *                                          See get_comment_type_capabilities().
  * }
  * @return WP_Comment_Type|WP_Error The registered comment type object on success,
  *                                  WP_Error object on failure.
@@ -567,6 +575,53 @@ function get_comment_type_labels( $comment_type_object ) {
 	$labels = (object) array_merge( (array) $default_labels, (array) $labels );
 
 	return $labels;
+}
+
+/**
+ * Builds an object with all comment type capabilities out of a comment type object.
+ *
+ * Comment type capabilities use the `capability_type` argument as a base, if
+ * the capability is not set in the `capabilities` argument.
+ *
+ * This is advisory metadata describing the capabilities associated with a comment
+ * type, modeled on {@see get_post_type_capabilities()}. The capability mapping in
+ * {@see map_meta_cap()} is not affected by these capabilities in this release.
+ *
+ * The capability strings are built from the `capability_type` argument, which may
+ * be a string or an array. When a string, the plural is created by appending an
+ * 's'. When an array, the first element is the singular base and the second the
+ * plural base, e.g. array( 'story', 'stories' ).
+ *
+ * @since 7.1.0
+ *
+ * @param object $args Comment type registration arguments. Expects the
+ *                     `capability_type` and `capabilities` properties.
+ * @return object Object with all the capabilities as member variables.
+ */
+function get_comment_type_capabilities( $args ) {
+	if ( ! is_array( $args->capability_type ) ) {
+		$args->capability_type = array( $args->capability_type, $args->capability_type . 's' );
+	}
+
+	// Singular base for meta capabilities, plural base for primitive capabilities.
+	list( $singular_base, $plural_base ) = $args->capability_type;
+
+	$default_capabilities = array(
+		// Meta capabilities.
+		'edit_comment'         => 'edit_' . $singular_base,
+		'read_comment'         => 'read_' . $singular_base,
+		'delete_comment'       => 'delete_' . $singular_base,
+		'moderate_comment'     => 'moderate_' . $singular_base,
+		// Primitive capabilities used outside of map_meta_cap().
+		'edit_comments'        => 'edit_' . $plural_base,
+		'edit_others_comments' => 'edit_others_' . $plural_base,
+		'delete_comments'      => 'delete_' . $plural_base,
+		'moderate_comments'    => 'moderate_' . $plural_base,
+	);
+
+	$capabilities = array_merge( $default_capabilities, $args->capabilities );
+
+	return (object) $capabilities;
 }
 
 /**
