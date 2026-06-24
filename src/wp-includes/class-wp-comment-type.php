@@ -105,6 +105,20 @@ final class WP_Comment_Type {
 	public $_builtin = false;
 
 	/**
+	 * Callback used to render a comment of this type in comment lists.
+	 *
+	 * When set to a callable, {@see Walker_Comment} invokes it to render a
+	 * comment of this type, receiving the same arguments as the `callback`
+	 * argument of wp_list_comments(): the comment object, the arguments array,
+	 * and the depth. An explicit `callback` passed to wp_list_comments() still
+	 * takes precedence. Default null.
+	 *
+	 * @since 7.1.0
+	 * @var callable|null
+	 */
+	public $render_callback = null;
+
+	/**
 	 * Whether the comment type is hierarchical.
 	 *
 	 * Comment types are never hierarchical. This property exists so the shared
@@ -187,12 +201,13 @@ final class WP_Comment_Type {
 		 * treated as a provided value and overwrite the default name with false.
 		 */
 		$defaults = array(
-			'labels'      => array(),
-			'description' => '',
-			'public'      => true,
-			'internal'    => false,
-			'show_ui'     => null,
-			'_builtin'    => false,
+			'labels'          => array(),
+			'description'     => '',
+			'public'          => true,
+			'internal'        => false,
+			'show_ui'         => null,
+			'render_callback' => null,
+			'_builtin'        => false,
 		);
 
 		$args = array_merge( $defaults, $args );
