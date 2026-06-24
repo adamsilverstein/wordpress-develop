@@ -291,4 +291,66 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 
 		$this->assertSame( 'Filtered Foo', get_comment_type_object( 'foo' )->labels->singular_name );
 	}
+
+	/**
+	 * @ticket 35214
+	 */
+	public function test_registered_comment_type_exposes_cap_object() {
+		register_comment_type( 'foo', array( 'capability_type' => 'review' ) );
+
+		$cobj = get_comment_type_object( 'foo' );
+
+		$this->assertSame( 'edit_reviews', $cobj->cap->edit_comments );
+		$this->assertSame( 'moderate_reviews', $cobj->cap->moderate_comments );
+	}
+
+	/**
+	 * The built-in comment type's capabilities match the existing core comment capabilities.
+	 *
+	 * @ticket 35214
+	 */
+	public function test_built_in_comment_type_capabilities_are_backward_compatible() {
+		$cobj = get_comment_type_object( 'comment' );
+
+		$this->assertSame( 'edit_comment', $cobj->cap->edit_comment );
+		$this->assertSame( 'moderate_comments', $cobj->cap->moderate_comments );
+	}
+
+	/**
+	 * @ticket 35214
+	 *
+	 * @covers ::get_comment_type_capabilities
+	 */
+	public function test_get_comment_type_capabilities_from_string() {
+		$caps = get_comment_type_capabilities(
+			(object) array(
+				'capability_type' => 'review',
+				'capabilities'    => array(),
+			)
+		);
+
+		$this->assertSame( 'edit_review', $caps->edit_comment );
+		$this->assertSame( 'edit_reviews', $caps->edit_comments );
+		$this->assertSame( 'edit_others_reviews', $caps->edit_others_comments );
+		$this->assertSame( 'delete_review', $caps->delete_comment );
+		$this->assertSame( 'moderate_reviews', $caps->moderate_comments );
+	}
+
+	/**
+	 * @ticket 35214
+	 *
+	 * @covers ::get_comment_type_capabilities
+	 */
+	public function test_get_comment_type_capabilities_honors_capabilities_override() {
+		$caps = get_comment_type_capabilities(
+			(object) array(
+				'capability_type' => 'comment',
+				'capabilities'    => array(
+					'edit_comments' => 'manage_stuff',
+				),
+			)
+		);
+
+		$this->assertSame( 'manage_stuff', $caps->edit_comments );
+	}
 }
