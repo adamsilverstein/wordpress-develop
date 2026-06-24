@@ -101,6 +101,32 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	/**
 	 * @ticket 35214
 	 */
+	public function test_register_comment_type_show_in_rest_should_default_to_value_of_public() {
+		register_comment_type( 'public_type', array( 'public' => true ) );
+		$this->assertTrue( get_comment_type_object( 'public_type' )->show_in_rest );
+
+		register_comment_type( 'private_type', array( 'public' => false ) );
+		$this->assertFalse( get_comment_type_object( 'private_type' )->show_in_rest );
+	}
+
+	/**
+	 * @ticket 35214
+	 */
+	public function test_register_comment_type_show_in_rest_can_be_overridden() {
+		register_comment_type(
+			'private_but_in_rest',
+			array(
+				'public'       => false,
+				'show_in_rest' => true,
+			)
+		);
+
+		$this->assertTrue( get_comment_type_object( 'private_but_in_rest' )->show_in_rest );
+	}
+
+	/**
+	 * @ticket 35214
+	 */
 	public function test_built_in_comment_types_are_registered() {
 		$this->assertTrue( comment_type_exists( 'comment' ) );
 		$this->assertTrue( comment_type_exists( 'pingback' ) );
