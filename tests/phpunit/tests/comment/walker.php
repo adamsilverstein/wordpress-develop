@@ -145,6 +145,35 @@ class Tests_Comment_Walker extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A registered ping type renders with the compact ping markup when short_ping is on.
+	 *
+	 * @ticket 35214
+	 */
+	public function test_registered_ping_type_renders_as_ping() {
+		register_comment_type( 'webmention', array( 'is_ping' => true ) );
+
+		$comment_id = self::factory()->comment->create(
+			array(
+				'comment_post_ID'  => $this->post_id,
+				'comment_type'     => 'webmention',
+				'comment_content'  => 'A webmention body',
+				'comment_approved' => '1',
+			)
+		);
+
+		$output = $this->render_comments(
+			array( get_comment( $comment_id ) ),
+			array( 'short_ping' => true )
+		);
+
+		// The compact ping markup prints the "Pingback:" label and omits the comment body.
+		$this->assertStringContainsString( 'Pingback:', $output );
+		$this->assertStringNotContainsString( 'A webmention body', $output );
+
+		unregister_comment_type( 'webmention' );
+	}
+
+	/**
 	 * Built-in comment types without a render_callback render normally.
 	 *
 	 * @ticket 35214

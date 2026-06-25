@@ -25,6 +25,18 @@ class Tests_Comment_WpCommentType extends WP_UnitTestCase {
 		$this->assertTrue( $comment_type->show_ui );
 		$this->assertFalse( $comment_type->hierarchical );
 		$this->assertNull( $comment_type->render_callback );
+		$this->assertFalse( $comment_type->is_ping );
+	}
+
+	/**
+	 * @ticket 35214
+	 *
+	 * @covers ::set_props
+	 */
+	public function test_is_ping_is_stored() {
+		$comment_type = new WP_Comment_Type( 'foo', array( 'is_ping' => true ) );
+
+		$this->assertTrue( $comment_type->is_ping );
 	}
 
 	/**
