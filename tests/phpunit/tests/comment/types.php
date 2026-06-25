@@ -353,4 +353,59 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 
 		$this->assertSame( 'manage_stuff', $caps->edit_comments );
 	}
+
+	/**
+	 * The full set of meta and primitive capabilities is generated from the base.
+	 *
+	 * @ticket 35214
+	 *
+	 * @covers ::get_comment_type_capabilities
+	 */
+	public function test_get_comment_type_capabilities_generates_full_set() {
+		$caps = get_comment_type_capabilities(
+			(object) array(
+				'capability_type' => 'review',
+				'capabilities'    => array(),
+			)
+		);
+
+		$expected = array(
+			// Meta capabilities.
+			'edit_comment'         => 'edit_review',
+			'read_comment'         => 'read_review',
+			'delete_comment'       => 'delete_review',
+			'moderate_comment'     => 'moderate_review',
+			// Primitive capabilities.
+			'edit_comments'        => 'edit_reviews',
+			'edit_others_comments' => 'edit_others_reviews',
+			'delete_comments'      => 'delete_reviews',
+			'moderate_comments'    => 'moderate_reviews',
+		);
+
+		$this->assertSame( $expected, (array) $caps );
+	}
+
+	/**
+	 * An array capability type supplies an explicit plural base for primitive caps.
+	 *
+	 * @ticket 35214
+	 *
+	 * @covers ::get_comment_type_capabilities
+	 */
+	public function test_get_comment_type_capabilities_from_array() {
+		$caps = get_comment_type_capabilities(
+			(object) array(
+				'capability_type' => array( 'story', 'stories' ),
+				'capabilities'    => array(),
+			)
+		);
+
+		// Singular base drives the meta capabilities.
+		$this->assertSame( 'edit_story', $caps->edit_comment );
+		$this->assertSame( 'read_story', $caps->read_comment );
+		// Explicit plural base drives the primitive capabilities.
+		$this->assertSame( 'edit_stories', $caps->edit_comments );
+		$this->assertSame( 'delete_stories', $caps->delete_comments );
+		$this->assertSame( 'moderate_stories', $caps->moderate_comments );
+	}
 }
