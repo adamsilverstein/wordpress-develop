@@ -120,6 +120,19 @@ final class WP_Comment_Type {
 	public $render_callback = null;
 
 	/**
+	 * Whether the comment type represents a ping (a notification from another site)
+	 * rather than a human-authored comment.
+	 *
+	 * Ping types (such as `pingback` and `trackback`) are grouped together by
+	 * {@see separate_comments()} and rendered with the compact ping markup by
+	 * {@see Walker_Comment}. Default false.
+	 *
+	 * @since 7.1.0
+	 * @var bool
+	 */
+	public $is_ping = false;
+
+	/**
 	 * Whether the comment type is hierarchical.
 	 *
 	 * Comment types are never hierarchical. This property exists so the shared
@@ -208,6 +221,7 @@ final class WP_Comment_Type {
 			'internal'        => false,
 			'show_ui'         => null,
 			'render_callback' => null,
+			'is_ping'         => false,
 			'_builtin'        => false,
 		);
 

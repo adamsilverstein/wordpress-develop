@@ -202,7 +202,9 @@ class Walker_Comment extends Walker {
 			add_filter( 'comment_text', array( $this, 'filter_comment_text' ), 40, 2 );
 		}
 
-		if ( ( 'pingback' === $comment->comment_type || 'trackback' === $comment->comment_type ) && $args['short_ping'] ) {
+		$is_ping = $comment_type_object && $comment_type_object->is_ping;
+
+		if ( $is_ping && $args['short_ping'] ) {
 			ob_start();
 			$this->ping( $comment, $depth, $args );
 			$output .= ob_get_clean();

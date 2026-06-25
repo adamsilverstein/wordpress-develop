@@ -303,6 +303,7 @@ function create_initial_comment_types() {
 				'singular_name' => __( 'Pingback' ),
 			),
 			'public'   => true,
+			'is_ping'  => true,
 			'_builtin' => true,
 		)
 	);
@@ -315,6 +316,7 @@ function create_initial_comment_types() {
 				'singular_name' => __( 'Trackback' ),
 			),
 			'public'   => true,
+			'is_ping'  => true,
 			'_builtin' => true,
 		)
 	);
@@ -367,6 +369,10 @@ function create_initial_comment_types() {
  *                                   excluded from default public-facing contexts. Default false.
  *     @type bool       $show_ui         Whether to generate and allow a UI for managing this comment
  *                                       type in the admin. Default is value of $public.
+ *     @type bool       $is_ping         Whether the comment type represents a ping (a notification from
+ *                                       another site) rather than a human-authored comment. Ping types are
+ *                                       grouped together by separate_comments() and rendered with compact
+ *                                       ping markup by Walker_Comment. Default false.
  *     @type callable   $render_callback Callback used to render a comment of this type in comment
  *                                       lists. Receives the same arguments as the `callback` argument
  *                                       of wp_list_comments() (the comment, the arguments, and the
@@ -1256,7 +1262,9 @@ function separate_comments( &$comments ) {
 
 		$comments_by_type[ $type ][] = &$comments[ $i ];
 
-		if ( 'trackback' === $type || 'pingback' === $type ) {
+		$comment_type_object = get_comment_type_object( $type );
+
+		if ( $comment_type_object && $comment_type_object->is_ping ) {
 			$comments_by_type['pings'][] = &$comments[ $i ];
 		}
 	}
