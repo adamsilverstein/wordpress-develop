@@ -552,6 +552,8 @@ class Tests_User_Capabilities extends WP_UnitTestCase {
 			$expected['delete_post_meta'],
 			$expected['add_post_meta'],
 			$expected['edit_comment'],
+			$expected['delete_comment'],
+			$expected['moderate_comment'],
 			$expected['edit_comment_meta'],
 			$expected['delete_comment_meta'],
 			$expected['add_comment_meta'],
