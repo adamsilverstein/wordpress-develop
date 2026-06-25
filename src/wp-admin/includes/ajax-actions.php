@@ -997,7 +997,7 @@ function wp_ajax_dim_comment() {
 		$response->send();
 	}
 
-	if ( ! current_user_can( 'edit_comment', $comment->comment_ID ) && ! current_user_can( 'moderate_comments' ) ) {
+	if ( ! current_user_can( 'edit_comment', $comment->comment_ID ) && ! current_user_can( 'moderate_comment', $comment->comment_ID ) ) {
 		wp_die( -1 );
 	}
 
