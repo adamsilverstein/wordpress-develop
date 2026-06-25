@@ -1932,7 +1932,7 @@ class WP_REST_Comments_Controller extends WP_REST_Controller {
 			return false;
 		}
 
-		if ( empty( $comment->comment_post_ID ) && ! current_user_can( 'moderate_comments' ) ) {
+		if ( empty( $comment->comment_post_ID ) && ! current_user_can( 'moderate_comment', $comment->comment_ID ) ) {
 			return false;
 		}
 
@@ -1956,7 +1956,13 @@ class WP_REST_Comments_Controller extends WP_REST_Controller {
 			return false;
 		}
 
-		if ( current_user_can( 'moderate_comments' ) ) {
+		/*
+		 * Use the per-comment `moderate_comment` meta capability rather than the
+		 * global `moderate_comments` primitive. For comment types using the default
+		 * capability model this resolves to `moderate_comments` (unchanged), while a
+		 * type with its own capabilities is gated by its own moderation primitive.
+		 */
+		if ( current_user_can( 'moderate_comment', $comment->comment_ID ) ) {
 			return true;
 		}
 
