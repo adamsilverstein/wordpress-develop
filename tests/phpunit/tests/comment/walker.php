@@ -163,6 +163,76 @@ class Tests_Comment_Walker extends WP_UnitTestCase {
 
 		$this->assertStringContainsString( 'A normal comment', $output );
 	}
+
+	/**
+	 * The render_callback receives the comment, the arguments array, and the depth,
+	 * matching the wp_list_comments() `callback` contract.
+	 *
+	 * @ticket 35214
+	 */
+	public function test_render_callback_receives_comment_args_and_depth() {
+		$received = array();
+
+		register_comment_type(
+			'review',
+			array(
+				'render_callback' => static function ( $comment, $args, $depth ) use ( &$received ) {
+					$received = array(
+						'comment' => $comment,
+						'args'    => $args,
+						'depth'   => $depth,
+					);
+					echo '<li></li>';
+				},
+			)
+		);
+
+		$comment_id = self::factory()->comment->create(
+			array(
+				'comment_post_ID'  => $this->post_id,
+				'comment_type'     => 'review',
+				'comment_approved' => '1',
+			)
+		);
+
+		$this->render_comments( array( get_comment( $comment_id ) ) );
+
+		$this->assertInstanceOf( 'WP_Comment', $received['comment'], 'The callback should receive the comment object.' );
+		$this->assertSame( (string) $comment_id, (string) $received['comment']->comment_ID, 'The callback should receive the rendered comment.' );
+		$this->assertIsArray( $received['args'], 'The callback should receive the arguments array.' );
+		$this->assertSame( 1, $received['depth'], 'A top-level comment should be rendered at depth 1.' );
+
+		unregister_comment_type( 'review' );
+	}
+
+	/**
+	 * A render_callback that is not callable is ignored and the comment renders normally.
+	 *
+	 * @ticket 35214
+	 */
+	public function test_non_callable_render_callback_is_ignored() {
+		register_comment_type(
+			'review',
+			array(
+				'render_callback' => 'this_is_not_a_callable_function',
+			)
+		);
+
+		$comment_id = self::factory()->comment->create(
+			array(
+				'comment_post_ID'  => $this->post_id,
+				'comment_type'     => 'review',
+				'comment_content'  => 'Falls back to normal rendering',
+				'comment_approved' => '1',
+			)
+		);
+
+		$output = $this->render_comments( array( get_comment( $comment_id ) ) );
+
+		$this->assertStringContainsString( 'Falls back to normal rendering', $output );
+
+		unregister_comment_type( 'review' );
+	}
 }
 
 class Comment_Callback_Test_Helper {
