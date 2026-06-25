@@ -223,6 +223,107 @@ class WP_Test_REST_Comment_Types_Controller extends WP_Test_REST_Controller_Test
 		$this->assertArrayHasKey( 'labels', $properties );
 	}
 
+	/**
+	 * The `api.w.org/items` link should point at the type-filtered comments collection.
+	 *
+	 * @ticket 35214
+	 */
+	public function test_get_item_links_to_filtered_comments_collection() {
+		$request  = new WP_REST_Request( 'GET', '/wp/v2/comment-types/comment' );
+		$response = rest_get_server()->dispatch( $request );
+		$links    = test_rest_expand_compact_links( $response->get_links() );
+
+		$this->assertArrayHasKey( 'https://api.w.org/items', $links );
+		$this->assertSame(
+			add_query_arg( 'type', 'comment', rest_url( 'wp/v2/comments' ) ),
+			$links['https://api.w.org/items'][0]['href']
+		);
+	}
+
+	/**
+	 * A HEAD request to the collection should succeed without preparing any item data.
+	 *
+	 * @ticket 56481
+	 */
+	public function test_get_items_with_head_request_should_not_prepare_comment_types_data() {
+		$request   = new WP_REST_Request( 'HEAD', '/wp/v2/comment-types' );
+		$hook_name = 'rest_prepare_comment_type';
+		$filter    = new MockAction();
+		$callback  = array( $filter, 'filter' );
+		add_filter( $hook_name, $callback );
+		$response = rest_get_server()->dispatch( $request );
+		remove_filter( $hook_name, $callback );
+		$this->assertSame( 200, $response->get_status(), 'The response status should be 200.' );
+		$this->assertSame( 0, $filter->get_call_count(), 'The "' . $hook_name . '" filter was called when it should not be for HEAD requests.' );
+		$this->assertSame( array(), $response->get_data(), 'The server should not generate a body in response to a HEAD request.' );
+	}
+
+	/**
+	 * @dataProvider data_readable_http_methods
+	 * @ticket 56481
+	 *
+	 * @param string $method The HTTP method to use.
+	 */
+	public function test_get_item_should_allow_adding_headers_via_filter( $method ) {
+		$request = new WP_REST_Request( $method, '/wp/v2/comment-types/comment' );
+
+		$hook_name = 'rest_prepare_comment_type';
+		$filter    = new MockAction();
+		$callback  = array( $filter, 'filter' );
+		add_filter( $hook_name, $callback );
+		$header_filter = new class() {
+			public static function add_custom_header( $response ) {
+				$response->header( 'X-Test-Header', 'Test' );
+
+				return $response;
+			}
+		};
+		add_filter( $hook_name, array( $header_filter, 'add_custom_header' ) );
+		$response = rest_get_server()->dispatch( $request );
+		remove_filter( $hook_name, $callback );
+		remove_filter( $hook_name, array( $header_filter, 'add_custom_header' ) );
+
+		$this->assertSame( 200, $response->get_status(), 'The response status should be 200.' );
+		$this->assertSame( 1, $filter->get_call_count(), 'The "' . $hook_name . '" filter should be called once.' );
+		$headers = $response->get_headers();
+		$this->assertArrayHasKey( 'X-Test-Header', $headers, 'The "X-Test-Header" header should be present in the response.' );
+		$this->assertSame( 'Test', $headers['X-Test-Header'], 'The "X-Test-Header" header value should be equal to "Test".' );
+		if ( 'HEAD' !== $method ) {
+			return null;
+		}
+		$this->assertSame( array(), $response->get_data(), 'The server should not generate a body in response to a HEAD request.' );
+	}
+
+	/**
+	 * @dataProvider data_head_request_with_specified_fields_returns_success_response
+	 * @ticket 56481
+	 *
+	 * @param string $path The path to test.
+	 */
+	public function test_head_request_with_specified_fields_returns_success_response( $path ) {
+		$request = new WP_REST_Request( 'HEAD', $path );
+		$request->set_param( '_fields', 'slug' );
+		$server   = rest_get_server();
+		$response = $server->dispatch( $request );
+		add_filter( 'rest_post_dispatch', 'rest_filter_response_fields', 10, 3 );
+		$response = apply_filters( 'rest_post_dispatch', $response, $server, $request );
+		remove_filter( 'rest_post_dispatch', 'rest_filter_response_fields', 10 );
+
+		$this->assertSame( 200, $response->get_status(), 'The response status should be 200.' );
+	}
+
+	/**
+	 * Data provider intended to provide paths for testing HEAD requests.
+	 *
+	 * @return array
+	 */
+	public static function data_head_request_with_specified_fields_returns_success_response() {
+		return array(
+			'get_item request'  => array( '/wp/v2/comment-types/comment' ),
+			'get_items request' => array( '/wp/v2/comment-types' ),
+		);
+	}
+
 	protected function check_comment_type_obj( $context, $comment_type_obj, $data, $links ) {
 		$this->assertSame( $comment_type_obj->label, $data['name'] );
 		$this->assertSame( $comment_type_obj->name, $data['slug'] );
