@@ -371,7 +371,8 @@ function create_initial_comment_types() {
  *                                       lists. Receives the same arguments as the `callback` argument
  *                                       of wp_list_comments() (the comment, the arguments, and the
  *                                       depth). An explicit wp_list_comments() `callback` takes
- *                                       precedence. Default null.
+ *                                       precedence. Output is printed unescaped; the callback must
+ *                                       escape all output. Default null.
  * }
  * @return WP_Comment_Type|WP_Error The registered comment type object on success,
  *                                  WP_Error object on failure.

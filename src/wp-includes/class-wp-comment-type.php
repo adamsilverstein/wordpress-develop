@@ -111,7 +111,8 @@ final class WP_Comment_Type {
 	 * comment of this type, receiving the same arguments as the `callback`
 	 * argument of wp_list_comments(): the comment object, the arguments array,
 	 * and the depth. An explicit `callback` passed to wp_list_comments() still
-	 * takes precedence. Default null.
+	 * takes precedence. Output from the callback is printed unescaped; the
+	 * callback is responsible for escaping all output. Default null.
 	 *
 	 * @since 7.1.0
 	 * @var callable|null
