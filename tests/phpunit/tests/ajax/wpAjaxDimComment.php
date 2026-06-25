@@ -26,13 +26,29 @@ class Tests_Ajax_wpAjaxDimComment extends WP_Ajax_UnitTestCase {
 	protected $_comments = array();
 
 	/**
+	 * Post the comments are attached to.
+	 *
+	 * @var int
+	 */
+	protected $_post_id;
+
+	/**
 	 * Sets up the test fixture.
 	 */
 	public function set_up() {
 		parent::set_up();
-		$post_id         = self::factory()->post->create();
-		$this->_comments = self::factory()->comment->create_post_comments( $post_id, 15 );
+		$this->_post_id  = self::factory()->post->create();
+		$this->_comments = self::factory()->comment->create_post_comments( $this->_post_id, 15 );
 		$this->_comments = array_map( 'get_comment', $this->_comments );
+
+		// A comment type with an independent capability model.
+		register_comment_type( 'review', array( 'capability_type' => 'review' ) );
+	}
+
+	public function tear_down() {
+		unregister_comment_type( 'review' );
+
+		parent::tear_down();
 	}
 
 	/**
@@ -238,5 +254,80 @@ class Tests_Ajax_wpAjaxDimComment extends WP_Ajax_UnitTestCase {
 	public function test_ajax_dim_comment_bad_nonce() {
 		$comment = array_pop( $this->_comments );
 		$this->_test_with_bad_nonce( $comment );
+	}
+
+	/**
+	 * Creates an unapproved comment of a given type on the shared post.
+	 *
+	 * @param string $comment_type Comment type slug.
+	 * @return int The new comment ID.
+	 */
+	private function make_comment( $comment_type ) {
+		return self::factory()->comment->create(
+			array(
+				'comment_post_ID'  => $this->_post_id,
+				'comment_type'     => $comment_type,
+				'comment_approved' => '0',
+			)
+		);
+	}
+
+	/**
+	 * Sets up the dim-comment request for the given comment.
+	 *
+	 * @param int $comment_id Comment to dim.
+	 */
+	private function set_up_dim_request( $comment_id ) {
+		$this->_clear_post_action();
+
+		$_POST['id']          = $comment_id;
+		$_POST['_ajax_nonce'] = wp_create_nonce( 'approve-comment_' . $comment_id );
+		$_POST['_total']      = 1;
+		$_POST['_per_page']   = 100;
+		$_POST['_page']       = 1;
+		$_POST['_url']        = admin_url( 'edit-comments.php' );
+	}
+
+	/**
+	 * A moderator of an independent comment type can dim its comments.
+	 *
+	 * @ticket 35214
+	 */
+	public function test_dim_review_comment_as_type_moderator_is_allowed() {
+		$comment_id = $this->make_comment( 'review' );
+
+		$moderator = self::factory()->user->create_and_get( array( 'role' => 'subscriber' ) );
+		$moderator->add_cap( 'moderate_reviews' );
+		wp_set_current_user( $moderator->ID );
+
+		$this->set_up_dim_request( $comment_id );
+
+		try {
+			$this->_handleAjax( 'dim-comment' );
+		} catch ( WPAjaxDieContinueException $e ) {
+			unset( $e );
+		}
+
+		// The request was authorized, so the unapproved comment was approved.
+		$this->assertSame( 'approved', wp_get_comment_status( $comment_id ) );
+	}
+
+	/**
+	 * A global moderator without the type's capabilities cannot dim its comments.
+	 *
+	 * @ticket 35214
+	 */
+	public function test_dim_review_comment_as_global_moderator_is_denied() {
+		$comment_id = $this->make_comment( 'review' );
+
+		$global_moderator = self::factory()->user->create_and_get( array( 'role' => 'subscriber' ) );
+		$global_moderator->add_cap( 'moderate_comments' );
+		wp_set_current_user( $global_moderator->ID );
+
+		$this->set_up_dim_request( $comment_id );
+
+		$this->expectException( 'WPAjaxDieStopException' );
+		$this->expectExceptionMessage( '-1' );
+		$this->_handleAjax( 'dim-comment' );
 	}
 }
