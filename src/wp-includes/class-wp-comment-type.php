@@ -25,7 +25,7 @@ final class WP_Comment_Type {
 	public $name;
 
 	/**
-	 * Name of the comment type shown in the menu. Usually plural.
+	 * Name of the comment type. Usually plural.
 	 *
 	 * @since 7.1.0
 	 * @var string
@@ -35,7 +35,7 @@ final class WP_Comment_Type {
 	/**
 	 * Labels object for this comment type.
 	 *
-	 * If not set, comment labels are inherited.
+	 * If not set, the default comment labels are used.
 	 *
 	 * @see get_comment_type_labels()
 	 *
@@ -63,6 +63,11 @@ final class WP_Comment_Type {
 	/**
 	 * Whether a comment type is intended for use publicly either via the admin interface or by front-end users.
 	 *
+	 * Core does not currently act on this property, but it is the intended default
+	 * for future visibility-related arguments. It defaults to true so that
+	 * registering a type in order to provide labels never hides comments that are
+	 * already publicly visible.
+	 *
 	 * Default true.
 	 *
 	 * @since 7.1.0
@@ -73,9 +78,10 @@ final class WP_Comment_Type {
 	/**
 	 * Whether the comment type is for internal use only.
 	 *
-	 * Internal comment types (such as `note`) are excluded from default comment listings, counts,
-	 * and other public-facing contexts. This is advisory metadata; the query layer is not affected
-	 * by this property in this release.
+	 * Analogous to the `internal` argument of register_post_status(). Core does not
+	 * currently consult this property: the exclusion of the built-in `note` type
+	 * from default comment queries is hard-coded. The property is intended to drive
+	 * that exclusion for registered types in the future.
 	 *
 	 * Default false.
 	 *
@@ -83,16 +89,6 @@ final class WP_Comment_Type {
 	 * @var bool
 	 */
 	public $internal = false;
-
-	/**
-	 * Whether to generate and allow a UI for managing this comment type in the admin.
-	 *
-	 * Default is the value of $public.
-	 *
-	 * @since 7.1.0
-	 * @var bool
-	 */
-	public $show_ui;
 
 	/**
 	 * Whether this comment type is a native or "built-in" comment type.
@@ -110,9 +106,22 @@ final class WP_Comment_Type {
 	 * When set to a callable, {@see Walker_Comment} invokes it to render a
 	 * comment of this type, receiving the same arguments as the `callback`
 	 * argument of wp_list_comments(): the comment object, the arguments array,
-	 * and the depth. An explicit `callback` passed to wp_list_comments() still
-	 * takes precedence. Output from the callback is printed unescaped; the
-	 * callback is responsible for escaping all output. Default null.
+	 * and the depth. The precedence chain is: an explicit `callback` passed to
+	 * wp_list_comments(), then this callback, then the default markup.
+	 *
+	 * Like the `callback` argument of wp_list_comments(), the callback must only
+	 * output the opening of the list element (an unclosed `<li>` by default);
+	 * {@see Walker_Comment::end_el()} (or the `end-callback` argument) closes
+	 * the element after any child comments have been rendered.
+	 *
+	 * Output from the callback is printed unescaped; the callback is
+	 * responsible for escaping all output.
+	 *
+	 * Only applies when comments are rendered via wp_list_comments() (classic
+	 * themes). Block themes render comments through the `core/comment-template`
+	 * block and do not invoke this callback.
+	 *
+	 * Default null.
 	 *
 	 * @since 7.1.0
 	 * @var callable|null
@@ -219,18 +228,12 @@ final class WP_Comment_Type {
 			'description'     => '',
 			'public'          => true,
 			'internal'        => false,
-			'show_ui'         => null,
 			'render_callback' => null,
 			'is_ping'         => false,
 			'_builtin'        => false,
 		);
 
 		$args = array_merge( $defaults, $args );
-
-		// If not set, default to the setting for 'public'.
-		if ( null === $args['show_ui'] ) {
-			$args['show_ui'] = $args['public'];
-		}
 
 		$args['name'] = $this->name;
 
