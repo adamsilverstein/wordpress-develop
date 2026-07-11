@@ -2997,16 +2997,22 @@ function wp_update_comment_count_now( $post_id ) {
  * Each post's `comment_count` is recomputed with wp_update_comment_count_now(),
  * so the result honors the {@see 'default_excluded_comment_types'} filter.
  *
- * This is the recount counterpart to wp_update_comment_count(): the stored count
+ * This is the bulk counterpart to wp_update_comment_count(): the stored count
  * is only refreshed for a post when its comments change, so an existing count can
  * become stale after the set of excluded comment types changes (for example when
  * a plugin registers a type that opts out of default listings). A plugin that
  * changes that set should call this once, typically from its activation routine,
  * the same way rewrite rules are flushed with flush_rewrite_rules().
  *
+ * Cached comment query results are salted only by the comment `last_changed`
+ * key, so it is bumped here: on a persistent object cache, queries cached before
+ * the excluded set changed would otherwise keep serving the old results.
+ *
  * Recalculating every post is proportional to the number of posts that have
- * comments and can be expensive on large sites. Pass a specific list of post IDs
- * to limit the work, or run it from a maintenance context such as WP-CLI.
+ * comments and can be expensive on large sites. Each recalculation also fires
+ * the usual post-update hooks (`wp_update_comment_count`, `edit_post`), so cache
+ * purgers and search indexers run once per post. Pass a specific list of post
+ * IDs to limit the work, or run it from a maintenance context such as WP-CLI.
  *
  * @since 7.1.0
  *
@@ -3014,28 +3020,70 @@ function wp_update_comment_count_now( $post_id ) {
  *
  * @param int[]|int|null $post_ids Optional. Post ID or array of post IDs to recalculate.
  *                                 Default null, which recalculates every post that has
- *                                 at least one comment.
+ *                                 at least one comment or a nonzero stored count.
  * @return int Number of posts whose comment count was recalculated.
  */
 function wp_update_comment_counts( $post_ids = null ) {
 	global $wpdb;
 
-	if ( null === $post_ids ) {
-		$post_ids = $wpdb->get_col( "SELECT DISTINCT comment_post_ID FROM $wpdb->comments" );
-	}
-
-	$post_ids = array_unique( array_filter( array_map( 'absint', (array) $post_ids ) ) );
-
-	if ( empty( $post_ids ) ) {
-		return 0;
-	}
+	/*
+	 * Invalidate cached comment query results: they may reflect the previous
+	 * set of default-excluded comment types.
+	 */
+	wp_cache_set_last_changed( 'comment' );
 
 	$recalculated = 0;
-	foreach ( $post_ids as $post_id ) {
-		if ( wp_update_comment_count_now( $post_id ) ) {
-			++$recalculated;
+
+	if ( null !== $post_ids ) {
+		$post_ids = array_map( 'intval', (array) $post_ids );
+		$post_ids = array_unique(
+			array_filter(
+				$post_ids,
+				static function ( $post_id ) {
+					return $post_id > 0;
+				}
+			)
+		);
+
+		foreach ( $post_ids as $post_id ) {
+			if ( wp_update_comment_count_now( $post_id ) ) {
+				++$recalculated;
+			}
 		}
+
+		return $recalculated;
 	}
+
+	/*
+	 * Visit every post that has at least one comment row, plus every post with
+	 * a nonzero stored count (whose comment rows may all have been deleted), in
+	 * keyset batches so the full ID list is never materialized in memory.
+	 */
+	$batch_size   = 1000;
+	$last_post_id = 0;
+
+	do {
+		$batch = $wpdb->get_col(
+			$wpdb->prepare(
+				"( SELECT DISTINCT comment_post_ID AS post_id FROM {$wpdb->comments} WHERE comment_post_ID > %d )
+				UNION
+				( SELECT ID AS post_id FROM {$wpdb->posts} WHERE comment_count <> 0 AND ID > %d )
+				ORDER BY post_id
+				LIMIT %d",
+				$last_post_id,
+				$last_post_id,
+				$batch_size
+			)
+		);
+
+		foreach ( $batch as $post_id ) {
+			if ( wp_update_comment_count_now( (int) $post_id ) ) {
+				++$recalculated;
+			}
+		}
+
+		$last_post_id = $batch ? (int) end( $batch ) : 0;
+	} while ( count( $batch ) === $batch_size );
 
 	return $recalculated;
 }

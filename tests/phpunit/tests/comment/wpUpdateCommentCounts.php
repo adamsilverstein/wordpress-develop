@@ -98,10 +98,75 @@ class Tests_Comment_wpUpdateCommentCounts extends WP_UnitTestCase {
 		$this->set_stored_count( $post_a, 99 );
 		$this->set_stored_count( $post_b, 99 );
 
-		wp_update_comment_counts();
+		$recalculated = wp_update_comment_counts();
 
+		$this->assertSame( 2, $recalculated );
 		$this->assertSame( '1', get_comments_number( $post_a ) );
 		$this->assertSame( '1', get_comments_number( $post_b ) );
+	}
+
+	/**
+	 * Nonexistent, zero, and negative post IDs are skipped, not recounted.
+	 *
+	 * @ticket 65537
+	 */
+	public function test_invalid_post_ids_are_skipped() {
+		$post_id = self::factory()->post->create();
+		self::factory()->comment->create(
+			array(
+				'comment_post_ID'  => $post_id,
+				'comment_approved' => 1,
+			)
+		);
+		$this->set_stored_count( $post_id, 99 );
+
+		// A negative ID must not be silently coerced into a valid one.
+		$this->assertSame( 0, wp_update_comment_counts( array( -$post_id, 0, PHP_INT_MAX ) ) );
+		$this->assertSame( '99', get_comments_number( $post_id ), 'The negated ID should not recount the positive post.' );
+	}
+
+	/**
+	 * An explicit ID for a post with no remaining comment rows forces a stale
+	 * stored count back to zero.
+	 *
+	 * @ticket 65537
+	 */
+	public function test_explicit_id_resets_stale_count_on_commentless_post() {
+		$post_id = self::factory()->post->create();
+		$this->set_stored_count( $post_id, 5 );
+
+		$this->assertSame( 1, wp_update_comment_counts( $post_id ) );
+		$this->assertSame( '0', get_comments_number( $post_id ) );
+	}
+
+	/**
+	 * The null path also visits posts with a nonzero stored count but no
+	 * remaining comment rows, which the comments table alone cannot reveal.
+	 *
+	 * @ticket 65537
+	 */
+	public function test_null_path_resets_stale_count_on_commentless_post() {
+		$post_id = self::factory()->post->create();
+		$this->set_stored_count( $post_id, 5 );
+
+		$recalculated = wp_update_comment_counts();
+
+		$this->assertSame( 1, $recalculated );
+		$this->assertSame( '0', get_comments_number( $post_id ) );
+	}
+
+	/**
+	 * Recounting bumps the comment last_changed key so cached query results
+	 * from before the excluded set changed are invalidated.
+	 *
+	 * @ticket 65537
+	 */
+	public function test_recount_invalidates_comment_query_cache() {
+		$before = wp_cache_get_last_changed( 'comment' );
+
+		wp_update_comment_counts( array() );
+
+		$this->assertNotSame( $before, wp_cache_get_last_changed( 'comment' ) );
 	}
 
 	/**
