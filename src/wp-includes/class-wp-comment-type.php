@@ -93,12 +93,13 @@ final class WP_Comment_Type {
 	/**
 	 * The string to use to build the read, edit, and delete capabilities.
 	 *
-	 * May be passed as an array to allow for alternative plurals when using
+	 * May be registered as an array to allow for alternative plurals when using
 	 * this argument as a base to construct the capabilities, e.g.
-	 * array( 'story', 'stories' ). Default 'comment'.
+	 * array( 'story', 'stories' ). set_props() collapses the array form back to
+	 * the singular base once the capabilities are built. Default 'comment'.
 	 *
 	 * @since 7.1.0
-	 * @var string|array
+	 * @var string
 	 */
 	public $capability_type = 'comment';
 

@@ -638,11 +638,42 @@ function get_comment_type_labels( $comment_type_object ) {
  * 's'. When an array, the first element is the singular base and the second the
  * plural base, e.g. array( 'story', 'stories' ).
  *
+ * Note: With the default `capability_type` of 'comment', most of the generated
+ * primitive capabilities (`edit_comments`, `edit_others_comments`,
+ * `delete_comments`) exist in no default role and are not consulted by the
+ * default capability mapping; `moderate_comments` is the only generated
+ * primitive that default roles grant. Consumers should check the meta
+ * capabilities together with a comment ID instead of testing those primitives
+ * directly.
+ *
+ * Note: The `capability_type` property of the passed object is normalized to
+ * its array form as a side effect of calling this function, matching
+ * get_post_type_capabilities().
+ *
  * @since 7.1.0
  *
  * @param object $args Comment type registration arguments. Expects the
  *                     `capability_type` and `capabilities` properties.
- * @return object Object with all the capabilities as member variables.
+ * @return object {
+ *     Object with all the capabilities as member variables.
+ *
+ *     @type string $edit_comment         Meta capability to edit a comment of this type.
+ *                                        Default 'edit_comment'.
+ *     @type string $read_comment         Meta capability to read a comment of this type.
+ *                                        Default 'read_comment'.
+ *     @type string $delete_comment       Meta capability to delete a comment of this type.
+ *                                        Default 'delete_comment'.
+ *     @type string $moderate_comment     Meta capability to moderate a comment of this type.
+ *                                        Default 'moderate_comment'.
+ *     @type string $edit_comments        Primitive capability to edit comments of this type.
+ *                                        Default 'edit_comments'.
+ *     @type string $edit_others_comments Primitive capability to edit comments of this type
+ *                                        authored by other users. Default 'edit_others_comments'.
+ *     @type string $delete_comments      Primitive capability to delete comments of this type.
+ *                                        Default 'delete_comments'.
+ *     @type string $moderate_comments    Primitive capability to moderate comments of this type.
+ *                                        Default 'moderate_comments'.
+ * }
  */
 function get_comment_type_capabilities( $args ) {
 	if ( ! is_array( $args->capability_type ) ) {
