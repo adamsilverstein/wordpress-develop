@@ -45,12 +45,6 @@ class Tests_Ajax_wpAjaxDimComment extends WP_Ajax_UnitTestCase {
 		register_comment_type( 'review', array( 'capability_type' => 'review' ) );
 	}
 
-	public function tear_down() {
-		unregister_comment_type( 'review' );
-
-		parent::tear_down();
-	}
-
 	/**
 	 * Clears the POST actions in between requests.
 	 */
@@ -329,5 +323,72 @@ class Tests_Ajax_wpAjaxDimComment extends WP_Ajax_UnitTestCase {
 		$this->expectException( 'WPAjaxDieStopException' );
 		$this->expectExceptionMessage( '-1' );
 		$this->_handleAjax( 'dim-comment' );
+	}
+
+	/**
+	 * A type moderator can also un-dim: dimming an approved comment unapproves it.
+	 *
+	 * @ticket 35214
+	 */
+	public function test_dim_approved_review_comment_as_type_moderator_unapproves_it() {
+		$comment_id = $this->make_comment( 'review' );
+		wp_set_comment_status( $comment_id, 'approve' );
+
+		$moderator = self::factory()->user->create_and_get( array( 'role' => 'subscriber' ) );
+		$moderator->add_cap( 'moderate_reviews' );
+		wp_set_current_user( $moderator->ID );
+
+		$this->set_up_dim_request( $comment_id );
+
+		try {
+			$this->_handleAjax( 'dim-comment' );
+		} catch ( WPAjaxDieContinueException $e ) {
+			unset( $e );
+		}
+
+		$this->assertSame( 'unapproved', wp_get_comment_status( $comment_id ) );
+	}
+
+	/**
+	 * The inverse denial: a type moderator cannot dim a default-model comment.
+	 *
+	 * @ticket 35214
+	 */
+	public function test_dim_default_comment_as_type_moderator_is_denied() {
+		$comment_id = $this->make_comment( 'comment' );
+
+		$moderator = self::factory()->user->create_and_get( array( 'role' => 'subscriber' ) );
+		$moderator->add_cap( 'moderate_reviews' );
+		wp_set_current_user( $moderator->ID );
+
+		$this->set_up_dim_request( $comment_id );
+
+		$this->expectException( 'WPAjaxDieStopException' );
+		$this->expectExceptionMessage( '-1' );
+		$this->_handleAjax( 'dim-comment' );
+	}
+
+	/**
+	 * A global moderator keeps full control over UNREGISTERED comment types
+	 * (the null type object back-compat fallback).
+	 *
+	 * @ticket 35214
+	 */
+	public function test_dim_unregistered_type_comment_as_global_moderator_is_allowed() {
+		$comment_id = $this->make_comment( 'webmention' );
+
+		$global_moderator = self::factory()->user->create_and_get( array( 'role' => 'subscriber' ) );
+		$global_moderator->add_cap( 'moderate_comments' );
+		wp_set_current_user( $global_moderator->ID );
+
+		$this->set_up_dim_request( $comment_id );
+
+		try {
+			$this->_handleAjax( 'dim-comment' );
+		} catch ( WPAjaxDieContinueException $e ) {
+			unset( $e );
+		}
+
+		$this->assertSame( 'approved', wp_get_comment_status( $comment_id ) );
 	}
 }
