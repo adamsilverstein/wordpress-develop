@@ -107,10 +107,12 @@ final class WP_Comment_Type {
 	 * Capabilities for this comment type.
 	 *
 	 * Built by {@see get_comment_type_capabilities()} from the
-	 * `capability_type` and `capabilities` arguments. This is advisory metadata
-	 * describing the capabilities associated with the comment type; the
-	 * capability mapping in {@see map_meta_cap()} is not affected by this
-	 * property in this release.
+	 * `capability_type` and `capabilities` arguments. Types using the default
+	 * capability model derive edit and delete permission from the comment's
+	 * parent post and moderation from the global `moderate_comments`
+	 * capability. A type that overrides a singular meta capability is instead
+	 * gated by its own plural primitive capabilities in {@see map_meta_cap()},
+	 * which the plugin registering the type must grant to roles.
 	 *
 	 * @since 7.1.0
 	 * @var stdClass
