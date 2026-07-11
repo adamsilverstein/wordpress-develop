@@ -217,7 +217,6 @@ final class WP_Comment_Type {
 			$args['show_in_rest'] = $args['public'];
 		}
 
-
 		$args['name'] = $this->name;
 
 		foreach ( $args as $property_name => $property_value ) {
