@@ -20,18 +20,6 @@ class Tests_Comment_CommentType extends WP_UnitTestCase {
 		self::$post_id = $factory->post->create();
 	}
 
-	public function tear_down() {
-		global $wp_comment_types;
-
-		foreach ( array_keys( $wp_comment_types ) as $comment_type ) {
-			if ( ! $wp_comment_types[ $comment_type ]->_builtin ) {
-				unset( $wp_comment_types[ $comment_type ] );
-			}
-		}
-
-		parent::tear_down();
-	}
-
 	/**
 	 * Returns the output of comment_type() for a comment of the given type.
 	 *
@@ -97,6 +85,25 @@ class Tests_Comment_CommentType extends WP_UnitTestCase {
 	 */
 	public function test_unregistered_custom_type_falls_back_to_default_label() {
 		$this->assertSame( _x( 'Comment', 'noun' ), $this->get_comment_type_output( 'bar' ) );
+	}
+
+	/**
+	 * A comment stored with the legacy empty string type is treated as 'comment'.
+	 *
+	 * @ticket 35214
+	 */
+	public function test_legacy_empty_type_outputs_comment() {
+		$this->assertSame( 'Comment', $this->get_comment_type_output( '' ) );
+	}
+
+	/**
+	 * The label fallback must not apply to built-in types: 'note' has 'Note' labels
+	 * but comment_type() output stays 'Comment'.
+	 *
+	 * @ticket 35214
+	 */
+	public function test_built_in_note_type_outputs_default_comment_text() {
+		$this->assertSame( 'Comment', $this->get_comment_type_output( 'note' ) );
 	}
 
 	/**
