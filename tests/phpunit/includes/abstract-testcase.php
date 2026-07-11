@@ -359,6 +359,10 @@ abstract class WP_UnitTestCase_Base extends PHPUnit_Adapter_TestCase {
 	 * it has a chance to do so.
 	 */
 	protected function reset_comment_types() {
+		// Direct get_comment_type_capabilities() calls register translations
+		// without a comment type to unregister, so reset the registry wholesale.
+		$GLOBALS['comment_type_meta_caps'] = array();
+
 		foreach ( get_comment_types( array( '_builtin' => false ) ) as $comment_type ) {
 			_unregister_comment_type( $comment_type );
 		}
