@@ -139,6 +139,14 @@ class WP_REST_Comments_Controller extends WP_REST_Controller {
 						array( 'status' => rest_authorization_required_code() )
 					);
 				} elseif ( 0 === $post_id && ! current_user_can( 'moderate_comments' ) ) {
+					/*
+					 * Intentionally the global primitive: this gates the whole ?post=0
+					 * collection, which can mix comment types, before any individual
+					 * comment is known. Known divergence: a global moderator sees
+					 * independent-type orphans filtered out of the list (empty 200)
+					 * while a type moderator gets 403 here. A per-type collection
+					 * treatment belongs with a future `type` parameter rework.
+					 */
 					return new WP_Error(
 						'rest_cannot_read',
 						__( 'Sorry, you are not allowed to read comments without a post.' ),
@@ -190,6 +198,8 @@ class WP_REST_Comments_Controller extends WP_REST_Controller {
 				}
 			}
 		} elseif ( $is_edit_context && ! current_user_can( 'moderate_comments' ) ) {
+			// Intentionally the global primitive: gates an edit-context collection
+			// that can mix comment types, before any individual comment is known.
 			return new WP_Error(
 				'rest_forbidden_context',
 				__( 'Sorry, you are not allowed to edit comments.' ),
@@ -437,8 +447,13 @@ class WP_REST_Comments_Controller extends WP_REST_Controller {
 			return $comment;
 		}
 
-		// Re-map edit context capabilities when requesting `note` type.
-		$edit_cap = 'note' === $comment->comment_type ? array( 'edit_comment', $comment->comment_ID ) : array( 'moderate_comments' );
+		/*
+		 * Re-map edit context capabilities per comment type: `note` comments are
+		 * gated by `edit_comment`, all others by the per-comment `moderate_comment`
+		 * meta capability. This matches the update and delete paths, whose responses
+		 * already return edit-context data.
+		 */
+		$edit_cap = 'note' === $comment->comment_type ? array( 'edit_comment', $comment->comment_ID ) : array( 'moderate_comment', $comment->comment_ID );
 		if ( ! empty( $request['context'] ) && 'edit' === $request['context'] && ! current_user_can( ...$edit_cap ) ) {
 			return new WP_Error(
 				'rest_forbidden_context',
@@ -539,7 +554,12 @@ class WP_REST_Comments_Controller extends WP_REST_Controller {
 			}
 		}
 
-		// Limit who can set comment `author`, `author_ip` or `status` to anything other than the default.
+		/*
+		 * Limit who can set comment `author`, `author_ip` or `status` to anything
+		 * other than the default. Intentionally the global primitive: these gates
+		 * run at creation time, and honoring the (known) type's own moderation
+		 * primitive here is future work alongside the other creation-time gates.
+		 */
 		if ( isset( $request['author'] ) && get_current_user_id() !== $request['author'] && ! current_user_can( 'moderate_comments' ) ) {
 			return new WP_Error(
 				'rest_comment_invalid_author',
@@ -1913,6 +1933,8 @@ class WP_REST_Comments_Controller extends WP_REST_Controller {
 	 * Checks if the comment can be read.
 	 *
 	 * @since 4.7.0
+	 * @since 7.1.0 Orphaned comments are gated by the per-comment `moderate_comment`
+	 *              meta capability instead of the global `moderate_comments` primitive.
 	 *
 	 * @param WP_Comment      $comment Comment object.
 	 * @param WP_REST_Request $request Request data to check.
@@ -1947,6 +1969,8 @@ class WP_REST_Comments_Controller extends WP_REST_Controller {
 	 * Checks if a comment can be edited or deleted.
 	 *
 	 * @since 4.7.0
+	 * @since 7.1.0 Uses the per-comment `moderate_comment` meta capability instead
+	 *              of the global `moderate_comments` primitive.
 	 *
 	 * @param WP_Comment $comment Comment object.
 	 * @return bool Whether the comment can be edited or deleted.
