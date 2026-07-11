@@ -20,18 +20,6 @@ class Tests_Comment_CommentType extends WP_UnitTestCase {
 		self::$post_id = $factory->post->create();
 	}
 
-	public function tear_down() {
-		global $wp_comment_types;
-
-		foreach ( array_keys( $wp_comment_types ) as $comment_type ) {
-			if ( ! $wp_comment_types[ $comment_type ]->_builtin ) {
-				unset( $wp_comment_types[ $comment_type ] );
-			}
-		}
-
-		parent::tear_down();
-	}
-
 	/**
 	 * Returns the output of comment_type() for a comment of the given type.
 	 *
@@ -100,6 +88,25 @@ class Tests_Comment_CommentType extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A comment stored with the legacy empty string type is treated as 'comment'.
+	 *
+	 * @ticket 35214
+	 */
+	public function test_legacy_empty_type_outputs_comment() {
+		$this->assertSame( 'Comment', $this->get_comment_type_output( '' ) );
+	}
+
+	/**
+	 * The label fallback must not apply to built-in types: 'note' has 'Note' labels
+	 * but comment_type() output stays 'Comment'.
+	 *
+	 * @ticket 35214
+	 */
+	public function test_built_in_note_type_outputs_default_comment_text() {
+		$this->assertSame( 'Comment', $this->get_comment_type_output( 'note' ) );
+	}
+
+	/**
 	 * @ticket 35214
 	 */
 	public function test_custom_text_override_wins_over_registered_label() {
@@ -113,5 +120,26 @@ class Tests_Comment_CommentType extends WP_UnitTestCase {
 		);
 
 		$this->assertSame( 'Custom', $this->get_comment_type_output( 'foo', 'Custom' ) );
+	}
+
+	/**
+	 * The registered label is escaped on output to guard against HTML/script injection.
+	 *
+	 * @ticket 35214
+	 */
+	public function test_registered_label_is_escaped_on_output() {
+		register_comment_type(
+			'foo',
+			array(
+				'labels' => array(
+					'singular_name' => '<img src=x onerror=alert(1)>Foo',
+				),
+			)
+		);
+
+		$this->assertSame(
+			esc_html( '<img src=x onerror=alert(1)>Foo' ),
+			$this->get_comment_type_output( 'foo' )
+		);
 	}
 }

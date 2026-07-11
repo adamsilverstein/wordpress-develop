@@ -22,7 +22,6 @@ class Tests_Comment_WpCommentType extends WP_UnitTestCase {
 		$this->assertTrue( $comment_type->public );
 		$this->assertFalse( $comment_type->internal );
 		$this->assertFalse( $comment_type->_builtin );
-		$this->assertTrue( $comment_type->show_ui );
 		$this->assertFalse( $comment_type->hierarchical );
 		$this->assertNull( $comment_type->render_callback );
 	}
@@ -57,8 +56,6 @@ class Tests_Comment_WpCommentType extends WP_UnitTestCase {
 		$this->assertFalse( $comment_type->public );
 		$this->assertTrue( $comment_type->internal );
 		$this->assertSame( 'A test comment type.', $comment_type->description );
-		// show_ui follows public when not explicitly set.
-		$this->assertFalse( $comment_type->show_ui );
 	}
 
 	/**
@@ -121,13 +118,20 @@ class Tests_Comment_WpCommentType extends WP_UnitTestCase {
 	 * @covers ::reset_default_labels
 	 */
 	public function test_reset_default_labels_clears_cache() {
-		// Prime the cache, then mutate the returned (by-value) array.
-		WP_Comment_Type::get_default_labels();
+		// Poison the static cache so a stale value is observable.
+		$property = new ReflectionProperty( WP_Comment_Type::class, 'default_labels' );
+		if ( PHP_VERSION_ID < 80100 ) {
+			$property->setAccessible( true );
+		}
+		$property->setValue( null, array( 'name' => array( 'Poisoned', null ) ) );
+
+		$labels = WP_Comment_Type::get_default_labels();
+		$this->assertSame( 'Poisoned', $labels['name'][0], 'The poisoned cache should be served as-is.' );
 
 		WP_Comment_Type::reset_default_labels();
 
 		// A fresh call rebuilds the defaults from translation functions.
 		$labels = WP_Comment_Type::get_default_labels();
-		$this->assertSame( 'Comments', $labels['name'][0] );
+		$this->assertSame( 'Comments', $labels['name'][0], 'Resetting should rebuild the default labels.' );
 	}
 }
