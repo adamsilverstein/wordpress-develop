@@ -25,7 +25,7 @@ final class WP_Comment_Type {
 	public $name;
 
 	/**
-	 * Name of the comment type shown in the menu. Usually plural.
+	 * Name of the comment type. Usually plural.
 	 *
 	 * @since 7.1.0
 	 * @var string
@@ -35,7 +35,7 @@ final class WP_Comment_Type {
 	/**
 	 * Labels object for this comment type.
 	 *
-	 * If not set, comment labels are inherited.
+	 * If not set, the default comment labels are used.
 	 *
 	 * @see get_comment_type_labels()
 	 *
@@ -63,6 +63,11 @@ final class WP_Comment_Type {
 	/**
 	 * Whether a comment type is intended for use publicly either via the admin interface or by front-end users.
 	 *
+	 * Core does not currently act on this property, but it is the intended default
+	 * for future visibility-related arguments. It defaults to true so that
+	 * registering a type in order to provide labels never hides comments that are
+	 * already publicly visible.
+	 *
 	 * Default true.
 	 *
 	 * @since 7.1.0
@@ -73,9 +78,10 @@ final class WP_Comment_Type {
 	/**
 	 * Whether the comment type is for internal use only.
 	 *
-	 * Internal comment types (such as `note`) are excluded from default comment listings, counts,
-	 * and other public-facing contexts. This is advisory metadata; the query layer is not affected
-	 * by this property in this release.
+	 * Analogous to the `internal` argument of register_post_status(). Core does not
+	 * currently consult this property: the exclusion of the built-in `note` type
+	 * from default comment queries is hard-coded. The property is intended to drive
+	 * that exclusion for registered types in the future.
 	 *
 	 * Default false.
 	 *
@@ -85,24 +91,15 @@ final class WP_Comment_Type {
 	public $internal = false;
 
 	/**
-	 * Whether to generate and allow a UI for managing this comment type in the admin.
-	 *
-	 * Default is the value of $public.
-	 *
-	 * @since 7.1.0
-	 * @var bool
-	 */
-	public $show_ui;
-
-	/**
 	 * The string to use to build the read, edit, and delete capabilities.
 	 *
-	 * May be passed as an array to allow for alternative plurals when using
+	 * May be registered as an array to allow for alternative plurals when using
 	 * this argument as a base to construct the capabilities, e.g.
-	 * array( 'story', 'stories' ). Default 'comment'.
+	 * array( 'story', 'stories' ). set_props() collapses the array form back to
+	 * the singular base once the capabilities are built. Default 'comment'.
 	 *
 	 * @since 7.1.0
-	 * @var string|array
+	 * @var string
 	 */
 	public $capability_type = 'comment';
 
@@ -110,10 +107,12 @@ final class WP_Comment_Type {
 	 * Capabilities for this comment type.
 	 *
 	 * Built by {@see get_comment_type_capabilities()} from the
-	 * `capability_type` and `capabilities` arguments. This is advisory metadata
-	 * describing the capabilities associated with the comment type; the
-	 * capability mapping in {@see map_meta_cap()} is not affected by this
-	 * property in this release.
+	 * `capability_type` and `capabilities` arguments. Types using the default
+	 * capability model derive edit and delete permission from the comment's
+	 * parent post and moderation from the global `moderate_comments`
+	 * capability. A type that overrides a singular meta capability is instead
+	 * gated by its own plural primitive capabilities in {@see map_meta_cap()},
+	 * which the plugin registering the type must grant to roles.
 	 *
 	 * @since 7.1.0
 	 * @var stdClass
@@ -217,18 +216,12 @@ final class WP_Comment_Type {
 			'description'     => '',
 			'public'          => true,
 			'internal'        => false,
-			'show_ui'         => null,
 			'capability_type' => 'comment',
 			'capabilities'    => array(),
 			'_builtin'        => false,
 		);
 
 		$args = array_merge( $defaults, $args );
-
-		// If not set, default to the setting for 'public'.
-		if ( null === $args['show_ui'] ) {
-			$args['show_ui'] = $args['public'];
-		}
 
 		$args['name'] = $this->name;
 
