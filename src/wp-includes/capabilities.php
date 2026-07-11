@@ -34,8 +34,12 @@
  *              `edit_app_password`, `delete_app_passwords`, `delete_app_password`,
  *              and `update_https` capabilities.
  * @since 6.7.0 Added the `edit_block_binding` capability.
+ * @since 7.1.0 Added the `delete_comment` and `moderate_comment` meta capabilities,
+ *              support for registered comment type capabilities in `edit_comment`,
+ *              and translation of custom comment type meta capabilities.
  *
- * @global array $post_type_meta_caps Used to get post type meta capabilities.
+ * @global array $post_type_meta_caps    Used to get post type meta capabilities.
+ * @global array $comment_type_meta_caps Used to get comment type meta capabilities.
  *
  * @param string $cap     Capability being checked.
  * @param int    $user_id User ID.
@@ -552,6 +556,8 @@ function map_meta_cap( $cap, $user_id, ...$args ) {
 			}
 			break;
 		case 'edit_comment':
+		case 'delete_comment':
+		case 'moderate_comment':
 			if ( ! isset( $args[0] ) ) {
 				/* translators: %s: Capability name. */
 				$message = __( 'When checking for the %s capability, you must always check it against a specific comment.' );
@@ -559,7 +565,7 @@ function map_meta_cap( $cap, $user_id, ...$args ) {
 				_doing_it_wrong(
 					__FUNCTION__,
 					sprintf( $message, '<code>' . $cap . '</code>' ),
-					'6.1.0'
+					'edit_comment' === $cap ? '6.1.0' : '7.1.0'
 				);
 
 				$caps[] = 'do_not_allow';
@@ -575,13 +581,28 @@ function map_meta_cap( $cap, $user_id, ...$args ) {
 			$comment_type = get_comment_type_object( $comment->comment_type );
 
 			/*
-			 * Comment types using the default 'comment' capability model derive edit
-			 * permission from the comment's parent post, preserving historical behavior.
-			 * A registered type that opts into its own capabilities (its mapped
-			 * `edit_comment` differs from the generic meta capability) is gated by those
-			 * primitives instead, mirroring how registered post types map `edit_post`.
+			 * Moderation is gated by the type's moderation primitive, which for
+			 * unregistered and default-model types is the global `moderate_comments`
+			 * primitive, exactly as before.
 			 */
-			if ( ! $comment_type || 'edit_comment' === $comment_type->cap->edit_comment ) {
+			if ( 'moderate_comment' === $cap ) {
+				$caps[] = $comment_type ? $comment_type->cap->moderate_comments : 'moderate_comments';
+				break;
+			}
+
+			/*
+			 * Comment types using the default 'comment' capability model derive edit
+			 * and delete permission from the comment's parent post, preserving
+			 * historical behavior. Overriding a singular meta capability (via
+			 * 'capability_type' or 'capabilities') opts that action into the
+			 * independent model: the type's own plural primitives gate it instead,
+			 * mirroring how registered post types map `edit_post`. The independent
+			 * model deliberately does not consult the parent post, so a trashed or
+			 * private parent does not affect who can act on such comments.
+			 */
+			$uses_default_model = ! $comment_type || $cap === $comment_type->cap->$cap;
+
+			if ( $uses_default_model ) {
 				$post = get_post( $comment->comment_post_ID );
 
 				/*
@@ -593,84 +614,12 @@ function map_meta_cap( $cap, $user_id, ...$args ) {
 				} else {
 					$caps = map_meta_cap( 'edit_posts', $user_id );
 				}
+			} elseif ( 'delete_comment' === $cap ) {
+				$caps[] = $comment_type->cap->delete_comments;
 			} elseif ( $comment->user_id && (int) $comment->user_id === (int) $user_id ) {
 				$caps[] = $comment_type->cap->edit_comments;
 			} else {
 				$caps[] = $comment_type->cap->edit_others_comments;
-			}
-			break;
-		case 'delete_comment':
-			if ( ! isset( $args[0] ) ) {
-				/* translators: %s: Capability name. */
-				$message = __( 'When checking for the %s capability, you must always check it against a specific comment.' );
-
-				_doing_it_wrong(
-					__FUNCTION__,
-					sprintf( $message, '<code>' . $cap . '</code>' ),
-					'7.1.0'
-				);
-
-				$caps[] = 'do_not_allow';
-				break;
-			}
-
-			$comment = get_comment( $args[0] );
-			if ( ! $comment ) {
-				$caps[] = 'do_not_allow';
-				break;
-			}
-
-			$comment_type = get_comment_type_object( $comment->comment_type );
-
-			/*
-			 * As with editing, deletion of a default-model comment follows the
-			 * comment's parent post. A type with its own capabilities is gated by its
-			 * `delete_comments` primitive.
-			 */
-			if ( ! $comment_type || 'delete_comment' === $comment_type->cap->delete_comment ) {
-				$post = get_post( $comment->comment_post_ID );
-
-				if ( $post ) {
-					$caps = map_meta_cap( 'edit_post', $user_id, $post->ID );
-				} else {
-					$caps = map_meta_cap( 'edit_posts', $user_id );
-				}
-			} else {
-				$caps[] = $comment_type->cap->delete_comments;
-			}
-			break;
-		case 'moderate_comment':
-			if ( ! isset( $args[0] ) ) {
-				/* translators: %s: Capability name. */
-				$message = __( 'When checking for the %s capability, you must always check it against a specific comment.' );
-
-				_doing_it_wrong(
-					__FUNCTION__,
-					sprintf( $message, '<code>' . $cap . '</code>' ),
-					'7.1.0'
-				);
-
-				$caps[] = 'do_not_allow';
-				break;
-			}
-
-			$comment = get_comment( $args[0] );
-			if ( ! $comment ) {
-				$caps[] = 'do_not_allow';
-				break;
-			}
-
-			/*
-			 * Moderating a default-model comment requires the global `moderate_comments`
-			 * primitive, exactly as today. A type with its own capabilities is gated by
-			 * its `moderate_comments` primitive (e.g. `moderate_reviews`).
-			 */
-			$comment_type = get_comment_type_object( $comment->comment_type );
-
-			if ( $comment_type ) {
-				$caps[] = $comment_type->cap->moderate_comments;
-			} else {
-				$caps[] = 'moderate_comments';
 			}
 			break;
 		case 'unfiltered_upload':
@@ -930,6 +879,12 @@ function map_meta_cap( $cap, $user_id, ...$args ) {
 			global $post_type_meta_caps;
 			if ( isset( $post_type_meta_caps[ $cap ] ) ) {
 				return map_meta_cap( $post_type_meta_caps[ $cap ], $user_id, ...$args );
+			}
+
+			// Handle meta capabilities for custom comment types.
+			global $comment_type_meta_caps;
+			if ( isset( $comment_type_meta_caps[ $cap ] ) ) {
+				return map_meta_cap( $comment_type_meta_caps[ $cap ], $user_id, ...$args );
 			}
 
 			// Block capabilities map to their post equivalent.
