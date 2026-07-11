@@ -84,7 +84,7 @@ class WP_REST_Comment_Types_Controller extends WP_REST_Controller {
 		if ( 'edit' === $request['context'] && ! current_user_can( 'moderate_comments' ) ) {
 			return new WP_Error(
 				'rest_cannot_view',
-				__( 'Sorry, you are not allowed to manage comments.' ),
+				__( 'Sorry, you are not allowed to edit comments.' ),
 				array( 'status' => rest_authorization_required_code() )
 			);
 		}
@@ -93,7 +93,7 @@ class WP_REST_Comment_Types_Controller extends WP_REST_Controller {
 	}
 
 	/**
-	 * Retrieves all public comment types.
+	 * Retrieves comment types exposed in the REST API.
 	 *
 	 * @since 7.1.0
 	 *
@@ -109,6 +109,13 @@ class WP_REST_Comment_Types_Controller extends WP_REST_Controller {
 		$data  = array();
 		$types = get_comment_types( array( 'show_in_rest' => true ), 'objects' );
 
+		/*
+		 * Once per-comment-type capabilities exist, edit-context collection requests
+		 * should skip types the current user cannot moderate here, rather than
+		 * relying solely on the global 'moderate_comments' gate in
+		 * get_items_permissions_check() (matching how the post types controller
+		 * hides non-editable types from edit-context collections).
+		 */
 		foreach ( $types as $type ) {
 			$comment_type        = $this->prepare_item_for_response( $type, $request );
 			$data[ $type->name ] = $this->prepare_response_for_collection( $comment_type );
@@ -129,7 +136,7 @@ class WP_REST_Comment_Types_Controller extends WP_REST_Controller {
 		if ( 'edit' === $request['context'] && ! current_user_can( 'moderate_comments' ) ) {
 			return new WP_Error(
 				'rest_forbidden_context',
-				__( 'Sorry, you are not allowed to manage comments.' ),
+				__( 'Sorry, you are not allowed to edit comments.' ),
 				array( 'status' => rest_authorization_required_code() )
 			);
 		}

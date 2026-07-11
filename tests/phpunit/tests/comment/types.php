@@ -78,7 +78,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	/**
 	 * @ticket 35214
 	 *
-	 * @covers ::create_initial_comment_types
+	 * @covers ::register_comment_type
 	 */
 	public function test_register_comment_type_show_in_rest_should_default_to_value_of_public() {
 		register_comment_type( 'public_type', array( 'public' => true ) );
@@ -90,6 +90,8 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 
 	/**
 	 * @ticket 35214
+	 *
+	 * @covers ::register_comment_type
 	 */
 	public function test_register_comment_type_show_in_rest_can_be_overridden() {
 		register_comment_type(
@@ -105,6 +107,8 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 
 	/**
 	 * @ticket 35214
+	 *
+	 * @covers ::create_initial_comment_types
 	 */
 	public function test_built_in_comment_types_are_registered() {
 		$this->assertTrue( comment_type_exists( 'comment' ) );
