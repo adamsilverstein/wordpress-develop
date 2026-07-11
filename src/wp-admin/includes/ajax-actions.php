@@ -978,6 +978,8 @@ function wp_ajax_delete_page( $action ) {
  * Handles dimming a comment via AJAX.
  *
  * @since 3.1.0
+ * @since 7.1.0 Uses the per-comment `moderate_comment` meta capability instead
+ *              of the global `moderate_comments` primitive.
  */
 function wp_ajax_dim_comment() {
 	$id      = isset( $_POST['id'] ) ? (int) $_POST['id'] : 0;
@@ -997,7 +999,13 @@ function wp_ajax_dim_comment() {
 		$response->send();
 	}
 
-	if ( ! current_user_can( 'edit_comment', $comment->comment_ID ) && ! current_user_can( 'moderate_comments' ) ) {
+	/*
+	 * Use the per-comment `moderate_comment` meta capability: it resolves to the
+	 * global `moderate_comments` primitive for default-model and unregistered
+	 * types (unchanged), and to the type's own moderation primitive for a
+	 * registered type with its own capabilities.
+	 */
+	if ( ! current_user_can( 'edit_comment', $comment->comment_ID ) && ! current_user_can( 'moderate_comment', $comment->comment_ID ) ) {
 		wp_die( -1 );
 	}
 
