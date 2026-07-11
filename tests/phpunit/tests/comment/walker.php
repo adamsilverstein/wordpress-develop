@@ -168,8 +168,6 @@ class Tests_Comment_Walker extends WP_UnitTestCase {
 		// The compact ping markup prints the "Pingback:" label and omits the comment body.
 		$this->assertStringContainsString( 'Pingback:', $output );
 		$this->assertStringNotContainsString( 'A webmention body', $output );
-
-		unregister_comment_type( 'webmention' );
 	}
 
 	/**
@@ -223,8 +221,6 @@ class Tests_Comment_Walker extends WP_UnitTestCase {
 
 		// With short_ping off the full markup is rendered, including the comment body.
 		$this->assertStringContainsString( 'A webmention body', $output );
-
-		unregister_comment_type( 'webmention' );
 	}
 
 	/**
@@ -251,8 +247,43 @@ class Tests_Comment_Walker extends WP_UnitTestCase {
 
 		$this->assertStringContainsString( 'A review body', $output );
 		$this->assertStringNotContainsString( 'Pingback:', $output );
+	}
 
-		unregister_comment_type( 'review' );
+	/**
+	 * A render_callback wins over the compact ping markup for ping types.
+	 *
+	 * This pins the precedence chain: explicit wp_list_comments() 'callback',
+	 * then 'render_callback', then is_ping short-ping markup, then default markup.
+	 *
+	 * @ticket 35214
+	 */
+	public function test_render_callback_takes_precedence_over_short_ping_markup() {
+		register_comment_type(
+			'webmention',
+			array(
+				'is_ping'         => true,
+				'render_callback' => static function ( $comment ) {
+					echo '<li class="webmention">' . esc_html( $comment->comment_content );
+				},
+			)
+		);
+
+		$comment_id = self::factory()->comment->create(
+			array(
+				'comment_post_ID'  => $this->post_id,
+				'comment_type'     => 'webmention',
+				'comment_content'  => 'A webmention body',
+				'comment_approved' => '1',
+			)
+		);
+
+		$output = $this->render_comments(
+			array( get_comment( $comment_id ) ),
+			array( 'short_ping' => true )
+		);
+
+		$this->assertStringContainsString( '<li class="webmention">A webmention body', $output );
+		$this->assertStringNotContainsString( 'Pingback:', $output );
 	}
 
 	/**

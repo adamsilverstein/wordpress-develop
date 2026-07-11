@@ -133,8 +133,11 @@ final class WP_Comment_Type {
 	 * rather than a human-authored comment.
 	 *
 	 * Ping types (such as `pingback` and `trackback`) are grouped together by
-	 * {@see separate_comments()} and rendered with the compact ping markup by
-	 * {@see Walker_Comment}. Default false.
+	 * {@see separate_comments()} and, when the `short_ping` argument of
+	 * wp_list_comments() is true, rendered with the compact ping markup by
+	 * {@see Walker_Comment}. A registered `render_callback` takes precedence over
+	 * the ping markup. Like `render_callback`, the rendering effects apply only to
+	 * classic themes; block themes do not use Walker_Comment. Default false.
 	 *
 	 * @since 7.1.0
 	 * @var bool

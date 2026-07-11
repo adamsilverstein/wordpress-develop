@@ -84,8 +84,6 @@ class Tests_Comment_SeparateComments extends WP_UnitTestCase {
 
 		$this->assertCount( 1, $separated['webmention'] );
 		$this->assertCount( 1, $separated['pings'] );
-
-		unregister_comment_type( 'webmention' );
 	}
 
 	/**
@@ -102,7 +100,34 @@ class Tests_Comment_SeparateComments extends WP_UnitTestCase {
 
 		$this->assertCount( 1, $separated['review'] );
 		$this->assertCount( 0, $separated['pings'] );
+	}
 
-		unregister_comment_type( 'review' );
+	/**
+	 * An unregistered comment type gets its own bucket and stays out of 'pings',
+	 * matching the previous hard-coded behavior.
+	 *
+	 * @ticket 35214
+	 */
+	public function test_unregistered_type_gets_own_bucket_and_is_not_a_ping() {
+		$comments = array( $this->make_comment( 'webmention' ) );
+
+		$separated = separate_comments( $comments );
+
+		$this->assertCount( 1, $separated['webmention'] );
+		$this->assertCount( 0, $separated['pings'] );
+	}
+
+	/**
+	 * A comment stored with the legacy empty string type lands in the 'comment' bucket.
+	 *
+	 * @ticket 35214
+	 */
+	public function test_legacy_empty_type_lands_in_comment_bucket() {
+		$comments = array( $this->make_comment( '' ) );
+
+		$separated = separate_comments( $comments );
+
+		$this->assertCount( 1, $separated['comment'] );
+		$this->assertCount( 0, $separated['pings'] );
 	}
 }

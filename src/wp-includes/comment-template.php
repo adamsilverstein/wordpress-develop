@@ -2230,8 +2230,10 @@ function _get_comment_reply_id( $post = null ) {
  *                                       'div' will result in no additional list markup. Default 'ul'.
  *     @type callable $callback          Callback function to use. Default null.
  *     @type callable $end-callback      Callback function to use at the end. Default null.
- *     @type string   $type              Type of comments to list. Accepts 'all', 'comment',
- *                                       'pingback', 'trackback', 'pings'. Default 'all'.
+ *     @type string   $type              Type of comments to list. Accepts 'all', any comment type
+ *                                       slug, or 'pings' (the comments of every registered comment
+ *                                       type with the 'is_ping' property, which includes pingbacks
+ *                                       and trackbacks). Default 'all'.
  *     @type int      $page              Page ID to list comments for. Default empty.
  *     @type int      $per_page          Number of comments to list per page. Default empty.
  *     @type int      $avatar_size       Height and width dimensions of the avatar size. Default 32.
