@@ -361,19 +361,24 @@ function create_initial_comment_types() {
  * @param array|string $args {
  *     Optional. Array or string of arguments for registering a comment type. Default empty array.
  *
- *     @type string     $label       Name of the comment type. Usually plural.
- *                                   Default is the value of $labels['name'].
- *     @type string[]   $labels      An array of labels for this comment type. If not set, the
- *                                   default comment labels are used. See get_comment_type_labels()
- *                                   for a full list of supported labels.
- *     @type string     $description A short descriptive summary of what the comment type is.
- *                                   Default empty.
- *     @type bool       $public      Whether the comment type is intended for use publicly either via
- *                                   the admin interface or by front-end users. Core does not
- *                                   currently act on this argument. Default true.
- *     @type bool       $internal    Whether the comment type is for internal use only. Core does not
- *                                   currently consult this flag; it is intended to drive default
- *                                   query exclusions in the future. Default false.
+ *     @type string     $label        Name of the comment type. Usually plural.
+ *                                    Default is the value of $labels['name'].
+ *     @type string[]   $labels       An array of labels for this comment type. If not set, the
+ *                                    default comment labels are used. See get_comment_type_labels()
+ *                                    for a full list of supported labels.
+ *     @type string     $description  A short descriptive summary of what the comment type is.
+ *                                    Default empty.
+ *     @type bool       $public       Whether the comment type is intended for use publicly either via
+ *                                    the admin interface or by front-end users. Core does not
+ *                                    currently act on this argument. Default true.
+ *     @type bool       $internal     Whether the comment type is for internal use only. Core does not
+ *                                    currently consult this flag; it is intended to drive default
+ *                                    query exclusions in the future. Default false.
+ *     @type bool       $show_in_rest Whether to expose this comment type in the REST API comment types
+ *                                    discovery endpoint (`/wp/v2/comment-types`). Exposing a type
+ *                                    reveals its name, slug, description, and labels only; it does not
+ *                                    make comments of this type readable or queryable via
+ *                                    `/wp/v2/comments`. Default is the value of $public.
  * }
  * @return WP_Comment_Type|WP_Error The registered comment type object on success,
  *                                  WP_Error object on failure.
