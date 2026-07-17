@@ -134,6 +134,22 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::comment_type_exists
 	 */
+	public function test_built_in_ping_types_are_marked_as_pings() {
+		$this->assertTrue( get_comment_type_object( 'pingback' )->is_ping );
+		$this->assertTrue( get_comment_type_object( 'trackback' )->is_ping );
+	}
+
+	/**
+	 * @ticket 35214
+	 */
+	public function test_built_in_non_ping_types_are_not_marked_as_pings() {
+		$this->assertFalse( get_comment_type_object( 'comment' )->is_ping );
+		$this->assertFalse( get_comment_type_object( 'note' )->is_ping );
+	}
+
+	/**
+	 * @ticket 35214
+	 */
 	public function test_comment_type_exists() {
 		$this->assertFalse( comment_type_exists( 'foo' ) );
 
