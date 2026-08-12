@@ -3338,18 +3338,29 @@ function wp_update_comment_count_now( $post_id ) {
  * is only refreshed for a post when its comments change, so an existing count can
  * become stale after the set of excluded comment types changes (for example when
  * a plugin registers a type that opts out of default listings). A plugin that
- * changes that set should call this once, typically from its activation routine,
- * the same way rewrite rules are flushed with flush_rewrite_rules().
+ * changes that set should call this once, the same way rewrite rules are flushed
+ * with flush_rewrite_rules().
  *
- * Cached comment query results are salted only by the comment `last_changed`
- * key, so it is bumped here: on a persistent object cache, queries cached before
- * the excluded set changed would otherwise keep serving the old results.
+ * Cached comment query results are bumped through the comment `last_changed` key
+ * when there is at least one post to visit, so that queries cached alongside the
+ * previous counts are not served afterwards.
  *
  * Recalculating every post is proportional to the number of posts that have
  * comments and can be expensive on large sites. Each recalculation also fires
  * the usual post-update hooks (`wp_update_comment_count`, `edit_post`), so cache
- * purgers and search indexers run once per post. Pass a specific list of post
- * IDs to limit the work, or run it from a maintenance context such as WP-CLI.
+ * purgers and search indexers run once per post. Pass a specific list of post IDs
+ * to limit the work. A full recount on a large site does not belong in a plugin
+ * activation routine, which runs in a normal web request and will hit
+ * `max_execution_time` partway through: schedule it with wp_schedule_single_event()
+ * or run it from WP-CLI instead. Stopping partway is safe - every post visited
+ * before the stop has a correct count, and the operation is idempotent, so a
+ * re-run simply redoes the earlier posts.
+ *
+ * Counts are written immediately: this does not participate in
+ * wp_defer_comment_counting().
+ *
+ * There is no capability check, matching the rest of this family. Anything that
+ * exposes it to a request has to perform its own capability and nonce checks.
  *
  * @since 7.1.0
  *
@@ -3358,7 +3369,8 @@ function wp_update_comment_count_now( $post_id ) {
  * @param int[]|int|null $post_ids Optional. Post ID or array of post IDs to recalculate.
  *                                 Default null, which recalculates every post that has
  *                                 at least one comment or a nonzero stored count.
- * @return int Number of posts whose comment count was recalculated.
+ * @return int Number of posts whose comment count was recalculated. Post IDs that do not
+ *             exist are skipped and are not included in the count.
  */
 function wp_update_comment_counts( $post_ids = null ) {
 	global $wpdb;
