@@ -357,11 +357,15 @@ abstract class WP_UnitTestCase_Base extends PHPUnit_Adapter_TestCase {
 	 * Run before each test in order to clean up the global scope, in case
 	 * a test forgets to unregister a comment type on its own, or fails before
 	 * it has a chance to do so.
+	 *
+	 * The registry is emptied outright rather than unregistered type by type, since a
+	 * test can register a custom type with '_builtin' set and that type would otherwise
+	 * survive into the next test. Registering a comment type creates no hooks, rewrite
+	 * rules, or meta boxes, so dropping the registry is complete cleanup.
 	 */
 	protected function reset_comment_types() {
-		foreach ( get_comment_types( array( '_builtin' => false ) ) as $comment_type ) {
-			_unregister_comment_type( $comment_type );
-		}
+		$GLOBALS['wp_comment_types'] = array();
+
 		create_initial_comment_types();
 	}
 
@@ -889,6 +893,8 @@ abstract class WP_UnitTestCase_Base extends PHPUnit_Adapter_TestCase {
 	 *
 	 * @param mixed  $actual  The value to check.
 	 * @param string $message Optional. Message to display when the assertion fails.
+	 *
+	 * @phpstan-assert WP_Error $actual
 	 */
 	public function assertWPError( $actual, $message = '' ) {
 		$this->assertInstanceOf( 'WP_Error', $actual, $message );
@@ -899,6 +905,8 @@ abstract class WP_UnitTestCase_Base extends PHPUnit_Adapter_TestCase {
 	 *
 	 * @param mixed  $actual  The value to check.
 	 * @param string $message Optional. Message to display when the assertion fails.
+	 *
+	 * @phpstan-assert !WP_Error $actual
 	 */
 	public function assertNotWPError( $actual, $message = '' ) {
 		if ( is_wp_error( $actual ) ) {
@@ -913,6 +921,8 @@ abstract class WP_UnitTestCase_Base extends PHPUnit_Adapter_TestCase {
 	 *
 	 * @param mixed  $actual  The value to check.
 	 * @param string $message Optional. Message to display when the assertion fails.
+	 *
+	 * @phpstan-assert IXR_Error $actual
 	 */
 	public function assertIXRError( $actual, $message = '' ) {
 		$this->assertInstanceOf( 'IXR_Error', $actual, $message );
@@ -923,6 +933,8 @@ abstract class WP_UnitTestCase_Base extends PHPUnit_Adapter_TestCase {
 	 *
 	 * @param mixed  $actual  The value to check.
 	 * @param string $message Optional. Message to display when the assertion fails.
+	 *
+	 * @phpstan-assert !IXR_Error $actual
 	 */
 	public function assertNotIXRError( $actual, $message = '' ) {
 		if ( $actual instanceof IXR_Error ) {
@@ -1202,6 +1214,7 @@ abstract class WP_UnitTestCase_Base extends PHPUnit_Adapter_TestCase {
 			'is_preview',
 			'is_robots',
 			'is_favicon',
+			'is_sitemap',
 			'is_search',
 			'is_single',
 			'is_singular',
