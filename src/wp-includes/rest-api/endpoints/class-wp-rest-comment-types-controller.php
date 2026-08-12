@@ -242,6 +242,14 @@ class WP_REST_Comment_Types_Controller extends WP_REST_Controller {
 	/**
 	 * Prepares links for the request.
 	 *
+	 * Note that the 'items' link is only followable by a user who can pass the comments
+	 * endpoint's `type` parameter. That parameter is protected: callers without
+	 * `edit_posts` may only request the 'comment' type, so for every other type the link
+	 * answers 401 to an anonymous client. The link is still advertised, because what a
+	 * caller may query is a question for the comments endpoint rather than something
+	 * discovery should second-guess, and because the answer changes once per-type
+	 * capabilities land.
+	 *
 	 * @since 7.1.0
 	 *
 	 * @param WP_Comment_Type $comment_type The comment type.
@@ -278,7 +286,7 @@ class WP_REST_Comment_Types_Controller extends WP_REST_Controller {
 				'description' => array(
 					'description' => __( 'A human-readable description of the comment type.' ),
 					'type'        => 'string',
-					'context'     => array( 'view', 'edit', 'embed' ),
+					'context'     => array( 'view', 'edit' ),
 					'readonly'    => true,
 				),
 				'labels'      => array(

@@ -473,6 +473,55 @@ class WP_Test_REST_Comment_Types_Controller extends WP_Test_REST_Controller_Test
 		}
 	}
 
+	/**
+	 * The subscriber case for the collection, matching the single-item route: authenticated
+	 * but without the capability is a 403, where anonymous is a 401.
+	 *
+	 * @ticket 35214
+	 */
+	public function test_get_items_edit_context_requires_permission() {
+		wp_set_current_user( self::$subscriber_id );
+
+		$request = new WP_REST_Request( 'GET', '/wp/v2/comment-types' );
+		$request->set_param( 'context', 'edit' );
+		$response = rest_get_server()->dispatch( $request );
+
+		$this->assertErrorResponse( 'rest_cannot_view', $response, 403 );
+	}
+
+	/**
+	 * show_in_rest only defaults from public, so a non-public type that opts in explicitly
+	 * is discoverable. This is the direction the exclusion tests do not cover.
+	 *
+	 * @ticket 35214
+	 */
+	public function test_non_public_type_with_show_in_rest_is_exposed() {
+		register_comment_type(
+			'wp_tests_hidden',
+			array(
+				'label'        => 'Hidden',
+				'public'       => false,
+				'show_in_rest' => true,
+			)
+		);
+
+		$request  = new WP_REST_Request( 'GET', '/wp/v2/comment-types' );
+		$response = rest_get_server()->dispatch( $request );
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertArrayHasKey(
+			'wp_tests_hidden',
+			$response->get_data(),
+			'A non-public type that opts into REST should be listed.'
+		);
+
+		$request  = new WP_REST_Request( 'GET', '/wp/v2/comment-types/wp_tests_hidden' );
+		$response = rest_get_server()->dispatch( $request );
+
+		$this->assertSame( 200, $response->get_status(), 'It should also be readable as a single item.' );
+		$this->assertSame( 'wp_tests_hidden', $response->get_data()['slug'] );
+	}
+
 	protected function check_comment_type_object_response( $context, $response, $comment_type = 'comment' ) {
 		$this->assertSame( 200, $response->get_status() );
 		$data = $response->get_data();
