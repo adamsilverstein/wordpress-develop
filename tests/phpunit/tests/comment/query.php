@@ -5756,12 +5756,15 @@ class Tests_Comment_Query extends WP_UnitTestCase {
 	}
 
 	/**
-	 * A filter callback returning a non-array degrades gracefully to no exclusions.
+	 * A filter callback returning false degrades gracefully to no exclusions.
+	 *
+	 * Scalar returns are cast to an array and treated as a single excluded type;
+	 * only values that normalize to an empty set disable the exclusions.
 	 *
 	 * @ticket 65537
 	 * @covers WP_Comment_Query::get_comment_ids
 	 */
-	public function test_default_excluded_comment_types_filter_non_array_return_is_tolerated() {
+	public function test_default_excluded_comment_types_filter_false_return_is_tolerated() {
 		$comments = $this->create_note_type_test_comments();
 
 		add_filter( 'default_excluded_comment_types', '__return_false' );
@@ -5808,5 +5811,217 @@ class Tests_Comment_Query extends WP_UnitTestCase {
 		$found = $query->query( array( 'fields' => 'ids' ) );
 
 		$this->assertContains( $comments['pingback'], $found );
+	}
+
+	/**
+	 * A type requested via a query alias counts as an explicit request, so an
+	 * excluded literal type is still returned when its alias is requested.
+	 *
+	 * @ticket 65537
+	 * @covers WP_Comment_Query::get_comment_ids
+	 */
+	public function test_default_excluded_comment_types_filter_respects_alias_request() {
+		$comments = $this->create_note_type_test_comments();
+
+		add_filter(
+			'default_excluded_comment_types',
+			static function ( array $types ): array {
+				$types[] = 'pingback';
+				return $types;
+			}
+		);
+
+		// 'pings' is a query alias for the 'pingback' and 'trackback' types, so
+		// an explicit request for it must still return pingbacks.
+		$query = new WP_Comment_Query();
+		$found = $query->query(
+			array(
+				'type'   => 'pings',
+				'fields' => 'ids',
+			)
+		);
+
+		$this->assertContains( $comments['pingback'], $found );
+
+		// A default query, which does not request the type, still excludes it.
+		$query = new WP_Comment_Query();
+		$found = $query->query( array( 'fields' => 'ids' ) );
+
+		$this->assertNotContains( $comments['pingback'], $found );
+	}
+
+	/**
+	 * A comment type named '0' is preserved by the normalization rather than
+	 * being dropped as an empty value.
+	 *
+	 * @ticket 65537
+	 * @covers ::wp_get_default_excluded_comment_types
+	 */
+	public function test_default_excluded_comment_types_filter_preserves_zero_string_type() {
+		add_filter(
+			'default_excluded_comment_types',
+			static function ( array $types ): array {
+				$types[] = '0';
+				return $types;
+			}
+		);
+
+		$this->assertContains( '0', wp_get_default_excluded_comment_types() );
+	}
+
+	/**
+	 * Non-scalar values in the filter output are dropped rather than cast, so a
+	 * stray object or array does not error out.
+	 *
+	 * @ticket 65537
+	 * @covers ::wp_get_default_excluded_comment_types
+	 */
+	public function test_default_excluded_comment_types_filter_drops_non_scalar_values() {
+		add_filter(
+			'default_excluded_comment_types',
+			static function ( array $types ): array {
+				$types[] = new stdClass();
+				$types[] = array( 'nested' );
+				$types[] = null;
+				$types[] = 'private';
+				return $types;
+			}
+		);
+
+		$this->assertSame(
+			array( 'note', 'private' ),
+			wp_get_default_excluded_comment_types(),
+			'Only the scalar comment types should survive normalization.'
+		);
+	}
+
+	/**
+	 * A comment type registered as internal is excluded by default, so a plugin does
+	 * not have to both register the type and add it through the filter.
+	 *
+	 * Skipped until the register_comment_type() API lands, at which point
+	 * wp_get_default_excluded_comment_types() stops falling back to 'note' alone.
+	 *
+	 * @ticket 65537
+	 * @ticket 35214
+	 * @covers ::wp_get_default_excluded_comment_types
+	 */
+	public function test_internal_comment_types_are_excluded_by_default() {
+		if ( ! function_exists( 'register_comment_type' ) ) {
+			$this->markTestSkipped( 'Requires the comment type registry.' );
+		}
+
+		register_comment_type(
+			'wp_tests_internal',
+			array(
+				'label'    => 'Internal',
+				'public'   => false,
+				'internal' => true,
+			)
+		);
+
+		$excluded_types = wp_get_default_excluded_comment_types();
+
+		$this->assertContains(
+			'wp_tests_internal',
+			$excluded_types,
+			'A comment type registered as internal should be excluded by default.'
+		);
+		$this->assertContains(
+			'note',
+			$excluded_types,
+			'The note type should stay excluded alongside the registered internal types.'
+		);
+	}
+
+	/**
+	 * The excluded set changes the results but is not a query var, so it has to be part
+	 * of the cache key. Otherwise a persistent object cache serves entries built before
+	 * a plugin added or removed a type.
+	 *
+	 * @ticket 65537
+	 * @covers WP_Comment_Query::get_comments
+	 */
+	public function test_default_excluded_comment_types_are_part_of_the_cache_key() {
+		$this->create_excluded_type_test_comments();
+
+		$callback = static function ( array $types ): array {
+			$types[] = 'private';
+			return $types;
+		};
+
+		// Warm the cache with the type included.
+		$warm = new WP_Comment_Query();
+		$this->assertContains(
+			'private',
+			$this->get_comment_types_for_ids( $warm->query( array( 'fields' => 'ids' ) ) ),
+			'The custom type should be returned before it is excluded.'
+		);
+
+		add_filter( 'default_excluded_comment_types', $callback );
+
+		$filtered = new WP_Comment_Query();
+		$this->assertNotContains(
+			'private',
+			$this->get_comment_types_for_ids( $filtered->query( array( 'fields' => 'ids' ) ) ),
+			'A warm cache should not serve a type that is now excluded.'
+		);
+
+		remove_filter( 'default_excluded_comment_types', $callback );
+
+		$restored = new WP_Comment_Query();
+		$this->assertContains(
+			'private',
+			$this->get_comment_types_for_ids( $restored->query( array( 'fields' => 'ids' ) ) ),
+			'A type should be returned again once it is no longer excluded.'
+		);
+	}
+
+	/**
+	 * Resolving the excluded set once per query keeps the SQL and the cache key in
+	 * agreement, and keeps the filter from running twice.
+	 *
+	 * @ticket 65537
+	 * @covers WP_Comment_Query::get_comments
+	 */
+	public function test_default_excluded_comment_types_filter_runs_once_per_query() {
+		$runs = 0;
+
+		add_filter(
+			'default_excluded_comment_types',
+			static function ( array $types ) use ( &$runs ): array {
+				++$runs;
+				return $types;
+			}
+		);
+
+		$query = new WP_Comment_Query();
+		$query->query( array( 'fields' => 'ids' ) );
+
+		$this->assertSame( 1, $runs, 'The filter should run once for a single query.' );
+	}
+
+	/**
+	 * The admin count bubbles read wp_count_comments(), which routes through
+	 * WP_Comment_Query and so inherits the exclusions.
+	 *
+	 * @ticket 65537
+	 * @covers ::wp_count_comments
+	 */
+	public function test_wp_count_comments_excludes_filtered_types() {
+		$this->create_excluded_type_test_comments();
+
+		add_filter(
+			'default_excluded_comment_types',
+			static function ( array $types ): array {
+				$types[] = 'private';
+				return $types;
+			}
+		);
+
+		$counts = wp_count_comments( self::$post_id );
+
+		$this->assertSame( 1, (int) $counts->approved, 'Only the regular comment should be counted.' );
+		$this->assertSame( 1, (int) $counts->total_comments, 'The excluded types should not inflate the total.' );
 	}
 }
