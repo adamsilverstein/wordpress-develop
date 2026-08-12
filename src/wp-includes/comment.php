@@ -3391,24 +3391,48 @@ function wp_update_comment_counts( $post_ids = null ) {
 		return $recalculated;
 	}
 
+	/**
+	 * Filters how many posts wp_update_comment_counts() recalculates per batch.
+	 *
+	 * Lower it to spread a large recount over shorter queries, or raise it to trade
+	 * memory for fewer round trips.
+	 *
+	 * @since 7.1.0
+	 *
+	 * @param int $batch_size Number of posts to look up per query. Default 1000.
+	 */
+	$batch_size = (int) apply_filters( 'wp_update_comment_counts_batch_size', 1000 );
+
+	if ( $batch_size < 1 ) {
+		$batch_size = 1;
+	}
+
 	/*
 	 * Visit every post that has at least one comment row, plus every post with
 	 * a nonzero stored count (whose comment rows may all have been deleted), in
 	 * keyset batches so the full ID list is never materialized in memory.
+	 *
+	 * Each arm carries its own ORDER BY and LIMIT. MySQL cannot push the outer
+	 * ones into a parenthesized UNION arm, so without them every iteration
+	 * materializes all remaining rows into a temp table before taking a batch,
+	 * and the posts arm scans the whole remaining table because comment_count is
+	 * unindexed. Limiting the arms is safe: the first N rows of the union of two
+	 * ascending sets are always among the first N of each.
 	 */
-	$batch_size   = 1000;
 	$last_post_id = 0;
 
 	do {
 		$batch = $wpdb->get_col(
 			$wpdb->prepare(
-				"( SELECT DISTINCT comment_post_ID AS post_id FROM {$wpdb->comments} WHERE comment_post_ID > %d )
+				"( SELECT DISTINCT comment_post_ID AS post_id FROM {$wpdb->comments} WHERE comment_post_ID > %d ORDER BY comment_post_ID LIMIT %d )
 				UNION
-				( SELECT ID AS post_id FROM {$wpdb->posts} WHERE comment_count <> 0 AND ID > %d )
+				( SELECT ID AS post_id FROM {$wpdb->posts} WHERE comment_count <> 0 AND ID > %d ORDER BY ID LIMIT %d )
 				ORDER BY post_id
 				LIMIT %d",
 				$last_post_id,
+				$batch_size,
 				$last_post_id,
+				$batch_size,
 				$batch_size
 			)
 		);

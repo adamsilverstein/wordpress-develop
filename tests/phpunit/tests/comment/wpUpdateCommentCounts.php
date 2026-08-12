@@ -170,6 +170,45 @@ class Tests_Comment_wpUpdateCommentCounts extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The keyset loop has to advance across batches, and a post that has both comments
+	 * and a stale nonzero count appears in both arms of the union.
+	 *
+	 * @ticket 65537
+	 */
+	public function test_recount_crosses_batch_boundaries() {
+		$post_ids = self::factory()->post->create_many( 5 );
+
+		foreach ( $post_ids as $post_id ) {
+			self::factory()->comment->create(
+				array(
+					'comment_post_ID'  => $post_id,
+					'comment_approved' => 1,
+				)
+			);
+
+			// Stale count, so each post is returned by both union arms.
+			$this->set_stored_count( $post_id, 7 );
+		}
+
+		add_filter(
+			'wp_update_comment_counts_batch_size',
+			static function () {
+				return 2;
+			}
+		);
+
+		$this->assertSame(
+			5,
+			wp_update_comment_counts(),
+			'Every post should be visited exactly once across the batches.'
+		);
+
+		foreach ( $post_ids as $post_id ) {
+			$this->assertSame( '1', get_comments_number( $post_id ) );
+		}
+	}
+
+	/**
 	 * The headline scenario: a type that joins the excluded set after comments
 	 * already exist must not keep inflating a previously stored count.
 	 *
