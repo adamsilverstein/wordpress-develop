@@ -3363,12 +3363,6 @@ function wp_update_comment_count_now( $post_id ) {
 function wp_update_comment_counts( $post_ids = null ) {
 	global $wpdb;
 
-	/*
-	 * Invalidate cached comment query results: they may reflect the previous
-	 * set of default-excluded comment types.
-	 */
-	wp_cache_set_last_changed( 'comment' );
-
 	$recalculated = 0;
 
 	if ( null !== $post_ids ) {
@@ -3382,6 +3376,12 @@ function wp_update_comment_counts( $post_ids = null ) {
 			)
 		);
 
+		if ( ! $post_ids ) {
+			return 0;
+		}
+
+		wp_cache_set_last_changed( 'comment' );
+
 		foreach ( $post_ids as $post_id ) {
 			if ( wp_update_comment_count_now( $post_id ) ) {
 				++$recalculated;
@@ -3390,6 +3390,8 @@ function wp_update_comment_counts( $post_ids = null ) {
 
 		return $recalculated;
 	}
+
+	wp_cache_set_last_changed( 'comment' );
 
 	/**
 	 * Filters how many posts wp_update_comment_counts() recalculates per batch.

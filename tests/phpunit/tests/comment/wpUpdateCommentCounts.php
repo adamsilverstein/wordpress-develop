@@ -162,11 +162,47 @@ class Tests_Comment_wpUpdateCommentCounts extends WP_UnitTestCase {
 	 * @ticket 65537
 	 */
 	public function test_recount_invalidates_comment_query_cache() {
+		$post_id = self::factory()->post->create();
+		self::factory()->comment->create(
+			array(
+				'comment_post_ID'  => $post_id,
+				'comment_approved' => 1,
+			)
+		);
+
 		$before = wp_cache_get_last_changed( 'comment' );
 
-		wp_update_comment_counts( array() );
+		wp_update_comment_counts( $post_id );
 
 		$this->assertNotSame( $before, wp_cache_get_last_changed( 'comment' ) );
+	}
+
+	/**
+	 * A call with nothing to recount should not flush every cached comment query.
+	 *
+	 * @ticket 65537
+	 *
+	 * @dataProvider data_no_op_recount_arguments
+	 *
+	 * @param int[] $post_ids Post IDs to pass to wp_update_comment_counts().
+	 */
+	public function test_no_op_recount_leaves_the_comment_query_cache_alone( array $post_ids ) {
+		$before = wp_cache_get_last_changed( 'comment' );
+
+		$this->assertSame( 0, wp_update_comment_counts( $post_ids ) );
+		$this->assertSame( $before, wp_cache_get_last_changed( 'comment' ) );
+	}
+
+	/**
+	 * Data provider for test_no_op_recount_leaves_the_comment_query_cache_alone().
+	 *
+	 * @return array<string, array<int[]>>
+	 */
+	public function data_no_op_recount_arguments(): array {
+		return array(
+			'empty list'       => array( array() ),
+			'only invalid IDs' => array( array( 0, -1 ) ),
+		);
 	}
 
 	/**
