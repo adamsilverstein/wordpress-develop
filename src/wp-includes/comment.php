@@ -455,10 +455,14 @@ function create_initial_comment_types() {
  *                                          capabilities. May be passed as an array to allow for
  *                                          alternative plurals when using this argument as a base to
  *                                          construct the capabilities, e.g. array( 'story', 'stories' ).
+ *                                          These capabilities are advisory metadata and are not
+ *                                          enforced by core's capability mapping in this release.
  *                                          Default 'comment'.
  *     @type string[]      $capabilities    Array of capabilities for this comment type.
  *                                          $capability_type is used as a base to construct
- *                                          capabilities by default.
+ *                                          capabilities by default. As with $capability_type, these
+ *                                          are advisory metadata and are not enforced by core's
+ *                                          capability mapping in this release.
  *                                          See get_comment_type_capabilities().
  *     @type bool          $_builtin        For internal core use only. Marks the type as native to
  *                                          WordPress, which blocks it from being re-registered or
@@ -740,6 +744,17 @@ function get_comment_type_labels( $comment_type_object ) {
  * primitive that default roles grant. Consumers should check the meta
  * capabilities together with a comment ID instead of testing those primitives
  * directly.
+ *
+ * Note: In this release, `edit_comment` on the default 'comment' base is the
+ * only generated capability that map_meta_cap() resolves. The remaining meta
+ * capabilities, and every capability generated from a custom base, are treated
+ * as primitives: a check requires the literal capability, which no default role
+ * grants, so it denies everyone until comment type capability mapping is added.
+ *
+ * Note: Do not reuse a post type's `capability_type` as a comment type base.
+ * A base of 'post' generates `edit_comment => 'edit_post'`, which map_meta_cap()
+ * resolves through its post branch, so the check would be answered by a post
+ * with the passed comment's ID.
  *
  * Note: The `capability_type` property of the passed object is normalized to
  * its array form as a side effect of calling this function, matching
