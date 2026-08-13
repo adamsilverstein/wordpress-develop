@@ -453,10 +453,14 @@ function create_initial_comment_types() {
  *                                       Default false.
  *     @type bool       $is_ping         Whether the comment type represents a ping (a notification
  *                                       from another site) rather than a human-authored comment.
- *                                       Ping types are grouped together by separate_comments() and,
- *                                       when wp_list_comments() is called with 'short_ping', rendered
- *                                       with compact ping markup by Walker_Comment. A registered
- *                                       'render_callback' takes precedence over the ping markup.
+ *                                       Ping types are grouped together by separate_comments(),
+ *                                       returned by a 'pings' type query, and, when
+ *                                       wp_list_comments() is called with 'short_ping', rendered
+ *                                       with compact ping markup by Walker_Comment, labeled with the
+ *                                       type's singular name. A registered 'render_callback' takes
+ *                                       precedence over the ping markup. The flag drives grouping
+ *                                       and display only; validation, moderation, and notification
+ *                                       still key on the 'pingback' and 'trackback' type names.
  *                                       Default false.
  *     @type callable   $render_callback Callback used to render a comment of this type in comment
  *                                       lists. Receives the same arguments as the `callback` argument
