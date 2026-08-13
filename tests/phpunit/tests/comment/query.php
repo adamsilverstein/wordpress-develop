@@ -343,6 +343,90 @@ class Tests_Comment_Query extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A 'pings' query returns every registered ping type, matching what
+	 * separate_comments() groups under the same name.
+	 *
+	 * @ticket 35214
+	 *
+	 * @covers WP_Comment_Query::query
+	 */
+	public function test_query_type_pings_includes_registered_ping_types() {
+		register_comment_type( 'webmention', array( 'is_ping' => true ) );
+
+		$pingback = self::factory()->comment->create(
+			array(
+				'comment_post_ID'  => self::$post_id,
+				'comment_approved' => '1',
+				'comment_type'     => 'pingback',
+			)
+		);
+		$mention  = self::factory()->comment->create(
+			array(
+				'comment_post_ID'  => self::$post_id,
+				'comment_approved' => '1',
+				'comment_type'     => 'webmention',
+			)
+		);
+		self::factory()->comment->create(
+			array(
+				'comment_post_ID'  => self::$post_id,
+				'comment_approved' => '1',
+				'comment_type'     => 'review',
+			)
+		);
+
+		$q     = new WP_Comment_Query();
+		$found = $q->query(
+			array(
+				'type'   => 'pings',
+				'fields' => 'ids',
+			)
+		);
+
+		$this->assertSameSets( array( $pingback, $mention ), $found );
+	}
+
+	/**
+	 * The registered ping types are part of the 'pings' cache key. Otherwise a plugin
+	 * registering a ping type would keep serving results cached before it existed, since
+	 * the comment last_changed salt only moves when a comment does.
+	 *
+	 * @ticket 35214
+	 *
+	 * @covers WP_Comment_Query::get_comments
+	 */
+	public function test_query_type_pings_is_not_served_from_a_stale_cache() {
+		$pingback = self::factory()->comment->create(
+			array(
+				'comment_post_ID'  => self::$post_id,
+				'comment_approved' => '1',
+				'comment_type'     => 'pingback',
+			)
+		);
+		$mention  = self::factory()->comment->create(
+			array(
+				'comment_post_ID'  => self::$post_id,
+				'comment_approved' => '1',
+				'comment_type'     => 'webmention',
+			)
+		);
+
+		$args = array(
+			'type'   => 'pings',
+			'fields' => 'ids',
+		);
+
+		$before = ( new WP_Comment_Query() )->query( $args );
+
+		register_comment_type( 'webmention', array( 'is_ping' => true ) );
+
+		$after = ( new WP_Comment_Query() )->query( $args );
+
+		$this->assertSameSets( array( $pingback ), $before, 'Before registration the type is not a ping.' );
+		$this->assertSameSets( array( $pingback, $mention ), $after, 'After registration it is.' );
+	}
+
+	/**
 	 * Comments and custom
 	 *
 	 * @ticket 12668
