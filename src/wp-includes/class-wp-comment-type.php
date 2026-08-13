@@ -109,12 +109,26 @@ final class WP_Comment_Type {
 	 * wp_list_comments(), then this callback, then the default markup.
 	 *
 	 * Like the `callback` argument of wp_list_comments(), the callback must only
-	 * output the opening of the list element (an unclosed `<li>` by default);
-	 * {@see Walker_Comment::end_el()} (or the `end-callback` argument) closes
-	 * the element after any child comments have been rendered.
+	 * output the opening of the list element; {@see Walker_Comment::end_el()}
+	 * (or the `end-callback` argument) closes the element after any child
+	 * comments have been rendered. Which element that is depends on the `style`
+	 * argument, so the callback has to open a `<div>` when `$args['style']` is
+	 * 'div' and an `<li>` otherwise, the way {@see Walker_Comment::comment()}
+	 * does. Opening the wrong one leaves the markup mismatched.
+	 *
+	 * The callback must echo its output. Unlike the `render_callback` argument
+	 * of register_block_type(), a returned string is discarded.
 	 *
 	 * Output from the callback is printed unescaped; the callback is
 	 * responsible for escaping all output.
+	 *
+	 * The built-in comment types register without a callback and cannot be
+	 * re-registered, but setting one on them through the
+	 * {@see 'register_comment_type_args'} filter is supported. It grants no more
+	 * than the `callback` argument of wp_list_comments() already does. Note that
+	 * a callback on the 'comment' type also takes over the walker's handling of
+	 * unapproved comments, which strips links from a pending comment's text for
+	 * everyone but its author.
 	 *
 	 * Only applies when comments are rendered via wp_list_comments() (classic
 	 * themes). Block themes render comments through the `core/comment-template`
