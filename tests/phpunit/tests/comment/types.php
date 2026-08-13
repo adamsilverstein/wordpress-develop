@@ -661,6 +661,45 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The built-in types all register without a capability type, so they share one cap set.
+	 * Anything that gated on the existing comment capabilities keeps working for all four.
+	 *
+	 * @ticket 35214
+	 *
+	 * @dataProvider data_built_in_comment_types
+	 *
+	 * @param string $comment_type Built-in comment type name.
+	 */
+	public function test_built_in_comment_types_share_the_comment_capabilities( $comment_type ) {
+		$this->assertEquals(
+			get_comment_type_object( 'comment' )->cap,
+			get_comment_type_object( $comment_type )->cap
+		);
+	}
+
+	/**
+	 * An override applies to meta capabilities as well as primitives, so a type can point a
+	 * meta capability at a name that map_meta_cap() already resolves.
+	 *
+	 * @ticket 35214
+	 *
+	 * @covers ::get_comment_type_capabilities
+	 */
+	public function test_get_comment_type_capabilities_honors_a_meta_capability_override() {
+		$caps = get_comment_type_capabilities(
+			(object) array(
+				'capability_type' => 'review',
+				'capabilities'    => array(
+					'edit_comment' => 'edit_review_item',
+				),
+			)
+		);
+
+		$this->assertSame( 'edit_review_item', $caps->edit_comment, 'The override should win.' );
+		$this->assertSame( 'delete_review', $caps->delete_comment, 'The rest should still derive from the base.' );
+	}
+
+	/**
 	 * Comment types are never hierarchical. The default labels reserve the hierarchical
 	 * slot as null, so honoring a provided value would resolve every label to null.
 	 *
