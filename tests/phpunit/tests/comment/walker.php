@@ -218,12 +218,19 @@ class Tests_Comment_Walker extends WP_UnitTestCase {
 	}
 
 	/**
-	 * A registered ping type renders with the compact ping markup when short_ping is on.
+	 * A registered ping type renders with the compact ping markup when short_ping is on:
+	 * a label, the author link, and no comment body.
 	 *
 	 * @ticket 35214
 	 */
 	public function test_registered_ping_type_renders_as_ping() {
-		register_comment_type( 'webmention', array( 'is_ping' => true ) );
+		register_comment_type(
+			'webmention',
+			array(
+				'is_ping' => true,
+				'labels'  => array( 'singular_name' => 'Webmention' ),
+			)
+		);
 
 		$comment_id = self::factory()->comment->create(
 			array(
@@ -239,9 +246,72 @@ class Tests_Comment_Walker extends WP_UnitTestCase {
 			array( 'short_ping' => true )
 		);
 
-		// The compact ping markup prints the "Pingback:" label and omits the comment body.
-		$this->assertStringContainsString( 'Pingback:', $output );
-		$this->assertStringNotContainsString( 'A webmention body', $output );
+		$this->assertStringContainsString( '<div class="comment-body">', $output, 'The compact ping markup should be used.' );
+		$this->assertStringContainsString( 'class="url"', $output, 'The author link should be rendered.' );
+		$this->assertStringNotContainsString( 'A webmention body', $output, 'The comment body should be omitted.' );
+	}
+
+	/**
+	 * The user-visible end of the grouping change: a theme listing 'pings' gets the
+	 * registered ping type alongside the built-ins, and nothing else.
+	 *
+	 * @ticket 35214
+	 */
+	public function test_wp_list_comments_type_pings_lists_registered_ping_types() {
+		register_comment_type( 'webmention', array( 'is_ping' => true ) );
+
+		$comments = array();
+
+		foreach ( array( 'comment', 'pingback', 'webmention' ) as $comment_type ) {
+			$comments[] = get_comment(
+				self::factory()->comment->create(
+					array(
+						'comment_post_ID'  => $this->post_id,
+						'comment_type'     => $comment_type,
+						'comment_author'   => "Author of a $comment_type",
+						'comment_approved' => '1',
+					)
+				)
+			);
+		}
+
+		$output = $this->render_comments( $comments, array( 'type' => 'pings' ) );
+
+		$this->assertStringContainsString( 'Author of a webmention', $output );
+		$this->assertStringContainsString( 'Author of a pingback', $output );
+		$this->assertStringNotContainsString( 'Author of a comment', $output );
+	}
+
+	/**
+	 * The compact ping markup labels a registered type with its own singular name. The
+	 * built-in "Pingback:" would be plainly wrong for anything else.
+	 *
+	 * @ticket 35214
+	 */
+	public function test_registered_ping_type_renders_with_its_own_label() {
+		register_comment_type(
+			'webmention',
+			array(
+				'is_ping' => true,
+				'labels'  => array( 'singular_name' => 'Webmention' ),
+			)
+		);
+
+		$comment_id = self::factory()->comment->create(
+			array(
+				'comment_post_ID'  => $this->post_id,
+				'comment_type'     => 'webmention',
+				'comment_approved' => '1',
+			)
+		);
+
+		$output = $this->render_comments(
+			array( get_comment( $comment_id ) ),
+			array( 'short_ping' => true )
+		);
+
+		$this->assertStringContainsString( 'Webmention:', $output );
+		$this->assertStringNotContainsString( 'Pingback:', $output );
 	}
 
 	/**

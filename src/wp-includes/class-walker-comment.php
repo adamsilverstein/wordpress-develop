@@ -263,6 +263,7 @@ class Walker_Comment extends Walker {
 	 * Outputs a pingback comment.
 	 *
 	 * @since 3.6.0
+	 * @since 7.1.0 A registered, non-built-in ping type is labeled with its singular name.
 	 *
 	 * @see wp_list_comments()
 	 *
@@ -272,10 +273,24 @@ class Walker_Comment extends Walker {
 	 */
 	protected function ping( $comment, $depth, $args ) {
 		$tag = ( 'div' === $args['style'] ) ? 'div' : 'li';
+
+		/*
+		 * The built-in ping types share the 'Pingback:' label - trackbacks have carried it
+		 * since 3.6 - so their markup is unchanged. A registered ping type would be
+		 * mislabeled by it, so use its own singular name instead, matching comment_type().
+		 */
+		$comment_type_object = get_comment_type_object( $comment->comment_type );
+
+		if ( $comment_type_object && ! $comment_type_object->_builtin && isset( $comment_type_object->labels->singular_name ) ) {
+			/* translators: %s: Singular name of a registered comment type, e.g. "Webmention". */
+			$label = sprintf( __( '%s:' ), esc_html( $comment_type_object->labels->singular_name ) );
+		} else {
+			$label = __( 'Pingback:' );
+		}
 		?>
 		<<?php echo $tag; ?> id="comment-<?php comment_ID(); ?>" <?php comment_class( '', $comment ); ?>>
 			<div class="comment-body">
-				<?php _e( 'Pingback:' ); ?> <?php comment_author_link( $comment ); ?> <?php edit_comment_link( __( 'Edit' ), '<span class="edit-link">', '</span>' ); ?>
+				<?php echo $label; ?> <?php comment_author_link( $comment ); ?> <?php edit_comment_link( __( 'Edit' ), '<span class="edit-link">', '</span>' ); ?>
 			</div>
 		<?php
 	}
