@@ -78,10 +78,9 @@ final class WP_Comment_Type {
 	/**
 	 * Whether the comment type is for internal use only.
 	 *
-	 * Analogous to the `internal` argument of register_post_status(). Core does not
-	 * currently consult this property: the exclusion of the built-in `note` type
-	 * from default comment queries is hard-coded. The property is intended to drive
-	 * that exclusion for registered types in the future.
+	 * Analogous to the `internal` argument of register_post_status(). Internal types are
+	 * excluded from comment queries and counts by default, through the
+	 * {@see 'default_excluded_comment_types'} filter.
 	 *
 	 * Default false.
 	 *
@@ -131,8 +130,9 @@ final class WP_Comment_Type {
 	/**
 	 * Whether the comment type is hierarchical.
 	 *
-	 * Comment types are never hierarchical. This property exists so the shared
-	 * label helper {@see _get_custom_object_labels()} can resolve default labels.
+	 * Comment types are never hierarchical. This property exists so the shared label
+	 * helper {@see _get_custom_object_labels()} can resolve default labels, and
+	 * set_props() forces it to false so a provided value cannot resolve them to null.
 	 *
 	 * @since 7.1.0
 	 * @var bool
@@ -222,6 +222,13 @@ final class WP_Comment_Type {
 		$args = array_merge( $defaults, $args );
 
 		$args['name'] = $this->name;
+
+		/*
+		 * Comment types are never hierarchical. The property exists only so the shared
+		 * label helper can pick a slot, and the hierarchical slot is deliberately null,
+		 * so honoring a provided value would resolve every default label to null.
+		 */
+		$args['hierarchical'] = false;
 
 		foreach ( $args as $property_name => $property_value ) {
 			$this->$property_name = $property_value;
