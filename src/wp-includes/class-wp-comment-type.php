@@ -78,10 +78,9 @@ final class WP_Comment_Type {
 	/**
 	 * Whether the comment type is for internal use only.
 	 *
-	 * Analogous to the `internal` argument of register_post_status(). Core does not
-	 * currently consult this property: the exclusion of the built-in `note` type
-	 * from default comment queries is hard-coded. The property is intended to drive
-	 * that exclusion for registered types in the future.
+	 * Analogous to the `internal` argument of register_post_status(). Internal types are
+	 * excluded from comment queries and counts by default, through the
+	 * {@see 'default_excluded_comment_types'} filter.
 	 *
 	 * Default false.
 	 *
@@ -110,12 +109,26 @@ final class WP_Comment_Type {
 	 * wp_list_comments(), then this callback, then the default markup.
 	 *
 	 * Like the `callback` argument of wp_list_comments(), the callback must only
-	 * output the opening of the list element (an unclosed `<li>` by default);
-	 * {@see Walker_Comment::end_el()} (or the `end-callback` argument) closes
-	 * the element after any child comments have been rendered.
+	 * output the opening of the list element; {@see Walker_Comment::end_el()}
+	 * (or the `end-callback` argument) closes the element after any child
+	 * comments have been rendered. Which element that is depends on the `style`
+	 * argument, so the callback has to open a `<div>` when `$args['style']` is
+	 * 'div' and an `<li>` otherwise, the way {@see Walker_Comment::comment()}
+	 * does. Opening the wrong one leaves the markup mismatched.
+	 *
+	 * The callback must echo its output. Unlike the `render_callback` argument
+	 * of register_block_type(), a returned string is discarded.
 	 *
 	 * Output from the callback is printed unescaped; the callback is
 	 * responsible for escaping all output.
+	 *
+	 * The built-in comment types register without a callback and cannot be
+	 * re-registered, but setting one on them through the
+	 * {@see 'register_comment_type_args'} filter is supported. It grants no more
+	 * than the `callback` argument of wp_list_comments() already does. Note that
+	 * a callback on the 'comment' type also takes over the walker's handling of
+	 * unapproved comments, which strips links from a pending comment's text for
+	 * everyone but its author.
 	 *
 	 * Only applies when comments are rendered via wp_list_comments() (classic
 	 * themes). Block themes render comments through the `core/comment-template`
@@ -147,8 +160,9 @@ final class WP_Comment_Type {
 	/**
 	 * Whether the comment type is hierarchical.
 	 *
-	 * Comment types are never hierarchical. This property exists so the shared
-	 * label helper {@see _get_custom_object_labels()} can resolve default labels.
+	 * Comment types are never hierarchical. This property exists so the shared label
+	 * helper {@see _get_custom_object_labels()} can resolve default labels, and
+	 * set_props() forces it to false so a provided value cannot resolve them to null.
 	 *
 	 * @since 7.1.0
 	 * @var bool
@@ -239,6 +253,13 @@ final class WP_Comment_Type {
 		$args = array_merge( $defaults, $args );
 
 		$args['name'] = $this->name;
+
+		/*
+		 * Comment types are never hierarchical. The property exists only so the shared
+		 * label helper can pick a slot, and the hierarchical slot is deliberately null,
+		 * so honoring a provided value would resolve every default label to null.
+		 */
+		$args['hierarchical'] = false;
 
 		foreach ( $args as $property_name => $property_value ) {
 			$this->$property_name = $property_value;
