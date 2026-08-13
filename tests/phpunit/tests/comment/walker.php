@@ -108,6 +108,80 @@ class Tests_Comment_Walker extends WP_UnitTestCase {
 	}
 
 	/**
+	 * end_el() closes a `<div>` under the 'div' style, so a callback that always opened an
+	 * `<li>` would produce mismatched markup. The callback owns that choice.
+	 *
+	 * @ticket 35214
+	 */
+	public function test_render_callback_pairs_with_the_div_style() {
+		register_comment_type(
+			'review',
+			array(
+				'render_callback' => static function ( $comment, $args ) {
+					$tag = ( 'div' === $args['style'] ) ? 'div' : 'li';
+
+					echo '<' . $tag . ' class="review">' . esc_html( $comment->comment_content );
+				},
+			)
+		);
+
+		$comment_id = self::factory()->comment->create(
+			array(
+				'comment_post_ID'  => $this->post_id,
+				'comment_type'     => 'review',
+				'comment_content'  => 'Rendered by callback',
+				'comment_approved' => '1',
+			)
+		);
+
+		$output = $this->render_comments( array( get_comment( $comment_id ) ), array( 'style' => 'div' ) );
+
+		$this->assertStringContainsString(
+			'<div class="review">Rendered by callback</div><!-- #comment-## -->',
+			$output
+		);
+	}
+
+	/**
+	 * Built-in types register without a callback and cannot be re-registered, but the
+	 * registration args filter can still set one. That is the sanctioned override path,
+	 * so pin it rather than leave it as an accident of the filter's placement.
+	 *
+	 * @ticket 35214
+	 */
+	public function test_render_callback_can_be_added_to_a_built_in_type_by_filter() {
+		add_filter(
+			'register_comment_type_args',
+			static function ( $args, $comment_type ) {
+				if ( 'comment' === $comment_type ) {
+					$args['render_callback'] = static function () {
+						echo '<li class="from-filter">';
+					};
+				}
+
+				return $args;
+			},
+			10,
+			2
+		);
+
+		// Rebuild the built-ins so the filter applies to them.
+		create_initial_comment_types();
+
+		$comment_id = self::factory()->comment->create(
+			array(
+				'comment_post_ID'  => $this->post_id,
+				'comment_type'     => 'comment',
+				'comment_approved' => '1',
+			)
+		);
+
+		$output = $this->render_comments( array( get_comment( $comment_id ) ) );
+
+		$this->assertStringContainsString( '<li class="from-filter">', $output );
+	}
+
+	/**
 	 * An explicit wp_list_comments() callback takes precedence over a type's render_callback.
 	 *
 	 * @ticket 35214
