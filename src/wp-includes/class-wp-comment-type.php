@@ -90,7 +90,7 @@ final class WP_Comment_Type {
 	public $internal = false;
 
 	/**
-	 * The string to use to build the read, edit, and delete capabilities.
+	 * The string to use to build the edit, delete, and moderate capabilities.
 	 *
 	 * May be registered as an array to allow for alternative plurals when using
 	 * this argument as a base to construct the capabilities, e.g.

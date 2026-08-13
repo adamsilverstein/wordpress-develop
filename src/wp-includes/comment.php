@@ -451,7 +451,7 @@ function create_initial_comment_types() {
  *                                          counts by default, through the
  *                                          {@see 'default_excluded_comment_types'} filter.
  *                                          Default false.
- *     @type string|array  $capability_type The string to use to build the read, edit, and delete
+ *     @type string|array  $capability_type The string to use to build the edit, delete, and moderate
  *                                          capabilities. May be passed as an array to allow for
  *                                          alternative plurals when using this argument as a base to
  *                                          construct the capabilities, e.g. array( 'story', 'stories' ).
@@ -754,8 +754,6 @@ function get_comment_type_labels( $comment_type_object ) {
  *
  *     @type string $edit_comment         Meta capability to edit a comment of this type.
  *                                        Default 'edit_comment'.
- *     @type string $read_comment         Meta capability to read a comment of this type.
- *                                        Default 'read_comment'.
  *     @type string $delete_comment       Meta capability to delete a comment of this type.
  *                                        Default 'delete_comment'.
  *     @type string $moderate_comment     Meta capability to moderate a comment of this type.
@@ -781,7 +779,6 @@ function get_comment_type_capabilities( $args ) {
 	$default_capabilities = array(
 		// Meta capabilities.
 		'edit_comment'         => 'edit_' . $singular_base,
-		'read_comment'         => 'read_' . $singular_base,
 		'delete_comment'       => 'delete_' . $singular_base,
 		'moderate_comment'     => 'moderate_' . $singular_base,
 		// Primitive capabilities used outside of map_meta_cap().

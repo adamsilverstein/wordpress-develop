@@ -603,7 +603,6 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 		$expected = array(
 			// Meta capabilities.
 			'edit_comment'         => 'edit_review',
-			'read_comment'         => 'read_review',
 			'delete_comment'       => 'delete_review',
 			'moderate_comment'     => 'moderate_review',
 			// Primitive capabilities.
@@ -633,11 +632,32 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 
 		// Singular base drives the meta capabilities.
 		$this->assertSame( 'edit_story', $caps->edit_comment );
-		$this->assertSame( 'read_story', $caps->read_comment );
+		$this->assertSame( 'delete_story', $caps->delete_comment );
 		// Explicit plural base drives the primitive capabilities.
 		$this->assertSame( 'edit_stories', $caps->edit_comments );
 		$this->assertSame( 'delete_stories', $caps->delete_comments );
 		$this->assertSame( 'moderate_stories', $caps->moderate_comments );
+	}
+
+	/**
+	 * A 'read_comment' meta capability is deliberately not generated: map_meta_cap() has no
+	 * case for it, so advertising it would hand consumers a capability that denies everyone.
+	 * Pinned so it is only added alongside its mapping.
+	 *
+	 * @ticket 35214
+	 *
+	 * @covers ::get_comment_type_capabilities
+	 */
+	public function test_get_comment_type_capabilities_omits_read_comment() {
+		$caps = get_comment_type_capabilities(
+			(object) array(
+				'capability_type' => 'review',
+				'capabilities'    => array(),
+			)
+		);
+
+		$this->assertObjectNotHasProperty( 'read_comment', $caps );
+		$this->assertObjectNotHasProperty( 'read_comment', get_comment_type_object( 'comment' )->cap );
 	}
 
 	/**
