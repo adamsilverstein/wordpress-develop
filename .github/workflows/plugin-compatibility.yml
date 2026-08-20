@@ -74,7 +74,8 @@ jobs:
     permissions:
       contents: read
     runs-on: ubuntu-24.04
-    if: ${{ github.repository == 'WordPress/wordpress-develop' }}
+    # Testing only: also run on the fork so the full run can be PR-triggered. Do not merge this change.
+    if: ${{ github.repository == 'WordPress/wordpress-develop' || github.repository == 'adamsilverstein/wordpress-develop' }}
     timeout-minutes: 5
     outputs:
       shards: ${{ steps.plugin-shards.outputs.shards }}
@@ -86,7 +87,7 @@ jobs:
           # Runs that carry no inputs fall back to the defaults. Pull request and push runs exist to test
           # this workflow rather than the ecosystem, so they use a small count. See the note on the
           # plugin-compatibility-tests job below.
-          PLUGIN_COUNT: ${{ inputs.plugin-count || ( contains( fromJSON('["pull_request", "push"]'), github.event_name ) && '10' ) || '100' }}
+          PLUGIN_COUNT: ${{ inputs.plugin-count || '200' }}
           # The API caps `per_page` at 250 and returns 250 without complaint for anything larger, so counts
           # above that have to be paged.
           PAGE_SIZE: '250'
@@ -208,19 +209,20 @@ jobs:
   # two files. Scheduled and manually dispatched runs are the ones that carry the ecosystem signal, and they
   # default to nightly and the full count.
   plugin-compatibility-tests:
-    name: WP ${{ inputs.wp-version || ( contains( fromJSON('["pull_request", "push"]'), github.event_name ) && 'latest' ) || 'nightly' }} / Shard ${{ matrix.shard.index }}
+    name: WP ${{ inputs.wp-version || 'nightly' }} / Shard ${{ matrix.shard.index }}
     uses: ./.github/workflows/reusable-plugin-compatibility.yml
     permissions:
       contents: read
     needs: [ build-plugin-matrix ]
-    if: ${{ github.repository == 'WordPress/wordpress-develop' }}
+    # Testing only: also run on the fork so the full run can be PR-triggered. Do not merge this change.
+    if: ${{ github.repository == 'WordPress/wordpress-develop' || github.repository == 'adamsilverstein/wordpress-develop' }}
     strategy:
       fail-fast: false
       matrix:
         shard: ${{ fromJSON( needs.build-plugin-matrix.outputs.shards ) }}
     with:
       os: 'ubuntu-24.04'
-      wp-version: ${{ inputs.wp-version || ( contains( fromJSON('["pull_request", "push"]'), github.event_name ) && 'latest' ) || 'nightly' }}
+      wp-version: ${{ inputs.wp-version || 'nightly' }}
       php-version: '8.3'
       plugin-slugs: ${{ matrix.shard.slugs }}
       db-type: 'mysql'
