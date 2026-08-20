@@ -209,7 +209,7 @@ jobs:
   # two files. Scheduled and manually dispatched runs are the ones that carry the ecosystem signal, and they
   # default to nightly and the full count.
   plugin-compatibility-tests:
-    name: WP ${{ inputs.wp-version || 'nightly' }} / Shard ${{ matrix.shard.index }}
+    name: WP ${{ inputs.wp-version || 'latest' }} / Shard ${{ matrix.shard.index }}
     uses: ./.github/workflows/reusable-plugin-compatibility.yml
     permissions:
       contents: read
@@ -222,7 +222,7 @@ jobs:
         shard: ${{ fromJSON( needs.build-plugin-matrix.outputs.shards ) }}
     with:
       os: 'ubuntu-24.04'
-      wp-version: ${{ inputs.wp-version || 'nightly' }}
+      wp-version: ${{ inputs.wp-version || 'latest' }}
       php-version: '8.3'
       plugin-slugs: ${{ matrix.shard.slugs }}
       db-type: 'mysql'
