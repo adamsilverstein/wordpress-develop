@@ -414,9 +414,14 @@ function create_initial_comment_types() {
  *    visitors. It does not affect what queries return.
  *  - `internal` states query-surface intent: whether the type should be excluded from
  *    comment queries and counts by default.
+ *  - `show_in_rest` controls REST discovery of the type's metadata, and nothing else.
  *
- * An argument never implies another argument. The one cascade planned for the future is
- * `show_in_rest`, which will default from `public`.
+ * An argument never implies another argument, with one deliberate exception:
+ * `show_in_rest` defaults from `public`, since a type meant to be seen is a type worth
+ * discovering. Note that `internal` is not part of that cascade: a type registered with
+ * `internal => true` but left `public` still defaults to REST-discoverable. A type that
+ * should stay out of discovery must pass `show_in_rest => false` (or `public => false`),
+ * as the built-in 'note' type does.
  *
  * Registrations live in a per-process global. Like post types, they are not scoped to a
  * site on multisite: a type registered by one site's plugins is visible after
@@ -435,23 +440,28 @@ function create_initial_comment_types() {
  * @param array|string $args {
  *     Optional. Array or string of arguments for registering a comment type. Default empty array.
  *
- *     @type string     $label       Name of the comment type. Usually plural.
- *                                   Default is the value of $labels['name'].
- *     @type string[]   $labels      An array of labels for this comment type. If not set, the
- *                                   default comment labels are used. See get_comment_type_labels()
- *                                   for a full list of supported labels.
- *     @type string     $description A short descriptive summary of what the comment type is.
- *                                   Default empty.
- *     @type bool       $public      Whether the comment type is intended for use publicly either via
- *                                   the admin interface or by front-end users. Core does not
- *                                   currently act on this argument. Default true.
- *     @type bool       $internal    Whether the comment type is for internal use only. Internal
- *                                   types are meant to be excluded from comment queries and counts
- *                                   by default. Core does not currently act on this argument.
- *                                   Default false.
- *     @type bool       $_builtin    For internal core use only. Marks the type as native to
- *                                   WordPress, which blocks it from being re-registered or
- *                                   unregistered. Default false.
+ *     @type string     $label        Name of the comment type. Usually plural.
+ *                                    Default is the value of $labels['name'].
+ *     @type string[]   $labels       An array of labels for this comment type. If not set, the
+ *                                    default comment labels are used. See get_comment_type_labels()
+ *                                    for a full list of supported labels.
+ *     @type string     $description  A short descriptive summary of what the comment type is.
+ *                                    Default empty.
+ *     @type bool       $public       Whether the comment type is intended for use publicly either via
+ *                                    the admin interface or by front-end users. Core does not
+ *                                    currently act on this argument. Default true.
+ *     @type bool       $internal     Whether the comment type is for internal use only. Internal
+ *                                    types are meant to be excluded from comment queries and counts
+ *                                    by default. Core does not currently act on this argument.
+ *                                    Default false.
+ *     @type bool       $show_in_rest Whether to expose this comment type in the REST API comment types
+ *                                    discovery endpoint (`/wp/v2/comment-types`). Exposing a type
+ *                                    reveals its name, slug, description, and labels only; it does not
+ *                                    make comments of this type readable or queryable via
+ *                                    `/wp/v2/comments`. Default is the value of $public.
+ *     @type bool       $_builtin     For internal core use only. Marks the type as native to
+ *                                    WordPress, which blocks it from being re-registered or
+ *                                    unregistered. Default false.
  * }
  * @return WP_Comment_Type|WP_Error The registered comment type object on success,
  *                                  WP_Error object on failure.
