@@ -435,23 +435,35 @@ function create_initial_comment_types() {
  * @param array|string $args {
  *     Optional. Array or string of arguments for registering a comment type. Default empty array.
  *
- *     @type string     $label       Name of the comment type. Usually plural.
- *                                   Default is the value of $labels['name'].
- *     @type string[]   $labels      An array of labels for this comment type. If not set, the
- *                                   default comment labels are used. See get_comment_type_labels()
- *                                   for a full list of supported labels.
- *     @type string     $description A short descriptive summary of what the comment type is.
- *                                   Default empty.
- *     @type bool       $public      Whether the comment type is intended for use publicly either via
- *                                   the admin interface or by front-end users. Core does not
- *                                   currently act on this argument. Default true.
- *     @type bool       $internal    Whether the comment type is for internal use only. Internal
- *                                   types are meant to be excluded from comment queries and counts
- *                                   by default. Core does not currently act on this argument.
- *                                   Default false.
- *     @type bool       $_builtin    For internal core use only. Marks the type as native to
- *                                   WordPress, which blocks it from being re-registered or
- *                                   unregistered. Default false.
+ *     @type string     $label           Name of the comment type. Usually plural.
+ *                                       Default is the value of $labels['name'].
+ *     @type string[]   $labels          An array of labels for this comment type. If not set, the
+ *                                       default comment labels are used. See get_comment_type_labels()
+ *                                       for a full list of supported labels.
+ *     @type string     $description     A short descriptive summary of what the comment type is.
+ *                                       Default empty.
+ *     @type bool       $public          Whether the comment type is intended for use publicly either
+ *                                       via the admin interface or by front-end users. Core does not
+ *                                       currently act on this argument. Default true.
+ *     @type bool       $internal        Whether the comment type is for internal use only. Internal
+ *                                       types are meant to be excluded from comment queries and
+ *                                       counts by default. Core does not currently act on this
+ *                                       argument.
+ *                                       Default false.
+ *     @type callable   $render_callback Callback used to render a comment of this type in comment
+ *                                       lists. Receives the same arguments as the `callback` argument
+ *                                       of wp_list_comments() (the comment, the arguments, and the
+ *                                       depth) and, like it, must echo only the opening of the list
+ *                                       element - a `<div>` when the `style` argument is 'div' and an
+ *                                       `<li>` otherwise; Walker_Comment::end_el() closes the element.
+ *                                       A returned string is discarded. An explicit
+ *                                       wp_list_comments() `callback` takes precedence. Output is
+ *                                       printed unescaped; the callback must escape all output.
+ *                                       Applies only when comments are rendered via
+ *                                       wp_list_comments() (classic themes). Default null.
+ *     @type bool       $_builtin        For internal core use only. Marks the type as native to
+ *                                       WordPress, which blocks it from being re-registered or
+ *                                       unregistered. Default false.
  * }
  * @return WP_Comment_Type|WP_Error The registered comment type object on success,
  *                                  WP_Error object on failure.

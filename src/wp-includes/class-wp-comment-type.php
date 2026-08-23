@@ -100,6 +100,48 @@ final class WP_Comment_Type {
 	public $_builtin = false;
 
 	/**
+	 * Callback used to render a comment of this type in comment lists.
+	 *
+	 * When set to a callable, {@see Walker_Comment} invokes it to render a
+	 * comment of this type, receiving the same arguments as the `callback`
+	 * argument of wp_list_comments(): the comment object, the arguments array,
+	 * and the depth. The precedence chain is: an explicit `callback` passed to
+	 * wp_list_comments(), then this callback, then the default markup.
+	 *
+	 * Like the `callback` argument of wp_list_comments(), the callback must only
+	 * output the opening of the list element; {@see Walker_Comment::end_el()}
+	 * (or the `end-callback` argument) closes the element after any child
+	 * comments have been rendered. Which element that is depends on the `style`
+	 * argument, so the callback has to open a `<div>` when `$args['style']` is
+	 * 'div' and an `<li>` otherwise, the way {@see Walker_Comment::comment()}
+	 * does. Opening the wrong one leaves the markup mismatched.
+	 *
+	 * The callback must echo its output. Unlike the `render_callback` argument
+	 * of register_block_type(), a returned string is discarded.
+	 *
+	 * Output from the callback is printed unescaped; the callback is
+	 * responsible for escaping all output.
+	 *
+	 * The built-in comment types register without a callback and cannot be
+	 * re-registered, but setting one on them through the
+	 * {@see 'register_comment_type_args'} filter is supported. It grants no more
+	 * than the `callback` argument of wp_list_comments() already does. Note that
+	 * a callback on the 'comment' type also takes over the walker's handling of
+	 * unapproved comments, which strips links from a pending comment's text for
+	 * everyone but its author.
+	 *
+	 * Only applies when comments are rendered via wp_list_comments() (classic
+	 * themes). Block themes render comments through the `core/comment-template`
+	 * block and do not invoke this callback.
+	 *
+	 * Default null.
+	 *
+	 * @since 7.2.0
+	 * @var callable|null
+	 */
+	public $render_callback = null;
+
+	/**
 	 * Whether the comment type is hierarchical.
 	 *
 	 * Comment types are never hierarchical. This property exists so the shared label
@@ -183,11 +225,12 @@ final class WP_Comment_Type {
 		 * treated as a provided value and overwrite the default name with false.
 		 */
 		$defaults = array(
-			'labels'      => array(),
-			'description' => '',
-			'public'      => true,
-			'internal'    => false,
-			'_builtin'    => false,
+			'labels'          => array(),
+			'description'     => '',
+			'public'          => true,
+			'internal'        => false,
+			'render_callback' => null,
+			'_builtin'        => false,
 		);
 
 		$args = array_merge( $defaults, $args );
