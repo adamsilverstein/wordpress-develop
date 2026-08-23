@@ -427,6 +427,57 @@ class Tests_Comment_Query extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The resolved ping set is part of the per-parent descendant cache keys too.
+	 * Otherwise a threaded 'pings' query run before a ping type existed would keep
+	 * serving that parent's children from the stale child ID cache even though the
+	 * top-level results update.
+	 *
+	 * @ticket 35214
+	 *
+	 * @covers WP_Comment_Query::fill_descendants
+	 */
+	public function test_threaded_pings_descendants_are_not_served_from_a_stale_cache() {
+		$pingback = self::factory()->comment->create(
+			array(
+				'comment_post_ID'  => self::$post_id,
+				'comment_approved' => '1',
+				'comment_type'     => 'pingback',
+			)
+		);
+		$child    = self::factory()->comment->create(
+			array(
+				'comment_post_ID'  => self::$post_id,
+				'comment_approved' => '1',
+				'comment_type'     => 'webmention',
+				'comment_parent'   => $pingback,
+			)
+		);
+
+		$args = array(
+			'type'         => 'pings',
+			'hierarchical' => 'threaded',
+			'post_id'      => self::$post_id,
+		);
+
+		$before = ( new WP_Comment_Query() )->query( $args );
+
+		register_comment_type( 'webmention', array( 'is_ping' => true ) );
+
+		$after = ( new WP_Comment_Query() )->query( $args );
+
+		$this->assertSame(
+			array(),
+			$before[ $pingback ]->get_children(),
+			'Before registration the child type is not a ping, so the parent has no children.'
+		);
+		$this->assertSame(
+			array( $child ),
+			array_values( array_map( 'intval', wp_list_pluck( $after[ $pingback ]->get_children(), 'comment_ID' ) ) ),
+			'After registration the child should not be hidden by a stale descendant cache.'
+		);
+	}
+
+	/**
 	 * Comments and custom
 	 *
 	 * @ticket 12668

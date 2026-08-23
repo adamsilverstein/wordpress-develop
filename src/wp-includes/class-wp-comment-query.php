@@ -461,29 +461,7 @@ class WP_Comment_Query {
 			return $comment_data;
 		}
 
-		/*
-		 * Only use the args defined in the query_var_defaults to compute the key,
-		 * but ignore 'fields', 'update_comment_meta_cache', 'update_comment_post_cache' which does not affect query results.
-		 */
-		$_args = wp_array_slice_assoc( $this->query_vars, array_keys( $this->query_var_defaults ) );
-		unset( $_args['fields'], $_args['update_comment_meta_cache'], $_args['update_comment_post_cache'] );
-
-		/*
-		 * A 'pings' token expands to the registered ping types, which a plugin can change
-		 * from one request to the next, so the resolved set belongs in the cache key. The
-		 * comment last_changed salt only moves when a comment does, and would not catch it.
-		 */
-		$type_query_vars = array_merge(
-			(array) $this->query_vars['type'],
-			(array) $this->query_vars['type__in'],
-			(array) $this->query_vars['type__not_in']
-		);
-
-		if ( in_array( 'pings', $type_query_vars, true ) ) {
-			$_args['ping_comment_types'] = $this->get_ping_comment_types();
-		}
-
-		$key          = md5( serialize( $_args ) );
+		$key          = md5( serialize( $this->get_cache_key_args() ) );
 		$last_changed = wp_cache_get_last_changed( 'comment' );
 
 		$cache_key   = "get_comments:$key";
@@ -1036,12 +1014,46 @@ class WP_Comment_Query {
 	}
 
 	/**
+	 * Builds the normalized set of query vars that comment query cache keys hash.
+	 *
+	 * Only uses the args defined in the query_var_defaults, ignoring 'fields',
+	 * 'update_comment_meta_cache', and 'update_comment_post_cache', which do not
+	 * affect query results.
+	 *
+	 * A 'pings' token expands to the registered ping types, which a plugin can change
+	 * from one request to the next, so the resolved set belongs in the cache key. The
+	 * comment last_changed salt only moves when a comment does, and would not catch
+	 * it. Both the main query cache in get_comments() and the per-parent descendant
+	 * caches in fill_descendants() hash these args, so the two cannot disagree.
+	 *
+	 * @since 7.2.0
+	 *
+	 * @return array Query vars to hash into a cache key.
+	 */
+	protected function get_cache_key_args() {
+		$_args = wp_array_slice_assoc( $this->query_vars, array_keys( $this->query_var_defaults ) );
+		unset( $_args['fields'], $_args['update_comment_meta_cache'], $_args['update_comment_post_cache'] );
+
+		$type_query_vars = array_merge(
+			(array) $this->query_vars['type'],
+			(array) $this->query_vars['type__in'],
+			(array) $this->query_vars['type__not_in']
+		);
+
+		if ( in_array( 'pings', $type_query_vars, true ) ) {
+			$_args['ping_comment_types'] = $this->get_ping_comment_types();
+		}
+
+		return $_args;
+	}
+
+	/**
 	 * Resolves the comment types a 'pings' type token expands to.
 	 *
 	 * Matches how separate_comments() and wp_list_comments() group pings, so that a
 	 * query for 'pings' returns the comments a theme would list under that heading.
 	 *
-	 * @since 7.1.0
+	 * @since 7.2.0
 	 *
 	 * @return string[] Comment type names.
 	 */
@@ -1105,7 +1117,7 @@ class WP_Comment_Query {
 			0 => wp_list_pluck( $comments, 'comment_ID' ),
 		);
 
-		$key          = md5( serialize( wp_array_slice_assoc( $this->query_vars, array_keys( $this->query_var_defaults ) ) ) );
+		$key          = md5( serialize( $this->get_cache_key_args() ) );
 		$last_changed = wp_cache_get_last_changed( 'comment' );
 
 		// Fetch an entire level of the descendant tree at a time.
