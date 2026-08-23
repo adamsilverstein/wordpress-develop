@@ -97,7 +97,7 @@ final class WP_Comment_Type {
 	 * labels). It does not affect whether comments of this type are readable
 	 * or queryable via `/wp/v2/comments`. Default is the value of $public.
 	 *
-	 * @since 7.1.0
+	 * @since 7.2.0
 	 * @var bool
 	 */
 	public $show_in_rest;

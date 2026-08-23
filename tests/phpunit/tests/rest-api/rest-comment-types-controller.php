@@ -457,22 +457,6 @@ class WP_Test_REST_Comment_Types_Controller extends WP_Test_REST_Controller_Test
 		);
 	}
 
-	protected function check_comment_type_obj( $context, $comment_type_obj, $data, $links ) {
-		$this->assertSame( $comment_type_obj->label, $data['name'] );
-		$this->assertSame( $comment_type_obj->name, $data['slug'] );
-		$this->assertSame( $comment_type_obj->description, $data['description'] );
-
-		$links = test_rest_expand_compact_links( $links );
-		$this->assertSame( rest_url( 'wp/v2/comment-types' ), $links['collection'][0]['href'] );
-		$this->assertArrayHasKey( 'https://api.w.org/items', $links );
-
-		if ( 'edit' === $context ) {
-			$this->assertSame( (array) $comment_type_obj->labels, (array) $data['labels'] );
-		} else {
-			$this->assertArrayNotHasKey( 'labels', $data );
-		}
-	}
-
 	/**
 	 * The subscriber case for the collection, matching the single-item route: authenticated
 	 * but without the capability is a 403, where anonymous is a 401.
@@ -520,6 +504,22 @@ class WP_Test_REST_Comment_Types_Controller extends WP_Test_REST_Controller_Test
 
 		$this->assertSame( 200, $response->get_status(), 'It should also be readable as a single item.' );
 		$this->assertSame( 'wp_tests_hidden', $response->get_data()['slug'] );
+	}
+
+	protected function check_comment_type_obj( $context, $comment_type_obj, $data, $links ) {
+		$this->assertSame( $comment_type_obj->label, $data['name'] );
+		$this->assertSame( $comment_type_obj->name, $data['slug'] );
+		$this->assertSame( $comment_type_obj->description, $data['description'] );
+
+		$links = test_rest_expand_compact_links( $links );
+		$this->assertSame( rest_url( 'wp/v2/comment-types' ), $links['collection'][0]['href'] );
+		$this->assertArrayHasKey( 'https://api.w.org/items', $links );
+
+		if ( 'edit' === $context ) {
+			$this->assertSame( (array) $comment_type_obj->labels, (array) $data['labels'] );
+		} else {
+			$this->assertArrayNotHasKey( 'labels', $data );
+		}
 	}
 
 	protected function check_comment_type_object_response( $context, $response, $comment_type = 'comment' ) {
