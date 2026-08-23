@@ -120,6 +120,18 @@ class WP_Comment_Query {
 	public $max_num_pages = 0;
 
 	/**
+	 * Comment types a 'pings' type token expands to.
+	 *
+	 * Resolved lazily, once per parsed query, so that the set folded into the cache
+	 * keys is the same one get_comment_ids() builds the SQL from. Reset by
+	 * parse_query(); null until resolved.
+	 *
+	 * @since 7.2.0
+	 * @var string[]|null
+	 */
+	protected $ping_comment_types = null;
+
+	/**
 	 * Make private/protected methods readable for backward compatibility.
 	 *
 	 * @since 4.0.0
@@ -149,6 +161,7 @@ class WP_Comment_Query {
 	 * @since 4.9.0 Introduced the `$paged` argument.
 	 * @since 5.1.0 Introduced the `$meta_compare_key` argument.
 	 * @since 5.3.0 Introduced the `$meta_type_key` argument.
+	 * @since 7.2.0 A `$type` of 'pings' expands to every comment type registered with `is_ping`.
 	 *
 	 * @param string|array $query {
 	 *     Optional. Array or query string of comment query parameters. Default empty.
@@ -251,7 +264,8 @@ class WP_Comment_Query {
 	 *                                                      'approve' (`comment_status=1`), 'all', or a custom
 	 *                                                      comment status. Default 'all'.
 	 *     @type string|string[] $type                      Include comments of a given type, or array of types.
-	 *                                                      Accepts 'comment', 'pings' (includes 'pingback' and
+	 *                                                      Accepts 'comment', 'pings' (every comment type registered
+	 *                                                      with `is_ping`, which includes 'pingback' and
 	 *                                                      'trackback'), or any custom type string. Default empty.
 	 *     @type string[]        $type__in                  Include comments from a given array of comment types.
 	 *                                                      Default empty.
@@ -342,6 +356,9 @@ class WP_Comment_Query {
 		}
 
 		$this->query_vars = wp_parse_args( $query, $this->query_var_defaults );
+
+		// Re-resolve the ping types per query, in case the registry changed in between.
+		$this->ping_comment_types = null;
 
 		/**
 		 * Fires after the comment query vars have been parsed.
@@ -448,14 +465,7 @@ class WP_Comment_Query {
 			return $comment_data;
 		}
 
-		/*
-		 * Only use the args defined in the query_var_defaults to compute the key,
-		 * but ignore 'fields', 'update_comment_meta_cache', 'update_comment_post_cache' which does not affect query results.
-		 */
-		$_args = wp_array_slice_assoc( $this->query_vars, array_keys( $this->query_var_defaults ) );
-		unset( $_args['fields'], $_args['update_comment_meta_cache'], $_args['update_comment_post_cache'] );
-
-		$key          = md5( serialize( $_args ) );
+		$key          = md5( serialize( $this->get_cache_key_args() ) );
 		$last_changed = wp_cache_get_last_changed( 'comment' );
 
 		$cache_key   = "get_comments:$key";
@@ -806,8 +816,9 @@ class WP_Comment_Query {
 						break;
 
 					case 'pings':
-						$comment_types[ $operator ][] = "'pingback'";
-						$comment_types[ $operator ][] = "'trackback'";
+						foreach ( $this->get_ping_comment_types() as $ping_type ) {
+							$comment_types[ $operator ][] = $wpdb->prepare( '%s', $ping_type );
+						}
 						break;
 
 					default:
@@ -1007,6 +1018,68 @@ class WP_Comment_Query {
 	}
 
 	/**
+	 * Builds the normalized set of query vars that comment query cache keys hash.
+	 *
+	 * Only uses the args defined in the query_var_defaults, ignoring 'fields',
+	 * 'update_comment_meta_cache', and 'update_comment_post_cache', which do not
+	 * affect query results.
+	 *
+	 * A 'pings' token expands to the registered ping types, which a plugin can change
+	 * from one request to the next, so the resolved set belongs in the cache key. The
+	 * comment last_changed salt only moves when a comment does, and would not catch
+	 * it. Both the main query cache in get_comments() and the per-parent descendant
+	 * caches in fill_descendants() hash these args, so the two cannot disagree.
+	 *
+	 * @since 7.2.0
+	 *
+	 * @return array Query vars to hash into a cache key.
+	 */
+	protected function get_cache_key_args() {
+		$_args = wp_array_slice_assoc( $this->query_vars, array_keys( $this->query_var_defaults ) );
+		unset( $_args['fields'], $_args['update_comment_meta_cache'], $_args['update_comment_post_cache'] );
+
+		$type_query_vars = array_merge(
+			(array) $this->query_vars['type'],
+			(array) $this->query_vars['type__in'],
+			(array) $this->query_vars['type__not_in']
+		);
+
+		if ( in_array( 'pings', $type_query_vars, true ) ) {
+			$_args['ping_comment_types'] = $this->get_ping_comment_types();
+		}
+
+		return $_args;
+	}
+
+	/**
+	 * Resolves the comment types a 'pings' type token expands to.
+	 *
+	 * Matches how separate_comments() and wp_list_comments() group pings, so that a
+	 * query for 'pings' returns the comments a theme would list under that heading.
+	 *
+	 * @since 7.2.0
+	 *
+	 * @return string[] Comment type names.
+	 */
+	protected function get_ping_comment_types() {
+		if ( null === $this->ping_comment_types ) {
+			$ping_types = get_comment_types( array( 'is_ping' => true ), 'names' );
+
+			/*
+			 * The built-in ping types, for queries that run before create_initial_comment_types()
+			 * in a partial bootstrap and for any install running without the registry.
+			 */
+			if ( ! $ping_types ) {
+				$ping_types = array( 'pingback', 'trackback' );
+			}
+
+			$this->ping_comment_types = array_values( $ping_types );
+		}
+
+		return $this->ping_comment_types;
+	}
+
+	/**
 	 * Populates found_comments and max_num_pages properties for the current
 	 * query if the limit clause was used.
 	 *
@@ -1048,7 +1121,7 @@ class WP_Comment_Query {
 			0 => wp_list_pluck( $comments, 'comment_ID' ),
 		);
 
-		$key          = md5( serialize( wp_array_slice_assoc( $this->query_vars, array_keys( $this->query_var_defaults ) ) ) );
+		$key          = md5( serialize( $this->get_cache_key_args() ) );
 		$last_changed = wp_cache_get_last_changed( 'comment' );
 
 		// Fetch an entire level of the descendant tree at a time.

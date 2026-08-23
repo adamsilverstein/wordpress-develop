@@ -365,6 +365,7 @@ function create_initial_comment_types() {
 				'singular_name' => __( 'Pingback' ),
 			),
 			'public'   => true,
+			'is_ping'  => true,
 			'_builtin' => true,
 		)
 	);
@@ -377,6 +378,7 @@ function create_initial_comment_types() {
 				'singular_name' => __( 'Trackback' ),
 			),
 			'public'   => true,
+			'is_ping'  => true,
 			'_builtin' => true,
 		)
 	);
@@ -449,6 +451,17 @@ function create_initial_comment_types() {
  *                                       types are meant to be excluded from comment queries and
  *                                       counts by default. Core does not currently act on this
  *                                       argument.
+ *                                       Default false.
+ *     @type bool       $is_ping         Whether the comment type represents a ping (a notification
+ *                                       from another site) rather than a human-authored comment.
+ *                                       Ping types are grouped together by separate_comments(),
+ *                                       returned by a 'pings' type query, and, when
+ *                                       wp_list_comments() is called with 'short_ping', rendered
+ *                                       with compact ping markup by Walker_Comment, labeled with the
+ *                                       type's singular name. A registered 'render_callback' takes
+ *                                       precedence over the ping markup. The flag drives grouping
+ *                                       and display only; validation, moderation, and notification
+ *                                       still key on the 'pingback' and 'trackback' type names.
  *                                       Default false.
  *     @type callable   $render_callback Callback used to render a comment of this type in comment
  *                                       lists. Receives the same arguments as the `callback` argument
@@ -1387,6 +1400,9 @@ function wp_check_comment_flood( $is_flood, $ip, $email, $date, $avoid_die = fal
  * Separates an array of comments into an array keyed by comment_type.
  *
  * @since 2.7.0
+ * @since 7.2.0 The 'pings' group contains the comments of every registered
+ *              comment type with the `is_ping` property, rather than only
+ *              pingbacks and trackbacks.
  *
  * @param WP_Comment[] $comments Array of comments.
  * @return array<string, WP_Comment[]> Array of comments keyed by comment type.
@@ -1410,7 +1426,9 @@ function separate_comments( &$comments ) {
 
 		$comments_by_type[ $type ][] = &$comments[ $i ];
 
-		if ( 'trackback' === $type || 'pingback' === $type ) {
+		$comment_type_object = get_comment_type_object( $type );
+
+		if ( $comment_type_object && $comment_type_object->is_ping ) {
 			$comments_by_type['pings'][] = &$comments[ $i ];
 		}
 	}
@@ -1490,7 +1508,8 @@ function get_comment_pages_count( $comments = null, $per_page = null, $threaded 
  *
  *     @type string     $type      Limit paginated comments to those matching a given type.
  *                                 Accepts 'comment', 'trackback', 'pingback', 'pings'
- *                                 (trackbacks and pingbacks), or 'all'. Default 'all'.
+ *                                 (the comments of every registered comment type with
+ *                                 `is_ping`), or 'all'. Default 'all'.
  *     @type int        $per_page  Per-page count to use when calculating pagination.
  *                                 Defaults to the value of the 'comments_per_page' option.
  *     @type int|string $max_depth If greater than 1, comment page will be determined
@@ -1590,7 +1609,8 @@ function get_page_of_comment( $comment_id, $args = array() ) {
 		 *
 		 *     @type string $type               Limit paginated comments to those matching a given type.
 		 *                                      Accepts 'comment', 'trackback', 'pingback', 'pings'
-		 *                                      (trackbacks and pingbacks), or 'all'. Default 'all'.
+		 *                                      (the comments of every registered comment type with
+		 *                                      `is_ping`), or 'all'. Default 'all'.
 		 *     @type int    $post_id            ID of the post.
 		 *     @type string $fields             Comment fields to return.
 		 *     @type bool   $count              Whether to return a comment count (true) or array

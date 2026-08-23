@@ -343,6 +343,141 @@ class Tests_Comment_Query extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A 'pings' query returns every registered ping type, matching what
+	 * separate_comments() groups under the same name.
+	 *
+	 * @ticket 35214
+	 *
+	 * @covers WP_Comment_Query::query
+	 */
+	public function test_query_type_pings_includes_registered_ping_types() {
+		register_comment_type( 'webmention', array( 'is_ping' => true ) );
+
+		$pingback = self::factory()->comment->create(
+			array(
+				'comment_post_ID'  => self::$post_id,
+				'comment_approved' => '1',
+				'comment_type'     => 'pingback',
+			)
+		);
+		$mention  = self::factory()->comment->create(
+			array(
+				'comment_post_ID'  => self::$post_id,
+				'comment_approved' => '1',
+				'comment_type'     => 'webmention',
+			)
+		);
+		self::factory()->comment->create(
+			array(
+				'comment_post_ID'  => self::$post_id,
+				'comment_approved' => '1',
+				'comment_type'     => 'review',
+			)
+		);
+
+		$q     = new WP_Comment_Query();
+		$found = $q->query(
+			array(
+				'type'   => 'pings',
+				'fields' => 'ids',
+			)
+		);
+
+		$this->assertSameSets( array( $pingback, $mention ), $found );
+	}
+
+	/**
+	 * The registered ping types are part of the 'pings' cache key. Otherwise a plugin
+	 * registering a ping type would keep serving results cached before it existed, since
+	 * the comment last_changed salt only moves when a comment does.
+	 *
+	 * @ticket 35214
+	 *
+	 * @covers WP_Comment_Query::get_comments
+	 */
+	public function test_query_type_pings_is_not_served_from_a_stale_cache() {
+		$pingback = self::factory()->comment->create(
+			array(
+				'comment_post_ID'  => self::$post_id,
+				'comment_approved' => '1',
+				'comment_type'     => 'pingback',
+			)
+		);
+		$mention  = self::factory()->comment->create(
+			array(
+				'comment_post_ID'  => self::$post_id,
+				'comment_approved' => '1',
+				'comment_type'     => 'webmention',
+			)
+		);
+
+		$args = array(
+			'type'   => 'pings',
+			'fields' => 'ids',
+		);
+
+		$before = ( new WP_Comment_Query() )->query( $args );
+
+		register_comment_type( 'webmention', array( 'is_ping' => true ) );
+
+		$after = ( new WP_Comment_Query() )->query( $args );
+
+		$this->assertSameSets( array( $pingback ), $before, 'Before registration the type is not a ping.' );
+		$this->assertSameSets( array( $pingback, $mention ), $after, 'After registration it is.' );
+	}
+
+	/**
+	 * The resolved ping set is part of the per-parent descendant cache keys too.
+	 * Otherwise a threaded 'pings' query run before a ping type existed would keep
+	 * serving that parent's children from the stale child ID cache even though the
+	 * top-level results update.
+	 *
+	 * @ticket 35214
+	 *
+	 * @covers WP_Comment_Query::fill_descendants
+	 */
+	public function test_threaded_pings_descendants_are_not_served_from_a_stale_cache() {
+		$pingback = self::factory()->comment->create(
+			array(
+				'comment_post_ID'  => self::$post_id,
+				'comment_approved' => '1',
+				'comment_type'     => 'pingback',
+			)
+		);
+		$child    = self::factory()->comment->create(
+			array(
+				'comment_post_ID'  => self::$post_id,
+				'comment_approved' => '1',
+				'comment_type'     => 'webmention',
+				'comment_parent'   => $pingback,
+			)
+		);
+
+		$args = array(
+			'type'         => 'pings',
+			'hierarchical' => 'threaded',
+			'post_id'      => self::$post_id,
+		);
+
+		$before = ( new WP_Comment_Query() )->query( $args );
+
+		register_comment_type( 'webmention', array( 'is_ping' => true ) );
+
+		$after = ( new WP_Comment_Query() )->query( $args );
+
+		$this->assertSame(
+			array(),
+			$before[ $pingback ]->get_children(),
+			'Before registration the child type is not a ping, so the parent has no children.'
+		);
+		$this->assertSame(
+			array( $child ),
+			array_values( array_map( 'intval', wp_list_pluck( $after[ $pingback ]->get_children(), 'comment_ID' ) ) ),
+			'After registration the child should not be hidden by a stale descendant cache.'
+		);
+	}
+
+	/**
 	 * Comments and custom
 	 *
 	 * @ticket 12668
