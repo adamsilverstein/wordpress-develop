@@ -136,7 +136,7 @@ final class WP_Comment_Type {
 	 *
 	 * Default null.
 	 *
-	 * @since 7.1.0
+	 * @since 7.2.0
 	 * @var callable|null
 	 */
 	public $render_callback = null;

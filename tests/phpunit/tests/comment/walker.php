@@ -584,6 +584,37 @@ class Tests_Comment_Walker extends WP_UnitTestCase {
 
 		$this->assertStringContainsString( 'Falls back to normal rendering', $output );
 	}
+
+	/**
+	 * A render_callback must echo its output; a returned string is discarded, per the
+	 * documented contract. Pinned so the callback path never quietly starts honoring
+	 * return values.
+	 *
+	 * @ticket 35214
+	 */
+	public function test_render_callback_return_value_is_discarded() {
+		register_comment_type(
+			'review',
+			array(
+				'render_callback' => static function () {
+					return '<li>RETURNED_MARKER';
+				},
+			)
+		);
+
+		$comment_id = self::factory()->comment->create(
+			array(
+				'comment_post_ID'  => $this->post_id,
+				'comment_type'     => 'review',
+				'comment_content'  => 'Return value test',
+				'comment_approved' => '1',
+			)
+		);
+
+		$output = $this->render_comments( array( get_comment( $comment_id ) ) );
+
+		$this->assertStringNotContainsString( 'RETURNED_MARKER', $output );
+	}
 }
 
 class Comment_Callback_Test_Helper {
