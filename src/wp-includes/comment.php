@@ -758,6 +758,11 @@ function get_comment_type_labels( $comment_type_object ) {
  * as primitives: a check requires the literal capability, which no default role
  * grants, so it denies everyone until comment type capability mapping is added.
  *
+ * Note: The "others" axis is deliberately edit-only for now: `edit_others_comments`
+ * is generated with no `delete_others_comments` counterpart, unlike the post type
+ * pairing. A delete counterpart can be added compatibly once the enforcement
+ * follow-up settles which primitives the moderation flows actually consult.
+ *
  * Note: Do not reuse a post type's `capability_type` as a comment type base.
  * A base of 'post' generates `edit_comment => 'edit_post'`, which map_meta_cap()
  * resolves through its post branch, so the check would be answered by a post
@@ -767,7 +772,7 @@ function get_comment_type_labels( $comment_type_object ) {
  * its array form as a side effect of calling this function, matching
  * get_post_type_capabilities().
  *
- * @since 7.1.0
+ * @since 7.2.0
  *
  * @param object $args Comment type registration arguments. Expects the
  *                     `capability_type` and `capabilities` properties.

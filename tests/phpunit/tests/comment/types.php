@@ -544,6 +544,8 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 
 	/**
 	 * @ticket 35214
+	 *
+	 * @covers ::register_comment_type
 	 */
 	public function test_registered_comment_type_exposes_cap_object() {
 		register_comment_type( 'foo', array( 'capability_type' => 'review' ) );
@@ -558,6 +560,8 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 * The built-in comment type's capabilities match the existing core comment capabilities.
 	 *
 	 * @ticket 35214
+	 *
+	 * @covers ::get_comment_type_capabilities
 	 */
 	public function test_built_in_comment_type_capabilities_are_backward_compatible() {
 		$cobj = get_comment_type_object( 'comment' );
@@ -659,9 +663,11 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	}
 
 	/**
-	 * A 'read_comment' meta capability is deliberately not generated: map_meta_cap() has no
-	 * case for it, so advertising it would hand consumers a capability that denies everyone.
-	 * Pinned so it is only added alongside its mapping.
+	 * A 'read_comment' meta capability is deliberately not generated: unlike editing,
+	 * deleting, or moderating, reading a single comment has no defined semantics in core,
+	 * so there is nothing for a future map_meta_cap() case to enforce. The other meta
+	 * capabilities are advertised ahead of their mappings as advisory metadata; this one
+	 * is pinned out until real read semantics exist.
 	 *
 	 * @ticket 35214
 	 *
@@ -684,6 +690,8 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 * Anything that gated on the existing comment capabilities keeps working for all four.
 	 *
 	 * @ticket 35214
+	 *
+	 * @covers ::get_comment_type_capabilities
 	 *
 	 * @dataProvider data_built_in_comment_types
 	 *

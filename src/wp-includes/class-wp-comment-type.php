@@ -97,7 +97,7 @@ final class WP_Comment_Type {
 	 * array( 'story', 'stories' ). set_props() collapses the array form back to
 	 * the singular base once the capabilities are built. Default 'comment'.
 	 *
-	 * @since 7.1.0
+	 * @since 7.2.0
 	 * @var string
 	 */
 	public $capability_type = 'comment';
@@ -111,7 +111,7 @@ final class WP_Comment_Type {
 	 * capability mapping in {@see map_meta_cap()} is not affected by this
 	 * property in this release.
 	 *
-	 * @since 7.1.0
+	 * @since 7.2.0
 	 * @var stdClass
 	 */
 	public $cap;
