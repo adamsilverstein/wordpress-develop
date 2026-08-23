@@ -1400,7 +1400,7 @@ function wp_check_comment_flood( $is_flood, $ip, $email, $date, $avoid_die = fal
  * Separates an array of comments into an array keyed by comment_type.
  *
  * @since 2.7.0
- * @since 7.1.0 The 'pings' group contains the comments of every registered
+ * @since 7.2.0 The 'pings' group contains the comments of every registered
  *              comment type with the `is_ping` property, rather than only
  *              pingbacks and trackbacks.
  *
@@ -1508,7 +1508,8 @@ function get_comment_pages_count( $comments = null, $per_page = null, $threaded 
  *
  *     @type string     $type      Limit paginated comments to those matching a given type.
  *                                 Accepts 'comment', 'trackback', 'pingback', 'pings'
- *                                 (trackbacks and pingbacks), or 'all'. Default 'all'.
+ *                                 (the comments of every registered comment type with
+ *                                 `is_ping`), or 'all'. Default 'all'.
  *     @type int        $per_page  Per-page count to use when calculating pagination.
  *                                 Defaults to the value of the 'comments_per_page' option.
  *     @type int|string $max_depth If greater than 1, comment page will be determined
@@ -1608,7 +1609,8 @@ function get_page_of_comment( $comment_id, $args = array() ) {
 		 *
 		 *     @type string $type               Limit paginated comments to those matching a given type.
 		 *                                      Accepts 'comment', 'trackback', 'pingback', 'pings'
-		 *                                      (trackbacks and pingbacks), or 'all'. Default 'all'.
+		 *                                      (the comments of every registered comment type with
+		 *                                      `is_ping`), or 'all'. Default 'all'.
 		 *     @type int    $post_id            ID of the post.
 		 *     @type string $fields             Comment fields to return.
 		 *     @type bool   $count              Whether to return a comment count (true) or array

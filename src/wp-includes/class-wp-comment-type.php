@@ -160,7 +160,7 @@ final class WP_Comment_Type {
 	 * paths in {@see check_comment()}, {@see get_default_comment_status()}, and the
 	 * notification emails are still keyed to those two type names. Default false.
 	 *
-	 * @since 7.1.0
+	 * @since 7.2.0
 	 * @var bool
 	 */
 	public $is_ping = false;
