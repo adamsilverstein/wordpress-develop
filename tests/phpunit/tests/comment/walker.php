@@ -315,6 +315,33 @@ class Tests_Comment_Walker extends WP_UnitTestCase {
 	}
 
 	/**
+	 * A ping type registered without labels inherits the default 'Comment' singular name,
+	 * which is even more wrong for a ping than 'Pingback:'. The compact markup falls back
+	 * to 'Pingback:' rather than labeling a ping 'Comment:'.
+	 *
+	 * @ticket 35214
+	 */
+	public function test_ping_type_without_labels_falls_back_to_pingback_label() {
+		register_comment_type( 'webmention', array( 'is_ping' => true ) );
+
+		$comment_id = self::factory()->comment->create(
+			array(
+				'comment_post_ID'  => $this->post_id,
+				'comment_type'     => 'webmention',
+				'comment_approved' => '1',
+			)
+		);
+
+		$output = $this->render_comments(
+			array( get_comment( $comment_id ) ),
+			array( 'short_ping' => true )
+		);
+
+		$this->assertStringContainsString( 'Pingback:', $output );
+		$this->assertStringNotContainsString( 'Comment:', $output );
+	}
+
+	/**
 	 * The built-in pingback type still renders with the compact ping markup.
 	 *
 	 * Guards the refactor from hard-coded `pingback`/`trackback` string checks to
