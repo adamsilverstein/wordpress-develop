@@ -543,6 +543,190 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	}
 
 	/**
+	 * @ticket 35214
+	 *
+	 * @covers ::register_comment_type
+	 */
+	public function test_registered_comment_type_exposes_cap_object() {
+		register_comment_type( 'foo', array( 'capability_type' => 'review' ) );
+
+		$cobj = get_comment_type_object( 'foo' );
+
+		$this->assertSame( 'edit_reviews', $cobj->cap->edit_comments );
+		$this->assertSame( 'moderate_reviews', $cobj->cap->moderate_comments );
+	}
+
+	/**
+	 * The built-in comment type's capabilities match the existing core comment capabilities.
+	 *
+	 * @ticket 35214
+	 *
+	 * @covers ::get_comment_type_capabilities
+	 */
+	public function test_built_in_comment_type_capabilities_are_backward_compatible() {
+		$cobj = get_comment_type_object( 'comment' );
+
+		$this->assertSame( 'edit_comment', $cobj->cap->edit_comment );
+		$this->assertSame( 'moderate_comments', $cobj->cap->moderate_comments );
+	}
+
+	/**
+	 * @ticket 35214
+	 *
+	 * @covers ::get_comment_type_capabilities
+	 */
+	public function test_get_comment_type_capabilities_from_string() {
+		$caps = get_comment_type_capabilities(
+			(object) array(
+				'capability_type' => 'review',
+				'capabilities'    => array(),
+			)
+		);
+
+		$this->assertSame( 'edit_review', $caps->edit_comment );
+		$this->assertSame( 'edit_reviews', $caps->edit_comments );
+		$this->assertSame( 'edit_others_reviews', $caps->edit_others_comments );
+		$this->assertSame( 'delete_review', $caps->delete_comment );
+		$this->assertSame( 'moderate_reviews', $caps->moderate_comments );
+	}
+
+	/**
+	 * @ticket 35214
+	 *
+	 * @covers ::get_comment_type_capabilities
+	 */
+	public function test_get_comment_type_capabilities_honors_capabilities_override() {
+		$caps = get_comment_type_capabilities(
+			(object) array(
+				'capability_type' => 'comment',
+				'capabilities'    => array(
+					'edit_comments' => 'manage_stuff',
+				),
+			)
+		);
+
+		$this->assertSame( 'manage_stuff', $caps->edit_comments );
+	}
+
+	/**
+	 * The full set of meta and primitive capabilities is generated from the base.
+	 *
+	 * @ticket 35214
+	 *
+	 * @covers ::get_comment_type_capabilities
+	 */
+	public function test_get_comment_type_capabilities_generates_full_set() {
+		$caps = get_comment_type_capabilities(
+			(object) array(
+				'capability_type' => 'review',
+				'capabilities'    => array(),
+			)
+		);
+
+		$expected = array(
+			// Meta capabilities.
+			'edit_comment'         => 'edit_review',
+			'delete_comment'       => 'delete_review',
+			'moderate_comment'     => 'moderate_review',
+			// Primitive capabilities.
+			'edit_comments'        => 'edit_reviews',
+			'edit_others_comments' => 'edit_others_reviews',
+			'delete_comments'      => 'delete_reviews',
+			'moderate_comments'    => 'moderate_reviews',
+		);
+
+		$this->assertSame( $expected, (array) $caps );
+	}
+
+	/**
+	 * An array capability type supplies an explicit plural base for primitive caps.
+	 *
+	 * @ticket 35214
+	 *
+	 * @covers ::get_comment_type_capabilities
+	 */
+	public function test_get_comment_type_capabilities_from_array() {
+		$caps = get_comment_type_capabilities(
+			(object) array(
+				'capability_type' => array( 'story', 'stories' ),
+				'capabilities'    => array(),
+			)
+		);
+
+		// Singular base drives the meta capabilities.
+		$this->assertSame( 'edit_story', $caps->edit_comment );
+		$this->assertSame( 'delete_story', $caps->delete_comment );
+		// Explicit plural base drives the primitive capabilities.
+		$this->assertSame( 'edit_stories', $caps->edit_comments );
+		$this->assertSame( 'delete_stories', $caps->delete_comments );
+		$this->assertSame( 'moderate_stories', $caps->moderate_comments );
+	}
+
+	/**
+	 * A 'read_comment' meta capability is deliberately not generated: unlike editing,
+	 * deleting, or moderating, reading a single comment has no defined semantics in core,
+	 * so there is nothing for a future map_meta_cap() case to enforce. The other meta
+	 * capabilities are advertised ahead of their mappings as advisory metadata; this one
+	 * is pinned out until real read semantics exist.
+	 *
+	 * @ticket 35214
+	 *
+	 * @covers ::get_comment_type_capabilities
+	 */
+	public function test_get_comment_type_capabilities_omits_read_comment() {
+		$caps = get_comment_type_capabilities(
+			(object) array(
+				'capability_type' => 'review',
+				'capabilities'    => array(),
+			)
+		);
+
+		$this->assertObjectNotHasProperty( 'read_comment', $caps );
+		$this->assertObjectNotHasProperty( 'read_comment', get_comment_type_object( 'comment' )->cap );
+	}
+
+	/**
+	 * The built-in types all register without a capability type, so they share one cap set.
+	 * Anything that gated on the existing comment capabilities keeps working for all four.
+	 *
+	 * @ticket 35214
+	 *
+	 * @covers ::get_comment_type_capabilities
+	 *
+	 * @dataProvider data_built_in_comment_types
+	 *
+	 * @param string $comment_type Built-in comment type name.
+	 */
+	public function test_built_in_comment_types_share_the_comment_capabilities( $comment_type ) {
+		$this->assertEquals(
+			get_comment_type_object( 'comment' )->cap,
+			get_comment_type_object( $comment_type )->cap
+		);
+	}
+
+	/**
+	 * An override applies to meta capabilities as well as primitives, so a type can point a
+	 * meta capability at a name that map_meta_cap() already resolves.
+	 *
+	 * @ticket 35214
+	 *
+	 * @covers ::get_comment_type_capabilities
+	 */
+	public function test_get_comment_type_capabilities_honors_a_meta_capability_override() {
+		$caps = get_comment_type_capabilities(
+			(object) array(
+				'capability_type' => 'review',
+				'capabilities'    => array(
+					'edit_comment' => 'edit_review_item',
+				),
+			)
+		);
+
+		$this->assertSame( 'edit_review_item', $caps->edit_comment, 'The override should win.' );
+		$this->assertSame( 'delete_review', $caps->delete_comment, 'The rest should still derive from the base.' );
+	}
+
+	/**
 	 * Comment types are never hierarchical. The default labels reserve the hierarchical
 	 * slot as null, so honoring a provided value would resolve every label to null.
 	 *

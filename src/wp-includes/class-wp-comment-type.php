@@ -90,6 +90,33 @@ final class WP_Comment_Type {
 	public $internal = false;
 
 	/**
+	 * The string to use to build the edit, delete, and moderate capabilities.
+	 *
+	 * May be registered as an array to allow for alternative plurals when using
+	 * this argument as a base to construct the capabilities, e.g.
+	 * array( 'story', 'stories' ). set_props() collapses the array form back to
+	 * the singular base once the capabilities are built. Default 'comment'.
+	 *
+	 * @since 7.2.0
+	 * @var string
+	 */
+	public $capability_type = 'comment';
+
+	/**
+	 * Capabilities for this comment type.
+	 *
+	 * Built by {@see get_comment_type_capabilities()} from the
+	 * `capability_type` and `capabilities` arguments. This is advisory metadata
+	 * describing the capabilities associated with the comment type; the
+	 * capability mapping in {@see map_meta_cap()} is not affected by this
+	 * property in this release.
+	 *
+	 * @since 7.2.0
+	 * @var stdClass
+	 */
+	public $cap;
+
+	/**
 	 * Whether this comment type is a native or "built-in" comment type.
 	 *
 	 * Default false.
@@ -183,16 +210,27 @@ final class WP_Comment_Type {
 		 * treated as a provided value and overwrite the default name with false.
 		 */
 		$defaults = array(
-			'labels'      => array(),
-			'description' => '',
-			'public'      => true,
-			'internal'    => false,
-			'_builtin'    => false,
+			'labels'          => array(),
+			'description'     => '',
+			'public'          => true,
+			'internal'        => false,
+			'capability_type' => 'comment',
+			'capabilities'    => array(),
+			'_builtin'        => false,
 		);
 
 		$args = array_merge( $defaults, $args );
 
 		$args['name'] = $this->name;
+
+		// Build the capabilities object, then remove the input array from the props.
+		$this->cap = get_comment_type_capabilities( (object) $args );
+		unset( $args['capabilities'] );
+
+		// Collapse an array capability type back to its singular base.
+		if ( is_array( $args['capability_type'] ) ) {
+			$args['capability_type'] = $args['capability_type'][0];
+		}
 
 		/*
 		 * Comment types are never hierarchical. The property exists only so the shared

@@ -121,4 +121,81 @@ class Tests_Comment_WpCommentType extends WP_UnitTestCase {
 		$labels = WP_Comment_Type::get_default_labels();
 		$this->assertSame( 'Comments', $labels['name'][0], 'Resetting should rebuild the default labels.' );
 	}
+
+	/**
+	 * @ticket 35214
+	 *
+	 * @covers ::set_props
+	 */
+	public function test_default_capability_type_and_cap_object() {
+		$comment_type = new WP_Comment_Type( 'foo' );
+
+		$this->assertSame( 'comment', $comment_type->capability_type );
+		$this->assertIsObject( $comment_type->cap );
+		$this->assertSame( 'edit_comment', $comment_type->cap->edit_comment );
+		$this->assertSame( 'moderate_comments', $comment_type->cap->moderate_comments );
+	}
+
+	/**
+	 * @ticket 35214
+	 *
+	 * @covers ::set_props
+	 */
+	public function test_custom_capability_type_builds_cap_object() {
+		$comment_type = new WP_Comment_Type( 'foo', array( 'capability_type' => 'review' ) );
+
+		$this->assertSame( 'review', $comment_type->capability_type );
+		$this->assertSame( 'edit_review', $comment_type->cap->edit_comment );
+		$this->assertSame( 'edit_reviews', $comment_type->cap->edit_comments );
+		$this->assertSame( 'moderate_reviews', $comment_type->cap->moderate_comments );
+	}
+
+	/**
+	 * An array capability type allows an explicit plural and is collapsed to its singular base.
+	 *
+	 * @ticket 35214
+	 *
+	 * @covers ::set_props
+	 */
+	public function test_array_capability_type_uses_explicit_plural() {
+		$comment_type = new WP_Comment_Type( 'foo', array( 'capability_type' => array( 'story', 'stories' ) ) );
+
+		$this->assertSame( 'story', $comment_type->capability_type );
+		$this->assertSame( 'edit_story', $comment_type->cap->edit_comment );
+		$this->assertSame( 'edit_stories', $comment_type->cap->edit_comments );
+	}
+
+	/**
+	 * @ticket 35214
+	 *
+	 * @covers ::set_props
+	 */
+	public function test_capabilities_argument_overrides_generated_caps() {
+		$comment_type = new WP_Comment_Type(
+			'foo',
+			array(
+				'capability_type' => 'review',
+				'capabilities'    => array(
+					'moderate_comments' => 'manage_reviews',
+				),
+			)
+		);
+
+		$this->assertSame( 'manage_reviews', $comment_type->cap->moderate_comments );
+		// Non-overridden caps are still generated from the capability type.
+		$this->assertSame( 'edit_reviews', $comment_type->cap->edit_comments );
+	}
+
+	/**
+	 * The input `capabilities` array is consumed and not kept as a public property.
+	 *
+	 * @ticket 35214
+	 *
+	 * @covers ::set_props
+	 */
+	public function test_capabilities_input_is_not_retained_as_property() {
+		$comment_type = new WP_Comment_Type( 'foo', array( 'capabilities' => array( 'edit_comments' => 'x' ) ) );
+
+		$this->assertObjectNotHasProperty( 'capabilities', $comment_type );
+	}
 }
