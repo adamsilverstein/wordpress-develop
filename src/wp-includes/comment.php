@@ -418,7 +418,10 @@ function create_initial_comment_types() {
  *
  * An argument never implies another argument, with one deliberate exception:
  * `show_in_rest` defaults from `public`, since a type meant to be seen is a type worth
- * discovering.
+ * discovering. Note that `internal` is not part of that cascade: a type registered with
+ * `internal => true` but left `public` still defaults to REST-discoverable. A type that
+ * should stay out of discovery must pass `show_in_rest => false` (or `public => false`),
+ * as the built-in 'note' type does.
  *
  * Registrations live in a per-process global. Like post types, they are not scoped to a
  * site on multisite: a type registered by one site's plugins is visible after
