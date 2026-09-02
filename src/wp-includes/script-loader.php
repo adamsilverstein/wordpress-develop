@@ -3116,11 +3116,7 @@ function wp_maybe_inline_styles() {
 		$src  = $wp_styles->registered[ $handle ]->src;
 		$path = $wp_styles->get_data( $handle, 'path' );
 		if ( $path && $src ) {
-			$size = $wp_styles->get_data( $handle, 'file_size' );
-			if ( false === $size ) {
-				$size = wp_filesize( $path );
-				$wp_styles->add_data( $handle, 'file_size', $size );
-			}
+			$size = wp_filesize( $path );
 			if ( 0 === $size && ! file_exists( $path ) ) {
 				_doing_it_wrong(
 					__FUNCTION__,
