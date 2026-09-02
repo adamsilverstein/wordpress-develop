@@ -39,9 +39,11 @@ test.describe( 'Single Post', () => {
 						language: '',
 					} );
 
-					results.largestContentfulPaint = [];
-					results.timeToFirstByte = [];
-					results.lcpMinusTtfb = [];
+					// Reset every metric, including the Server-Timing ones added
+					// dynamically above, so the next theme/locale starts clean.
+					for ( const key of Object.keys( results ) ) {
+						results[ key ] = [];
+					}
 				} );
 
 				const iterations = Number( process.env.TEST_RUNS );

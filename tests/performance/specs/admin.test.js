@@ -32,7 +32,11 @@ test.describe( 'Admin', () => {
 					language: '',
 				} );
 
-				results.timeToFirstByte = [];
+				// Reset every metric, including the Server-Timing ones added
+				// dynamically above, so the next locale starts clean.
+				for ( const key of Object.keys( results ) ) {
+					results[ key ] = [];
+				}
 			} );
 
 			test.afterAll( async ( {}, testInfo ) => {
