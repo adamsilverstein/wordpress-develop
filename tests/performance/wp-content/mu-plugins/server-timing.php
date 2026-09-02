@@ -31,6 +31,11 @@ add_filter(
 				$server_timing_values['db-queries']    = $wpdb->num_queries;
 				$server_timing_values['ext-obj-cache'] = wp_using_ext_object_cache() ? 1 : 0;
 
+				// Metrics registered by other mu-plugins (see inline-styles-metrics.php).
+				if ( ! empty( $GLOBALS['wp_perf_extra_server_timing'] ) ) {
+					$server_timing_values = array_merge( $server_timing_values, $GLOBALS['wp_perf_extra_server_timing'] );
+				}
+
 				$header_values = array();
 				foreach ( $server_timing_values as $slug => $value ) {
 					if ( is_float( $value ) ) {
@@ -74,6 +79,11 @@ add_action(
 				$server_timing_values['memory-usage']  = memory_get_usage();
 				$server_timing_values['db-queries']    = $wpdb->num_queries;
 				$server_timing_values['ext-obj-cache'] = wp_using_ext_object_cache() ? 1 : 0;
+
+				// Metrics registered by other mu-plugins (see inline-styles-metrics.php).
+				if ( ! empty( $GLOBALS['wp_perf_extra_server_timing'] ) ) {
+					$server_timing_values = array_merge( $server_timing_values, $GLOBALS['wp_perf_extra_server_timing'] );
+				}
 
 				$header_values = array();
 				foreach ( $server_timing_values as $slug => $value ) {
