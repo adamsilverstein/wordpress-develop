@@ -28,15 +28,23 @@ win, and attributes any difference to the individual changes the PR makes.
 - `microbench.php` isolates each of the four effects and checks whether
   `filesize()` reads the file into memory.
 - `run-ab.sh` runs the full `tests/performance` suite against the PR's trunk
-  parent and the PR head, swapping only the two changed PHP files.
+  parent and the PR head, swapping only the two changed PHP files, in
+  alternating short cycles (see "Caveats").
+- `funcbench.php` / `run-funcbench.sh` time `wp_maybe_inline_styles()` and
+  `register_core_block_style_handles()` directly, thousands of iterations in
+  one process per side, for a low-noise read on the function-level delta.
+- `analyze.py` prints a compact median/MAD table of the metrics above from a
+  results directory.
 
 ## Reproducing
 
 ```sh
 nvm use && npm ci
 tests/performance/59596/setup.sh            # once; mirrors the CI perf workflow
-tests/performance/59596/run-ab.sh default 20
-tests/performance/59596/run-ab.sh memcached 20
+tests/performance/59596/run-ab.sh default 20 4     # 20 iterations, 4 alternating cycles
+tests/performance/59596/run-ab.sh memcached 20 4
+tests/performance/59596/run-funcbench.sh default
+python3 tests/performance/59596/analyze.py artifacts/59596/default
 ```
 
 Results land in `artifacts/59596/<config>/`: `before-performance-results.json`,
@@ -66,3 +74,12 @@ php tests/performance/59596/microbench.php src/wp-includes/blocks/
   by cycling through distinct files.
 - `clear-cache.php` is intentionally not installed, matching CI, so measured
   requests hit a warm opcache and a populated transient.
+- Whole-request timings in Docker Desktop drift by 10-50% over tens of
+  minutes, in either direction. A sequential before/after run measures that
+  drift, not the patch. `run-ab.sh` therefore alternates short cycles in
+  AB/BA order, and the admin and Twenty Twenty-One cases (where the PR's code
+  paths do not run) serve as controls for whatever bias remains.
+- The upstream specs never reset the Server-Timing arrays between theme and
+  locale cases, so each later case accumulated every earlier case's samples.
+  That is fixed in this branch; `analyze.py --deaccumulate` can read results
+  recorded before the fix.
