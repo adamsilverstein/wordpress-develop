@@ -9,11 +9,25 @@
 #
 # Prerequisites: tests/performance/59596/setup.sh has been run once.
 #
-# Usage: tests/performance/59596/run-ab.sh [default|memcached] [TEST_RUNS]
+# The two sides are interleaved in short cycles (before, after, before, ...)
+# because a single long run per side is dominated by environment drift: a
+# first attempt with 20 runs per side in one block showed every metric,
+# including ones the PR cannot affect, 40-60% slower on whichever side ran
+# second. Per-cycle results are merged with merge-results.js.
+#
+# Usage: tests/performance/59596/run-ab.sh [default|memcached] [TEST_RUNS] [CYCLES]
+#   TEST_RUNS  total iterations per test case per side (default 20)
+#   CYCLES     number of before/after cycles (default 4); TEST_RUNS is split evenly
 set -euo pipefail
 
 CONFIG="${1:-default}"
 RUNS="${2:-20}"
+CYCLES="${3:-4}"
+RUNS_PER_CYCLE=$(( RUNS / CYCLES ))
+if [ "$RUNS_PER_CYCLE" -lt 1 ]; then
+	echo "TEST_RUNS must be at least CYCLES" >&2
+	exit 1
+fi
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 cd "$ROOT"
@@ -25,8 +39,9 @@ AFTER_SHA=eaa0f543f9ebfe37d6e500f8e4c858ebad72145a  # PR #13225 head.
 FILES=( src/wp-includes/blocks/index.php src/wp-includes/script-loader.php )
 
 export WP_ARTIFACTS_PATH="${ROOT}/artifacts/59596/${CONFIG}"
-export TEST_RUNS="$RUNS"
-mkdir -p "$WP_ARTIFACTS_PATH"
+export TEST_RUNS="$RUNS_PER_CYCLE"
+CYCLE_DIR="${WP_ARTIFACTS_PATH}/cycles"
+mkdir -p "$CYCLE_DIR"
 
 wp() { npm --silent run env:cli -- "$@" --path="/var/www/${LOCAL_DIR}"; }
 compose() { node ./tools/local-env/scripts/docker.js "$@"; }
@@ -58,7 +73,7 @@ fi
 
 {
 	echo "config: ${CONFIG}"
-	echo "runs: ${RUNS} x repeatEach 2"
+	echo "runs: ${RUNS} x repeatEach 2, interleaved in ${CYCLES} cycles of ${RUNS_PER_CYCLE}"
 	echo "before: ${BEFORE_SHA}"
 	echo "after: ${AFTER_SHA}"
 	echo "php: $(compose exec -T php php -r 'echo PHP_VERSION;')"
@@ -68,12 +83,24 @@ fi
 	echo "date: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 } > "${WP_ARTIFACTS_PATH}/environment.txt"
 
-install_side "$BEFORE_SHA"
-TEST_RESULTS_PREFIX=before npm run test:performance
+before_files=()
+after_files=()
+for (( cycle = 1; cycle <= CYCLES; cycle++ )); do
+	echo "=== Cycle ${cycle}/${CYCLES}: before"
+	install_side "$BEFORE_SHA"
+	TEST_RESULTS_PREFIX=before npm run test:performance
+	mv "${WP_ARTIFACTS_PATH}/before-performance-results.json" "${CYCLE_DIR}/before-${cycle}.json"
+	before_files+=( "${CYCLE_DIR}/before-${cycle}.json" )
 
-install_side "$AFTER_SHA"
-TEST_RESULTS_PREFIX= npm run test:performance
+	echo "=== Cycle ${cycle}/${CYCLES}: after"
+	install_side "$AFTER_SHA"
+	TEST_RESULTS_PREFIX= npm run test:performance
+	mv "${WP_ARTIFACTS_PATH}/performance-results.json" "${CYCLE_DIR}/after-${cycle}.json"
+	after_files+=( "${CYCLE_DIR}/after-${cycle}.json" )
+done
 
+node tests/performance/59596/merge-results.js "${WP_ARTIFACTS_PATH}/before-performance-results.json" "${before_files[@]}"
+node tests/performance/59596/merge-results.js "${WP_ARTIFACTS_PATH}/performance-results.json" "${after_files[@]}"
 node tests/performance/compare-results.js "${WP_ARTIFACTS_PATH}/summary.md"
 
 # Leave the working tree on the branch head.
