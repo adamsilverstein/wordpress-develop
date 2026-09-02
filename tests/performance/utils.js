@@ -124,6 +124,18 @@ function formatValue( metric, value ) {
 		return value;
 	}
 
+	// Raw counts and sizes emitted by inline-styles-metrics.php (Trac #59596).
+	if (
+		[ 'wpFilesizeCalls', 'wpInlineCandidates', 'wpBlockCssTransientBytes' ].includes( metric )
+	) {
+		return value;
+	}
+
+	// Sub-millisecond per-function timings are emitted in microseconds.
+	if ( metric.endsWith( 'Us' ) ) {
+		return `${ value.toFixed( 1 ) } µs`;
+	}
+
 	return `${ value.toFixed( 2 ) } ms`;
 }
 
