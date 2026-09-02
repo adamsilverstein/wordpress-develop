@@ -13,7 +13,9 @@
 # because a single long run per side is dominated by environment drift: a
 # first attempt with 20 runs per side in one block showed every metric,
 # including ones the PR cannot affect, 40-60% slower on whichever side ran
-# second. Per-cycle results are merged with merge-results.js.
+# second. The order within a cycle alternates (AB, BA, ...) so neither side
+# always runs on a machine the other side just warmed up. Per-cycle results
+# are merged with merge-results.js.
 #
 # Usage: tests/performance/59596/run-ab.sh [default|memcached] [TEST_RUNS] [CYCLES]
 #   TEST_RUNS  total iterations per test case per side (default 20)
@@ -61,7 +63,7 @@ install_side() {
 		curl -s -o /dev/null "${WP_BASE_URL}/2018/11/03/block-image/"
 	done
 	echo "== $(git log -1 --format='%h %s' "$sha") installed. Sample Server-Timing:"
-	curl -sI "${WP_BASE_URL}/" | grep -i '^server-timing' || true
+	curl -s -D - -o /dev/null "${WP_BASE_URL}/" | grep -i '^server-timing' || true
 }
 
 npm run env:start
@@ -85,18 +87,32 @@ fi
 
 before_files=()
 after_files=()
-for (( cycle = 1; cycle <= CYCLES; cycle++ )); do
-	echo "=== Cycle ${cycle}/${CYCLES}: before"
+run_before() {
+	echo "=== Cycle ${1}/${CYCLES}: before"
 	install_side "$BEFORE_SHA"
 	TEST_RESULTS_PREFIX=before npm run test:performance
-	mv "${WP_ARTIFACTS_PATH}/before-performance-results.json" "${CYCLE_DIR}/before-${cycle}.json"
-	before_files+=( "${CYCLE_DIR}/before-${cycle}.json" )
+	mv "${WP_ARTIFACTS_PATH}/before-performance-results.json" "${CYCLE_DIR}/before-${1}.json"
+	before_files+=( "${CYCLE_DIR}/before-${1}.json" )
+}
 
-	echo "=== Cycle ${cycle}/${CYCLES}: after"
+run_after() {
+	echo "=== Cycle ${1}/${CYCLES}: after"
 	install_side "$AFTER_SHA"
 	TEST_RESULTS_PREFIX= npm run test:performance
-	mv "${WP_ARTIFACTS_PATH}/performance-results.json" "${CYCLE_DIR}/after-${cycle}.json"
-	after_files+=( "${CYCLE_DIR}/after-${cycle}.json" )
+	mv "${WP_ARTIFACTS_PATH}/performance-results.json" "${CYCLE_DIR}/after-${1}.json"
+	after_files+=( "${CYCLE_DIR}/after-${1}.json" )
+}
+
+# Alternate the order within cycles (AB, BA, AB, BA) so neither side is
+# systematically the one that runs right after the other warmed the machine.
+for (( cycle = 1; cycle <= CYCLES; cycle++ )); do
+	if (( cycle % 2 == 1 )); then
+		run_before "$cycle"
+		run_after "$cycle"
+	else
+		run_after "$cycle"
+		run_before "$cycle"
+	fi
 done
 
 node tests/performance/59596/merge-results.js "${WP_ARTIFACTS_PATH}/before-performance-results.json" "${before_files[@]}"
