@@ -1285,6 +1285,11 @@ function wp_dashboard_recent_notes( $total_items = 5 ) {
 				continue;
 			}
 
+			// A post without an edit link renders no row.
+			if ( ! get_edit_post_link( $note_post_id ) ) {
+				continue;
+			}
+
 			$latest_notes[ $note_post_id ] = $note;
 
 			if ( count( $latest_notes ) === $total_items ) {

@@ -488,4 +488,47 @@ class Admin_Includes_Dashboard_WpDashboardRecentNotes_Test extends WP_UnitTestCa
 		$this->assertFalse( $returned, 'The function did not return false.' );
 		$this->assertSame( '', $output, 'The function rendered a section anyway.' );
 	}
+
+	/**
+	 * @ticket 65890
+	 */
+	public function test_should_return_false_when_no_post_has_an_edit_link() {
+		$post_id = $this->create_post( 'A post without an edit link' );
+		$this->create_note( $post_id );
+
+		add_filter( 'get_edit_post_link', '__return_empty_string' );
+
+		list( $returned, $output ) = $this->render();
+
+		$this->assertFalse( $returned, 'The function did not return false.' );
+		$this->assertSame( '', $output, 'The function rendered an empty section.' );
+	}
+
+	/**
+	 * @ticket 65890
+	 */
+	public function test_should_fill_the_rows_of_posts_without_an_edit_link() {
+		$linked_id = $this->create_post( 'A post with an edit link' );
+		$this->create_note( $linked_id, '0', 0, '2026-01-01 10:00:00' );
+
+		$unlinked_id = $this->create_post( 'A post without an edit link' );
+		$this->create_note( $unlinked_id, '0', 0, '2026-01-02 10:00:00' );
+
+		add_filter(
+			'get_edit_post_link',
+			static function ( $link, $post_id ) use ( $unlinked_id ) {
+				return $unlinked_id === $post_id ? '' : $link;
+			},
+			10,
+			2
+		);
+
+		list( , $output ) = $this->render( 1 );
+
+		$this->assertSame(
+			array( 'A post with an edit link' ),
+			$this->get_linked_titles( $output ),
+			'A post without an edit link took up a row.'
+		);
+	}
 }
