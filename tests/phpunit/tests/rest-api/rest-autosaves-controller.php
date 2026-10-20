@@ -24,6 +24,10 @@ class WP_Test_REST_Autosaves_Controller extends WP_Test_REST_Post_Type_Controlle
 	protected static int $child_draft_page_id;
 
 	private WP_Post $post_autosave;
+
+	/**
+	 * @var int[]
+	 */
 	protected static array $extra_users;
 
 	protected function set_post_data( $args = array() ) {
@@ -981,20 +985,22 @@ class WP_Test_REST_Autosaves_Controller extends WP_Test_REST_Post_Type_Controlle
 	/**
 	 * Creates an autosave on the shared post for each of the extra users.
 	 *
-	 * @return int[] Author id keyed to the autosave id created for them.
+	 * @return array<int, int> Author id keyed to the autosave id created for them.
 	 */
-	private function create_autosaves_for_extra_users() {
+	private function create_autosaves_for_extra_users(): array {
 		$autosave_ids = array();
 
 		foreach ( self::$extra_users as $i => $user_id ) {
 			wp_set_current_user( $user_id );
-			$autosave_ids[ $user_id ] = wp_create_post_autosave(
+			$autosave_id = wp_create_post_autosave(
 				array(
 					'post_content' => "Autosave content {$i}",
 					'post_ID'      => self::$post_id,
 					'post_type'    => 'post',
 				)
 			);
+			$this->assertIsInt( $autosave_id );
+			$autosave_ids[ $user_id ] = $autosave_id;
 		}
 
 		return $autosave_ids;
@@ -1007,7 +1013,7 @@ class WP_Test_REST_Autosaves_Controller extends WP_Test_REST_Post_Type_Controlle
 	 * @param int    $post_id Post ID.
 	 * @param string $date    Date in MySQL format.
 	 */
-	private function set_post_date( $post_id, $date ) {
+	private function set_post_date( int $post_id, string $date ): void {
 		global $wpdb;
 
 		$wpdb->update(
@@ -1032,9 +1038,11 @@ class WP_Test_REST_Autosaves_Controller extends WP_Test_REST_Post_Type_Controlle
 		wp_set_current_user( self::$editor_id );
 		$request  = new WP_REST_Request( 'GET', '/wp/v2/posts/' . self::$post_id . '/autosaves' );
 		$response = rest_get_server()->dispatch( $request );
+		/** @var array<int, array<string, mixed>> $data */
+		$data = $response->get_data();
 
 		$this->assertSame( 200, $response->get_status() );
-		$this->assertCount( count( $autosave_ids ) + 1, $response->get_data(), 'The extra users\' autosaves and the one created in set_up should all be returned.' );
+		$this->assertCount( count( $autosave_ids ) + 1, $data, 'The extra users\' autosaves and the one created in set_up should all be returned.' );
 	}
 
 	/**
@@ -1053,7 +1061,8 @@ class WP_Test_REST_Autosaves_Controller extends WP_Test_REST_Post_Type_Controlle
 		$request = new WP_REST_Request( 'GET', '/wp/v2/posts/' . self::$post_id . '/autosaves' );
 		$request->set_param( 'author', $author_id );
 		$response = rest_get_server()->dispatch( $request );
-		$data     = $response->get_data();
+		/** @var array<int, array<string, mixed>> $data */
+		$data = $response->get_data();
 
 		$this->assertSame( 200, $response->get_status() );
 		$this->assertCount( 1, $data );
@@ -1074,7 +1083,8 @@ class WP_Test_REST_Autosaves_Controller extends WP_Test_REST_Post_Type_Controlle
 		$request = new WP_REST_Request( 'GET', '/wp/v2/posts/' . self::$post_id . '/autosaves' );
 		$request->set_param( 'author', $author_ids );
 		$response = rest_get_server()->dispatch( $request );
-		$data     = $response->get_data();
+		/** @var array<int, array<string, mixed>> $data */
+		$data = $response->get_data();
 
 		$this->assertSame( 200, $response->get_status() );
 		$this->assertCount( 2, $data );
@@ -1105,10 +1115,6 @@ class WP_Test_REST_Autosaves_Controller extends WP_Test_REST_Post_Type_Controlle
 	/**
 	 * Tests that revisions newer than the autosave do not displace it.
 	 *
-	 * Narrowing the underlying revision query by count rather than by author
-	 * returns whatever is most recent, which on a post with revision history
-	 * is usually not an autosave at all.
-	 *
 	 * @ticket 62057
 	 */
 	public function test_get_items_scoped_to_one_author_past_newer_revisions() {
@@ -1116,20 +1122,25 @@ class WP_Test_REST_Autosaves_Controller extends WP_Test_REST_Post_Type_Controlle
 		$author_id    = self::$extra_users[0];
 
 		wp_set_current_user( self::$editor_id );
-		wp_update_post(
+		$updated = wp_update_post(
 			array(
 				'ID'           => self::$post_id,
 				'post_content' => 'A revision made after every autosave.',
 			)
 		);
+		$this->assertSame( self::$post_id, $updated );
 
 		$revisions = wp_get_post_revisions( self::$post_id, array( 'check_enabled' => false ) );
-		$this->set_post_date( reset( $revisions )->ID, '2030-01-01 00:00:00' );
+		$revision  = array_first( $revisions );
+		$this->assertInstanceOf( WP_Post::class, $revision );
+		$this->assertFalse( wp_is_post_autosave( $revision ), 'The newest revision should be the ordinary one just created.' );
+		$this->set_post_date( $revision->ID, '2030-01-01 00:00:00' );
 
 		$request = new WP_REST_Request( 'GET', '/wp/v2/posts/' . self::$post_id . '/autosaves' );
 		$request->set_param( 'author', $author_id );
 		$response = rest_get_server()->dispatch( $request );
-		$data     = $response->get_data();
+		/** @var array<int, array<string, mixed>> $data */
+		$data = $response->get_data();
 
 		$this->assertSame( 200, $response->get_status() );
 		$this->assertCount( 1, $data );
@@ -1159,9 +1170,9 @@ class WP_Test_REST_Autosaves_Controller extends WP_Test_REST_Post_Type_Controlle
 	/**
 	 * Data provider for test_get_items_rejects_invalid_author().
 	 *
-	 * @return array[]
+	 * @return array<non-falsy-string, array<mixed>>
 	 */
-	public function data_get_items_rejects_invalid_author() {
+	public function data_get_items_rejects_invalid_author(): array {
 		return array(
 			'zero'               => array( 0 ),
 			'negative'           => array( -1 ),
@@ -1183,7 +1194,8 @@ class WP_Test_REST_Autosaves_Controller extends WP_Test_REST_Post_Type_Controlle
 		$request = new WP_REST_Request( 'GET', '/wp/v2/posts/' . self::$post_id . '/autosaves' );
 		$request->set_param( 'author', array( $author_id, $author_id ) );
 		$response = rest_get_server()->dispatch( $request );
-		$data     = $response->get_data();
+		/** @var array<int, array<string, mixed>> $data */
+		$data = $response->get_data();
 
 		$this->assertSame( 200, $response->get_status() );
 		$this->assertCount( 1, $data );
@@ -1206,15 +1218,19 @@ class WP_Test_REST_Autosaves_Controller extends WP_Test_REST_Post_Type_Controlle
 		wp_set_current_user( self::$editor_id );
 		$request  = new WP_REST_Request( 'GET', '/wp/v2/posts/' . self::$post_id . '/autosaves' );
 		$response = rest_get_server()->dispatch( $request );
+		/** @var array<int, array<string, mixed>> $data */
+		$data     = $response->get_data();
 		$expected = array_values(
-			array_intersect( wp_list_pluck( $response->get_data(), 'id' ), $autosave_ids )
+			array_intersect( array_map( 'intval', wp_list_pluck( $data, 'id' ) ), $autosave_ids )
 		);
 
 		$request->set_param( 'author', self::$extra_users );
 		$response = rest_get_server()->dispatch( $request );
+		/** @var array<int, array<string, mixed>> $data */
+		$data = $response->get_data();
 
 		$this->assertSame( 200, $response->get_status() );
-		$this->assertSame( $expected, wp_list_pluck( $response->get_data(), 'id' ) );
+		$this->assertSame( $expected, wp_list_pluck( $data, 'id' ) );
 		$this->assertSame(
 			array( $autosave_ids[0], $autosave_ids[2], $autosave_ids[1] ),
 			$expected,
@@ -1229,11 +1245,11 @@ class WP_Test_REST_Autosaves_Controller extends WP_Test_REST_Post_Type_Controlle
 	 *
 	 * @dataProvider data_get_items_with_several_autosaves_for_one_author
 	 *
-	 * @param string $first_date  Date of the autosave created first.
-	 * @param string $second_date Date of the autosave created second.
-	 * @param int    $expected    Index of the autosave expected to be returned.
+	 * @param non-falsy-string $first_date  Date of the autosave created first.
+	 * @param non-falsy-string $second_date Date of the autosave created second.
+	 * @param non-negative-int $expected    Index of the autosave expected to be returned.
 	 */
-	public function test_get_items_with_several_autosaves_for_one_author( $first_date, $second_date, $expected ) {
+	public function test_get_items_with_several_autosaves_for_one_author( string $first_date, string $second_date, int $expected ) {
 		$author_id = self::$extra_users[0];
 
 		wp_set_current_user( $author_id );
@@ -1257,6 +1273,8 @@ class WP_Test_REST_Autosaves_Controller extends WP_Test_REST_Post_Type_Controlle
 				)
 			),
 		);
+		$this->assertIsInt( $autosave_ids[0] );
+		$this->assertIsInt( $autosave_ids[1] );
 
 		$this->set_post_date( $autosave_ids[0], $first_date );
 		$this->set_post_date( $autosave_ids[1], $second_date );
@@ -1265,7 +1283,8 @@ class WP_Test_REST_Autosaves_Controller extends WP_Test_REST_Post_Type_Controlle
 		$request = new WP_REST_Request( 'GET', '/wp/v2/posts/' . self::$post_id . '/autosaves' );
 		$request->set_param( 'author', $author_id );
 		$response = rest_get_server()->dispatch( $request );
-		$data     = $response->get_data();
+		/** @var array<int, array<string, mixed>> $data */
+		$data = $response->get_data();
 
 		$this->assertSame( 200, $response->get_status() );
 		$this->assertCount( 1, $data );
@@ -1275,12 +1294,62 @@ class WP_Test_REST_Autosaves_Controller extends WP_Test_REST_Post_Type_Controlle
 	/**
 	 * Data provider for test_get_items_with_several_autosaves_for_one_author().
 	 *
-	 * @return array[]
+	 * @return array<non-falsy-string, array{ non-falsy-string, non-falsy-string, non-negative-int }>
 	 */
-	public function data_get_items_with_several_autosaves_for_one_author() {
+	public function data_get_items_with_several_autosaves_for_one_author(): array {
 		return array(
 			'older ID has the newer date' => array( '2030-01-02 00:00:00', '2030-01-01 00:00:00', 0 ),
 			'same date, newer ID wins'    => array( '2030-01-01 00:00:00', '2030-01-01 00:00:00', 1 ),
+		);
+	}
+
+	/**
+	 * Tests that query filters do not apply to the autosaves lookup.
+	 *
+	 * The lookup previously went through get_posts(), which suppresses them.
+	 *
+	 * @ticket 62057
+	 *
+	 * @dataProvider data_get_items_is_isolated_from_query_filters
+	 *
+	 * @param bool $scoped Whether to scope the request to the extra users.
+	 */
+	public function test_get_items_is_isolated_from_query_filters( bool $scoped ) {
+		$autosave_ids = $this->create_autosaves_for_extra_users();
+
+		$filter_calls = 0;
+		$filter       = static function ( $clause ) use ( &$filter_calls ) {
+			++$filter_calls;
+			return $clause . ' AND 1=0';
+		};
+		add_filter( 'posts_where', $filter );
+
+		wp_set_current_user( self::$editor_id );
+		$request = new WP_REST_Request( 'GET', '/wp/v2/posts/' . self::$post_id . '/autosaves' );
+		if ( $scoped ) {
+			$request->set_param( 'author', self::$extra_users );
+		}
+		$response = rest_get_server()->dispatch( $request );
+		/** @var array<int, array<string, mixed>> $data */
+		$data = $response->get_data();
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertSame( 0, $filter_calls, 'The posts_where filter should not run.' );
+		$this->assertSameSets(
+			array_values( $autosave_ids ),
+			array_intersect( array_map( 'intval', wp_list_pluck( $data, 'id' ) ), $autosave_ids )
+		);
+	}
+
+	/**
+	 * Data provider for test_get_items_is_isolated_from_query_filters().
+	 *
+	 * @return array<non-falsy-string, array{ bool }>
+	 */
+	public function data_get_items_is_isolated_from_query_filters(): array {
+		return array(
+			'unscoped'      => array( false ),
+			'author scoped' => array( true ),
 		);
 	}
 }

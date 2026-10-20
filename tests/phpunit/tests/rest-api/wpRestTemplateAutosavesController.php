@@ -914,7 +914,8 @@ class Tests_REST_wpRestTemplateAutosavesController extends WP_Test_REST_Controll
 		wp_set_current_user( self::$admin_id );
 		$request = new WP_REST_Request( 'GET', '/wp/v2/templates/' . self::TEST_THEME . '//' . self::TEMPLATE_NAME . '/autosaves' );
 		$request->set_param( 'author', $other_admin_id );
-		$response  = rest_get_server()->dispatch( $request );
+		$response = rest_get_server()->dispatch( $request );
+		/** @var array<int, array<string, mixed>> $autosaves */
 		$autosaves = $response->get_data();
 
 		$this->assertSame( WP_Http::OK, $response->get_status(), 'Response is expected to have a status code of 200.' );
