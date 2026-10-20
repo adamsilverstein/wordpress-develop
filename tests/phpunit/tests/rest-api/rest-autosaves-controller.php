@@ -1105,10 +1105,6 @@ class WP_Test_REST_Autosaves_Controller extends WP_Test_REST_Post_Type_Controlle
 	/**
 	 * Tests that revisions newer than the autosave do not displace it.
 	 *
-	 * Narrowing the underlying revision query by count rather than by author
-	 * returns whatever is most recent, which on a post with revision history
-	 * is usually not an autosave at all.
-	 *
 	 * @ticket 62057
 	 */
 	public function test_get_items_scoped_to_one_author_past_newer_revisions() {
@@ -1281,6 +1277,54 @@ class WP_Test_REST_Autosaves_Controller extends WP_Test_REST_Post_Type_Controlle
 		return array(
 			'older ID has the newer date' => array( '2030-01-02 00:00:00', '2030-01-01 00:00:00', 0 ),
 			'same date, newer ID wins'    => array( '2030-01-01 00:00:00', '2030-01-01 00:00:00', 1 ),
+		);
+	}
+
+	/**
+	 * Tests that query filters do not apply to the autosaves lookup.
+	 *
+	 * The lookup previously went through get_posts(), which suppresses them.
+	 *
+	 * @ticket 62057
+	 *
+	 * @dataProvider data_get_items_is_isolated_from_query_filters
+	 *
+	 * @param bool $scoped Whether to scope the request to the extra users.
+	 */
+	public function test_get_items_is_isolated_from_query_filters( $scoped ) {
+		$autosave_ids = $this->create_autosaves_for_extra_users();
+
+		$filter_calls = 0;
+		$filter       = static function ( $clause ) use ( &$filter_calls ) {
+			++$filter_calls;
+			return $clause . ' AND 1=0';
+		};
+		add_filter( 'posts_where', $filter );
+
+		wp_set_current_user( self::$editor_id );
+		$request = new WP_REST_Request( 'GET', '/wp/v2/posts/' . self::$post_id . '/autosaves' );
+		if ( $scoped ) {
+			$request->set_param( 'author', self::$extra_users );
+		}
+		$response = rest_get_server()->dispatch( $request );
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertSame( 0, $filter_calls, 'The posts_where filter should not run.' );
+		$this->assertSameSets(
+			array_values( $autosave_ids ),
+			array_intersect( wp_list_pluck( $response->get_data(), 'id' ), $autosave_ids )
+		);
+	}
+
+	/**
+	 * Data provider for test_get_items_is_isolated_from_query_filters().
+	 *
+	 * @return array[]
+	 */
+	public function data_get_items_is_isolated_from_query_filters() {
+		return array(
+			'unscoped'      => array( false ),
+			'author scoped' => array( true ),
 		);
 	}
 }
