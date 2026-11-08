@@ -3426,7 +3426,7 @@ function wp_update_comment_count_now( $post_id ) {
  * Bumps the comment `last_changed` cache key when there is a post to recount.
  * Performs no capability checks.
  *
- * @since 7.2.0
+ * @since 7.3.0
  *
  * @global wpdb $wpdb WordPress database abstraction object.
  *
@@ -3470,7 +3470,7 @@ function wp_update_comment_counts( $post_ids = null ) {
 	/**
 	 * Filters how many posts wp_update_comment_counts() recalculates per batch.
 	 *
-	 * @since 7.2.0
+	 * @since 7.3.0
 	 *
 	 * @param int $batch_size Number of posts to look up per query. Default 1000.
 	 */
