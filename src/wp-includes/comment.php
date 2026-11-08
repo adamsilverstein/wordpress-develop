@@ -723,7 +723,7 @@ function get_comment_type_labels( $comment_type_object ) {
  *
  * Normalizes the `capability_type` property of `$args` to its array form.
  *
- * @since 7.2.0
+ * @since 7.3.0
  *
  * @param object $args Comment type registration arguments. Expects the
  *                     `capability_type` and `capabilities` properties.

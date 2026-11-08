@@ -91,7 +91,7 @@ final class WP_Comment_Type {
 	 * Registered as an array of singular and plural bases, this holds the
 	 * singular base. Default 'comment'.
 	 *
-	 * @since 7.2.0
+	 * @since 7.3.0
 	 * @var string
 	 */
 	public $capability_type = 'comment';
@@ -102,7 +102,7 @@ final class WP_Comment_Type {
 	 * Advisory only; map_meta_cap() does not consult them yet.
 	 * See get_comment_type_capabilities().
 	 *
-	 * @since 7.2.0
+	 * @since 7.3.0
 	 * @var stdClass
 	 */
 	public $cap;
