@@ -3526,8 +3526,6 @@ function wp_update_comment_counts( $post_ids = null ) {
 		return $recalculated;
 	}
 
-	wp_cache_set_last_changed( 'comment' );
-
 	/**
 	 * Filters how many posts wp_update_comment_counts() recalculates per batch.
 	 *
@@ -3573,6 +3571,10 @@ function wp_update_comment_counts( $post_ids = null ) {
 				$batch_size
 			)
 		);
+
+		if ( $batch && 0 === $last_post_id ) {
+			wp_cache_set_last_changed( 'comment' );
+		}
 
 		foreach ( $batch as $post_id ) {
 			if ( wp_update_comment_count_now( (int) $post_id ) ) {

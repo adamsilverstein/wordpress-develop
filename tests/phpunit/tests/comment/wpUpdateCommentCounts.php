@@ -194,6 +194,36 @@ class Tests_Comment_wpUpdateCommentCounts extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The null path should not flush cached comment queries when no post needs a recount.
+	 *
+	 * @ticket 65537
+	 */
+	public function test_null_path_with_nothing_to_recount_leaves_the_comment_query_cache_alone(): void {
+		self::factory()->post->create();
+
+		$before = wp_cache_get_last_changed( 'comment' );
+
+		$this->assertSame( 0, wp_update_comment_counts() );
+		$this->assertSame( $before, wp_cache_get_last_changed( 'comment' ) );
+	}
+
+	/**
+	 * Recounting every post bumps the comment last_changed key.
+	 *
+	 * @ticket 65537
+	 */
+	public function test_null_path_recount_invalidates_comment_query_cache(): void {
+		$post_id = self::factory()->post->create();
+		$this->set_stored_count( $post_id, 3 );
+
+		$before = wp_cache_get_last_changed( 'comment' );
+
+		wp_update_comment_counts();
+
+		$this->assertNotSame( $before, wp_cache_get_last_changed( 'comment' ) );
+	}
+
+	/**
 	 * Data provider for test_no_op_recount_leaves_the_comment_query_cache_alone().
 	 *
 	 * @return array<string, array<int[]>>
