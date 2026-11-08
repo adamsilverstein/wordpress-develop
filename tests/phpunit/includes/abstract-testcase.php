@@ -567,8 +567,7 @@ abstract class WP_UnitTestCase_Base extends PHPUnit_Adapter_TestCase {
 	 * rules, or meta boxes, so dropping the registry is complete cleanup.
 	 */
 	protected function reset_comment_types(): void {
-		// Direct get_comment_type_capabilities() calls register translations
-		// without a comment type to unregister, so reset the registry wholesale.
+		// get_comment_type_capabilities() can store translations without a registered type.
 		$GLOBALS['comment_type_meta_caps'] = array();
 		$GLOBALS['wp_comment_types']       = array();
 

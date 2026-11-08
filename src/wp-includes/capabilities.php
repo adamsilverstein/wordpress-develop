@@ -34,12 +34,11 @@
  *              `edit_app_password`, `delete_app_passwords`, `delete_app_password`,
  *              and `update_https` capabilities.
  * @since 6.7.0 Added the `edit_block_binding` capability.
- * @since 7.1.0 Added the `delete_comment` and `moderate_comment` meta capabilities,
- *              support for registered comment type capabilities in `edit_comment`,
- *              and translation of custom comment type meta capabilities.
+ * @since 7.2.0 Added the `delete_comment` and `moderate_comment` meta capabilities
+ *              and support for registered comment type capabilities.
  *
- * @global array $post_type_meta_caps    Used to get post type meta capabilities.
- * @global array $comment_type_meta_caps Used to get comment type meta capabilities.
+ * @global array                 $post_type_meta_caps    Used to get post type meta capabilities.
+ * @global array<string, string> $comment_type_meta_caps Used to get comment type meta capabilities.
  *
  * @param string $cap     Capability being checked.
  * @param int    $user_id User ID.
@@ -565,7 +564,7 @@ function map_meta_cap( $cap, $user_id, ...$args ) {
 				_doing_it_wrong(
 					__FUNCTION__,
 					sprintf( $message, '<code>' . $cap . '</code>' ),
-					'edit_comment' === $cap ? '6.1.0' : '7.1.0'
+					'edit_comment' === $cap ? '6.1.0' : '7.2.0'
 				);
 
 				$caps[] = 'do_not_allow';
@@ -580,25 +579,16 @@ function map_meta_cap( $cap, $user_id, ...$args ) {
 
 			$comment_type = get_comment_type_object( $comment->comment_type );
 
-			/*
-			 * Moderation is gated by the type's moderation primitive, which for
-			 * unregistered and default-model types is the global `moderate_comments`
-			 * primitive, exactly as before.
-			 */
+			// Unregistered and default-model types fall back to `moderate_comments`.
 			if ( 'moderate_comment' === $cap ) {
 				$caps[] = $comment_type ? $comment_type->cap->moderate_comments : 'moderate_comments';
 				break;
 			}
 
 			/*
-			 * Comment types using the default 'comment' capability model derive edit
-			 * and delete permission from the comment's parent post, preserving
-			 * historical behavior. Overriding a singular meta capability (via
-			 * 'capability_type' or 'capabilities') opts that action into the
-			 * independent model: the type's own plural primitives gate it instead,
-			 * mirroring how registered post types map `edit_post`. The independent
-			 * model deliberately does not consult the parent post, so a trashed or
-			 * private parent does not affect who can act on such comments.
+			 * A type that overrides this meta capability is gated by its own plural
+			 * primitives, without consulting the parent post. Otherwise permission
+			 * derives from the parent post.
 			 */
 			$uses_default_model = ! $comment_type || $cap === $comment_type->cap->$cap;
 
