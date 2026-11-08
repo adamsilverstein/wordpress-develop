@@ -10,10 +10,12 @@ class Tests_Comment_wpUpdateCommentCounts extends WP_UnitTestCase {
 	/**
 	 * Overwrites a post's stored comment_count to simulate a stale value.
 	 *
+	 * @global wpdb $wpdb WordPress database abstraction object.
+	 *
 	 * @param int $post_id Post ID.
 	 * @param int $count   Stored comment count to write.
 	 */
-	private function set_stored_count( $post_id, $count ) {
+	private function set_stored_count( int $post_id, int $count ): void {
 		global $wpdb;
 
 		$wpdb->update( $wpdb->posts, array( 'comment_count' => $count ), array( 'ID' => $post_id ) );
@@ -23,7 +25,7 @@ class Tests_Comment_wpUpdateCommentCounts extends WP_UnitTestCase {
 	/**
 	 * @ticket 65537
 	 */
-	public function test_returns_zero_when_there_is_nothing_to_recalculate() {
+	public function test_returns_zero_when_there_is_nothing_to_recalculate(): void {
 		$this->assertSame( 0, wp_update_comment_counts( array() ) );
 		$this->assertSame( 0, wp_update_comment_counts( 0 ) );
 	}
@@ -31,7 +33,7 @@ class Tests_Comment_wpUpdateCommentCounts extends WP_UnitTestCase {
 	/**
 	 * @ticket 65537
 	 */
-	public function test_recalculates_only_the_given_posts() {
+	public function test_recalculates_only_the_given_posts(): void {
 		$post_a = self::factory()->post->create();
 		$post_b = self::factory()->post->create();
 		self::factory()->comment->create(
@@ -61,7 +63,7 @@ class Tests_Comment_wpUpdateCommentCounts extends WP_UnitTestCase {
 	/**
 	 * @ticket 65537
 	 */
-	public function test_deduplicates_repeated_post_ids() {
+	public function test_deduplicates_repeated_post_ids(): void {
 		$post_id = self::factory()->post->create();
 		self::factory()->comment->create(
 			array(
@@ -80,7 +82,7 @@ class Tests_Comment_wpUpdateCommentCounts extends WP_UnitTestCase {
 	/**
 	 * @ticket 65537
 	 */
-	public function test_null_recalculates_all_posts_with_comments() {
+	public function test_null_recalculates_all_posts_with_comments(): void {
 		$post_a = self::factory()->post->create();
 		$post_b = self::factory()->post->create();
 		self::factory()->comment->create(
@@ -110,7 +112,7 @@ class Tests_Comment_wpUpdateCommentCounts extends WP_UnitTestCase {
 	 *
 	 * @ticket 65537
 	 */
-	public function test_invalid_post_ids_are_skipped() {
+	public function test_invalid_post_ids_are_skipped(): void {
 		$post_id = self::factory()->post->create();
 		self::factory()->comment->create(
 			array(
@@ -131,7 +133,7 @@ class Tests_Comment_wpUpdateCommentCounts extends WP_UnitTestCase {
 	 *
 	 * @ticket 65537
 	 */
-	public function test_explicit_id_resets_stale_count_on_commentless_post() {
+	public function test_explicit_id_resets_stale_count_on_commentless_post(): void {
 		$post_id = self::factory()->post->create();
 		$this->set_stored_count( $post_id, 5 );
 
@@ -145,7 +147,7 @@ class Tests_Comment_wpUpdateCommentCounts extends WP_UnitTestCase {
 	 *
 	 * @ticket 65537
 	 */
-	public function test_null_path_resets_stale_count_on_commentless_post() {
+	public function test_null_path_resets_stale_count_on_commentless_post(): void {
 		$post_id = self::factory()->post->create();
 		$this->set_stored_count( $post_id, 5 );
 
@@ -161,7 +163,7 @@ class Tests_Comment_wpUpdateCommentCounts extends WP_UnitTestCase {
 	 *
 	 * @ticket 65537
 	 */
-	public function test_recount_invalidates_comment_query_cache() {
+	public function test_recount_invalidates_comment_query_cache(): void {
 		$post_id = self::factory()->post->create();
 		self::factory()->comment->create(
 			array(
@@ -186,7 +188,7 @@ class Tests_Comment_wpUpdateCommentCounts extends WP_UnitTestCase {
 	 *
 	 * @param int[] $post_ids Post IDs to pass to wp_update_comment_counts().
 	 */
-	public function test_no_op_recount_leaves_the_comment_query_cache_alone( array $post_ids ) {
+	public function test_no_op_recount_leaves_the_comment_query_cache_alone( array $post_ids ): void {
 		$before = wp_cache_get_last_changed( 'comment' );
 
 		$this->assertSame( 0, wp_update_comment_counts( $post_ids ) );
@@ -241,7 +243,7 @@ class Tests_Comment_wpUpdateCommentCounts extends WP_UnitTestCase {
 	 *
 	 * @ticket 65537
 	 */
-	public function test_recount_crosses_batch_boundaries() {
+	public function test_recount_crosses_batch_boundaries(): void {
 		$post_ids = self::factory()->post->create_many( 5 );
 
 		foreach ( $post_ids as $post_id ) {
@@ -275,12 +277,50 @@ class Tests_Comment_wpUpdateCommentCounts extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Posts found by only one arm of the union interleave across batch boundaries
+	 * without being skipped.
+	 *
+	 * @ticket 65537
+	 */
+	public function test_recount_interleaves_union_arms_across_batches(): void {
+		$post_ids = self::factory()->post->create_many( 6 );
+
+		foreach ( $post_ids as $index => $post_id ) {
+			if ( 0 === $index % 2 ) {
+				// Comments arm only: an unapproved comment leaves the stored count at 0.
+				self::factory()->comment->create(
+					array(
+						'comment_post_ID'  => $post_id,
+						'comment_approved' => 0,
+					)
+				);
+			} else {
+				// Posts arm only: a stale count with no comment rows.
+				$this->set_stored_count( $post_id, 4 );
+			}
+		}
+
+		add_filter(
+			'wp_update_comment_counts_batch_size',
+			static function () {
+				return 2;
+			}
+		);
+
+		$this->assertSame( 6, wp_update_comment_counts() );
+
+		foreach ( $post_ids as $post_id ) {
+			$this->assertSame( '0', get_comments_number( $post_id ) );
+		}
+	}
+
+	/**
 	 * The headline scenario: a type that joins the excluded set after comments
 	 * already exist must not keep inflating a previously stored count.
 	 *
 	 * @ticket 65537
 	 */
-	public function test_recalculation_drops_a_newly_excluded_type() {
+	public function test_recalculation_drops_a_newly_excluded_type(): void {
 		$post_id = self::factory()->post->create();
 		self::factory()->comment->create(
 			array(
@@ -295,7 +335,7 @@ class Tests_Comment_wpUpdateCommentCounts extends WP_UnitTestCase {
 		$this->assertSame( '1', get_comments_number( $post_id ) );
 
 		// A plugin now excludes 'review'. The stored count stays stale until a recount.
-		$filter = static function ( $types ) {
+		$filter = static function ( array $types ): array {
 			$types[] = 'review';
 			return $types;
 		};
