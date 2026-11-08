@@ -110,7 +110,7 @@ final class WP_Comment_Type {
 	 *
 	 * Not used by the `core/comment-template` block. Default null.
 	 *
-	 * @since 7.2.0
+	 * @since 7.3.0
 	 * @var callable|null
 	 */
 	public $render_callback = null;
