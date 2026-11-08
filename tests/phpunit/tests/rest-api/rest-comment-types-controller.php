@@ -26,12 +26,12 @@ class WP_Test_REST_Comment_Types_Controller extends WP_Test_REST_Controller_Test
 	 */
 	protected static $subscriber_id;
 
-	public static function wpSetUpBeforeClass( WP_UnitTest_Factory $factory ) {
+	public static function wpSetUpBeforeClass( WP_UnitTest_Factory $factory ): void {
 		self::$admin_id      = $factory->user->create( array( 'role' => 'administrator' ) );
 		self::$subscriber_id = $factory->user->create( array( 'role' => 'subscriber' ) );
 	}
 
-	public static function wpTearDownAfterClass() {
+	public static function wpTearDownAfterClass(): void {
 		self::delete_user( self::$admin_id );
 		self::delete_user( self::$subscriber_id );
 	}
@@ -39,7 +39,7 @@ class WP_Test_REST_Comment_Types_Controller extends WP_Test_REST_Controller_Test
 	/**
 	 * @ticket 35214
 	 */
-	public function test_register_routes() {
+	public function test_register_routes(): void {
 		$routes = rest_get_server()->get_routes();
 		$this->assertArrayHasKey( '/wp/v2/comment-types', $routes );
 		$this->assertArrayHasKey( '/wp/v2/comment-types/(?P<type>[\w-]+)', $routes );
@@ -48,7 +48,7 @@ class WP_Test_REST_Comment_Types_Controller extends WP_Test_REST_Controller_Test
 	/**
 	 * @ticket 35214
 	 */
-	public function test_context_param() {
+	public function test_context_param(): void {
 		// Collection.
 		$request  = new WP_REST_Request( 'OPTIONS', '/wp/v2/comment-types' );
 		$response = rest_get_server()->dispatch( $request );
@@ -66,7 +66,7 @@ class WP_Test_REST_Comment_Types_Controller extends WP_Test_REST_Controller_Test
 	/**
 	 * @ticket 35214
 	 */
-	public function test_get_items() {
+	public function test_get_items(): void {
 		$request  = new WP_REST_Request( 'GET', '/wp/v2/comment-types' );
 		$response = rest_get_server()->dispatch( $request );
 
@@ -80,22 +80,23 @@ class WP_Test_REST_Comment_Types_Controller extends WP_Test_REST_Controller_Test
 	}
 
 	/**
-	 * The internal `note` type is not exposed (show_in_rest defaults to public, which is false).
+	 * The note-only `note` and `reaction` types are not exposed.
 	 *
 	 * @ticket 35214
 	 */
-	public function test_get_items_excludes_non_rest_types() {
+	public function test_get_items_excludes_non_rest_types(): void {
 		$request  = new WP_REST_Request( 'GET', '/wp/v2/comment-types' );
 		$response = rest_get_server()->dispatch( $request );
 		$data     = $response->get_data();
 
 		$this->assertArrayNotHasKey( 'note', $data );
+		$this->assertArrayNotHasKey( 'reaction', $data );
 	}
 
 	/**
 	 * @ticket 35214
 	 */
-	public function test_get_items_includes_registered_custom_type() {
+	public function test_get_items_includes_registered_custom_type(): void {
 		register_comment_type( 'review', array( 'public' => true ) );
 
 		$request  = new WP_REST_Request( 'GET', '/wp/v2/comment-types' );
@@ -108,7 +109,7 @@ class WP_Test_REST_Comment_Types_Controller extends WP_Test_REST_Controller_Test
 	/**
 	 * @ticket 35214
 	 */
-	public function test_get_items_excludes_custom_type_opted_out_of_rest() {
+	public function test_get_items_excludes_custom_type_opted_out_of_rest(): void {
 		register_comment_type(
 			'review',
 			array(
@@ -131,7 +132,7 @@ class WP_Test_REST_Comment_Types_Controller extends WP_Test_REST_Controller_Test
 	 *
 	 * @param string $method HTTP method to use.
 	 */
-	public function test_get_items_invalid_permission_for_context( $method ) {
+	public function test_get_items_invalid_permission_for_context( string $method ): void {
 		wp_set_current_user( 0 );
 		$request = new WP_REST_Request( $method, '/wp/v2/comment-types' );
 		$request->set_param( 'context', 'edit' );
@@ -142,9 +143,9 @@ class WP_Test_REST_Comment_Types_Controller extends WP_Test_REST_Controller_Test
 	/**
 	 * Data provider intended to provide HTTP method names for testing GET and HEAD requests.
 	 *
-	 * @return array
+	 * @return array<string, string[]>
 	 */
-	public static function data_readable_http_methods() {
+	public static function data_readable_http_methods(): array {
 		return array(
 			'GET request'  => array( 'GET' ),
 			'HEAD request' => array( 'HEAD' ),
@@ -154,7 +155,7 @@ class WP_Test_REST_Comment_Types_Controller extends WP_Test_REST_Controller_Test
 	/**
 	 * @ticket 35214
 	 */
-	public function test_get_item() {
+	public function test_get_item(): void {
 		$request  = new WP_REST_Request( 'GET', '/wp/v2/comment-types/comment' );
 		$response = rest_get_server()->dispatch( $request );
 		$this->check_comment_type_object_response( 'view', $response );
@@ -167,7 +168,7 @@ class WP_Test_REST_Comment_Types_Controller extends WP_Test_REST_Controller_Test
 	 *
 	 * @param string $method HTTP method to use.
 	 */
-	public function test_get_item_invalid_type( $method ) {
+	public function test_get_item_invalid_type( string $method ): void {
 		$request  = new WP_REST_Request( $method, '/wp/v2/comment-types/invalid' );
 		$response = rest_get_server()->dispatch( $request );
 		$this->assertErrorResponse( 'rest_type_invalid', $response, 404 );
@@ -176,7 +177,7 @@ class WP_Test_REST_Comment_Types_Controller extends WP_Test_REST_Controller_Test
 	/**
 	 * @ticket 35214
 	 */
-	public function test_get_item_non_rest_type_is_not_readable() {
+	public function test_get_item_non_rest_type_is_not_readable(): void {
 		$request  = new WP_REST_Request( 'GET', '/wp/v2/comment-types/note' );
 		$response = rest_get_server()->dispatch( $request );
 		$this->assertErrorResponse( 'rest_cannot_read_type', $response, 401 );
@@ -185,7 +186,7 @@ class WP_Test_REST_Comment_Types_Controller extends WP_Test_REST_Controller_Test
 	/**
 	 * @ticket 35214
 	 */
-	public function test_get_item_edit_context_requires_permission() {
+	public function test_get_item_edit_context_requires_permission(): void {
 		wp_set_current_user( self::$subscriber_id );
 		$request = new WP_REST_Request( 'GET', '/wp/v2/comment-types/comment' );
 		$request->set_param( 'context', 'edit' );
@@ -202,7 +203,7 @@ class WP_Test_REST_Comment_Types_Controller extends WP_Test_REST_Controller_Test
 	 *
 	 * @ticket 35214
 	 */
-	public function test_get_item_edit_context_as_anonymous_returns_401() {
+	public function test_get_item_edit_context_as_anonymous_returns_401(): void {
 		wp_set_current_user( 0 );
 
 		// A known type.
@@ -221,7 +222,7 @@ class WP_Test_REST_Comment_Types_Controller extends WP_Test_REST_Controller_Test
 	/**
 	 * @ticket 35214
 	 */
-	public function test_get_item_with_fields_limits_response_keys() {
+	public function test_get_item_with_fields_limits_response_keys(): void {
 		$request = new WP_REST_Request( 'GET', '/wp/v2/comment-types/comment' );
 		$request->set_param( '_fields', 'slug' );
 		$server   = rest_get_server();
@@ -236,7 +237,7 @@ class WP_Test_REST_Comment_Types_Controller extends WP_Test_REST_Controller_Test
 	/**
 	 * @ticket 35214
 	 */
-	public function test_additional_field_registered_for_comment_type_is_included() {
+	public function test_additional_field_registered_for_comment_type_is_included(): void {
 		register_rest_field(
 			'comment-type',
 			'my_custom_field',
@@ -265,7 +266,7 @@ class WP_Test_REST_Comment_Types_Controller extends WP_Test_REST_Controller_Test
 	 *
 	 * @ticket 35214
 	 */
-	public function test_get_items_edit_context_returns_labels_and_still_excludes_note() {
+	public function test_get_items_edit_context_returns_labels_and_still_excludes_note(): void {
 		wp_set_current_user( self::$admin_id );
 		register_comment_type(
 			'review',
@@ -291,7 +292,7 @@ class WP_Test_REST_Comment_Types_Controller extends WP_Test_REST_Controller_Test
 	/**
 	 * @ticket 35214
 	 */
-	public function test_get_item_edit_context_returns_labels() {
+	public function test_get_item_edit_context_returns_labels(): void {
 		wp_set_current_user( self::$admin_id );
 		$request = new WP_REST_Request( 'GET', '/wp/v2/comment-types/comment' );
 		$request->set_param( 'context', 'edit' );
@@ -302,7 +303,7 @@ class WP_Test_REST_Comment_Types_Controller extends WP_Test_REST_Controller_Test
 	/**
 	 * @ticket 35214
 	 */
-	public function test_create_item() {
+	public function test_create_item(): void {
 		/** Comment types can't be created */
 		$request  = new WP_REST_Request( 'POST', '/wp/v2/comment-types' );
 		$response = rest_get_server()->dispatch( $request );
@@ -312,7 +313,7 @@ class WP_Test_REST_Comment_Types_Controller extends WP_Test_REST_Controller_Test
 	/**
 	 * @ticket 35214
 	 */
-	public function test_update_item() {
+	public function test_update_item(): void {
 		/** Comment types can't be updated */
 		$request  = new WP_REST_Request( 'POST', '/wp/v2/comment-types/comment' );
 		$response = rest_get_server()->dispatch( $request );
@@ -322,7 +323,7 @@ class WP_Test_REST_Comment_Types_Controller extends WP_Test_REST_Controller_Test
 	/**
 	 * @ticket 35214
 	 */
-	public function test_delete_item() {
+	public function test_delete_item(): void {
 		/** Comment types can't be deleted */
 		$request  = new WP_REST_Request( 'DELETE', '/wp/v2/comment-types/comment' );
 		$response = rest_get_server()->dispatch( $request );
@@ -332,7 +333,7 @@ class WP_Test_REST_Comment_Types_Controller extends WP_Test_REST_Controller_Test
 	/**
 	 * @ticket 35214
 	 */
-	public function test_prepare_item() {
+	public function test_prepare_item(): void {
 		$obj      = get_comment_type_object( 'comment' );
 		$endpoint = new WP_REST_Comment_Types_Controller();
 		$request  = new WP_REST_Request();
@@ -344,7 +345,7 @@ class WP_Test_REST_Comment_Types_Controller extends WP_Test_REST_Controller_Test
 	/**
 	 * @ticket 35214
 	 */
-	public function test_get_item_schema() {
+	public function test_get_item_schema(): void {
 		$request    = new WP_REST_Request( 'OPTIONS', '/wp/v2/comment-types' );
 		$response   = rest_get_server()->dispatch( $request );
 		$data       = $response->get_data();
@@ -361,7 +362,7 @@ class WP_Test_REST_Comment_Types_Controller extends WP_Test_REST_Controller_Test
 	 *
 	 * @ticket 35214
 	 */
-	public function test_get_item_links_to_filtered_comments_collection() {
+	public function test_get_item_links_to_filtered_comments_collection(): void {
 		$request  = new WP_REST_Request( 'GET', '/wp/v2/comment-types/comment' );
 		$response = rest_get_server()->dispatch( $request );
 		$links    = test_rest_expand_compact_links( $response->get_links() );
@@ -378,7 +379,7 @@ class WP_Test_REST_Comment_Types_Controller extends WP_Test_REST_Controller_Test
 	 *
 	 * @ticket 56481
 	 */
-	public function test_get_items_with_head_request_should_not_prepare_comment_types_data() {
+	public function test_get_items_with_head_request_should_not_prepare_comment_types_data(): void {
 		$request   = new WP_REST_Request( 'HEAD', '/wp/v2/comment-types' );
 		$hook_name = 'rest_prepare_comment_type';
 		$filter    = new MockAction();
@@ -397,7 +398,7 @@ class WP_Test_REST_Comment_Types_Controller extends WP_Test_REST_Controller_Test
 	 *
 	 * @param string $method The HTTP method to use.
 	 */
-	public function test_get_item_should_allow_adding_headers_via_filter( $method ) {
+	public function test_get_item_should_allow_adding_headers_via_filter( string $method ): void {
 		$request = new WP_REST_Request( $method, '/wp/v2/comment-types/comment' );
 
 		$hook_name = 'rest_prepare_comment_type';
@@ -405,7 +406,7 @@ class WP_Test_REST_Comment_Types_Controller extends WP_Test_REST_Controller_Test
 		$callback  = array( $filter, 'filter' );
 		add_filter( $hook_name, $callback );
 		$header_filter = new class() {
-			public static function add_custom_header( $response ) {
+			public static function add_custom_header( WP_REST_Response $response ): WP_REST_Response {
 				$response->header( 'X-Test-Header', 'Test' );
 
 				return $response;
@@ -422,7 +423,7 @@ class WP_Test_REST_Comment_Types_Controller extends WP_Test_REST_Controller_Test
 		$this->assertArrayHasKey( 'X-Test-Header', $headers, 'The "X-Test-Header" header should be present in the response.' );
 		$this->assertSame( 'Test', $headers['X-Test-Header'], 'The "X-Test-Header" header value should be equal to "Test".' );
 		if ( 'HEAD' !== $method ) {
-			return null;
+			return;
 		}
 		$this->assertSame( array(), $response->get_data(), 'The server should not generate a body in response to a HEAD request.' );
 	}
@@ -433,7 +434,7 @@ class WP_Test_REST_Comment_Types_Controller extends WP_Test_REST_Controller_Test
 	 *
 	 * @param string $path The path to test.
 	 */
-	public function test_head_request_with_specified_fields_returns_success_response( $path ) {
+	public function test_head_request_with_specified_fields_returns_success_response( string $path ): void {
 		$request = new WP_REST_Request( 'HEAD', $path );
 		$request->set_param( '_fields', 'slug' );
 		$server   = rest_get_server();
@@ -448,9 +449,9 @@ class WP_Test_REST_Comment_Types_Controller extends WP_Test_REST_Controller_Test
 	/**
 	 * Data provider intended to provide paths for testing HEAD requests.
 	 *
-	 * @return array
+	 * @return array<string, string[]>
 	 */
-	public static function data_head_request_with_specified_fields_returns_success_response() {
+	public static function data_head_request_with_specified_fields_returns_success_response(): array {
 		return array(
 			'get_item request'  => array( '/wp/v2/comment-types/comment' ),
 			'get_items request' => array( '/wp/v2/comment-types' ),
@@ -463,7 +464,7 @@ class WP_Test_REST_Comment_Types_Controller extends WP_Test_REST_Controller_Test
 	 *
 	 * @ticket 35214
 	 */
-	public function test_get_items_edit_context_requires_permission() {
+	public function test_get_items_edit_context_requires_permission(): void {
 		wp_set_current_user( self::$subscriber_id );
 
 		$request = new WP_REST_Request( 'GET', '/wp/v2/comment-types' );
@@ -479,7 +480,7 @@ class WP_Test_REST_Comment_Types_Controller extends WP_Test_REST_Controller_Test
 	 *
 	 * @ticket 35214
 	 */
-	public function test_non_public_type_with_show_in_rest_is_exposed() {
+	public function test_non_public_type_with_show_in_rest_is_exposed(): void {
 		register_comment_type(
 			'wp_tests_hidden',
 			array(
@@ -506,7 +507,7 @@ class WP_Test_REST_Comment_Types_Controller extends WP_Test_REST_Controller_Test
 		$this->assertSame( 'wp_tests_hidden', $response->get_data()['slug'] );
 	}
 
-	protected function check_comment_type_obj( $context, $comment_type_obj, $data, $links ) {
+	protected function check_comment_type_obj( string $context, WP_Comment_Type $comment_type_obj, array $data, array $links ): void {
 		$this->assertSame( $comment_type_obj->label, $data['name'] );
 		$this->assertSame( $comment_type_obj->name, $data['slug'] );
 		$this->assertSame( $comment_type_obj->description, $data['description'] );
@@ -522,7 +523,7 @@ class WP_Test_REST_Comment_Types_Controller extends WP_Test_REST_Controller_Test
 		}
 	}
 
-	protected function check_comment_type_object_response( $context, $response, $comment_type = 'comment' ) {
+	protected function check_comment_type_object_response( string $context, WP_REST_Response $response, string $comment_type = 'comment' ): void {
 		$this->assertSame( 200, $response->get_status() );
 		$data = $response->get_data();
 		$obj  = get_comment_type_object( $comment_type );

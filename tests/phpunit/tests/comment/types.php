@@ -93,7 +93,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::register_comment_type
 	 */
-	public function test_register_comment_type_show_in_rest_should_default_to_value_of_public() {
+	public function test_register_comment_type_show_in_rest_should_default_to_value_of_public(): void {
 		register_comment_type( 'public_type', array( 'public' => true ) );
 		$this->assertTrue( get_comment_type_object( 'public_type' )->show_in_rest );
 
@@ -106,7 +106,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::register_comment_type
 	 */
-	public function test_register_comment_type_show_in_rest_can_be_overridden() {
+	public function test_register_comment_type_show_in_rest_can_be_overridden(): void {
 		register_comment_type(
 			'private_but_in_rest',
 			array(
