@@ -448,19 +448,13 @@ function create_initial_comment_types(): void {
  *     @type bool       $internal        Whether the comment type is for internal use only. Internal
  *                                       types are meant to be excluded from comment queries and
  *                                       counts by default. Core does not currently act on this
- *                                       argument.
- *                                       Default false.
- *     @type callable   $render_callback Callback used to render a comment of this type in comment
- *                                       lists. Receives the same arguments as the `callback` argument
- *                                       of wp_list_comments() (the comment, the arguments, and the
- *                                       depth) and, like it, must echo only the opening of the list
- *                                       element - a `<div>` when the `style` argument is 'div' and an
- *                                       `<li>` otherwise; Walker_Comment::end_el() closes the element.
- *                                       A returned string is discarded. An explicit
- *                                       wp_list_comments() `callback` takes precedence. Output is
- *                                       printed unescaped; the callback must escape all output.
- *                                       Applies only when comments are rendered via
- *                                       wp_list_comments() (classic themes). Default null.
+ *                                       argument. Default false.
+ *     @type callable   $render_callback Callback used to render a comment of this type in
+ *                                       wp_list_comments(). Receives the same arguments as, and is
+ *                                       overridden by, the wp_list_comments() `callback` argument.
+ *                                       Must echo only the opening `<li>` (or `<div>` for the 'div'
+ *                                       style), unescaped; a returned string is discarded.
+ *                                       Default null.
  *     @type bool       $_builtin        For internal core use only. Marks the type as native to
  *                                       WordPress, which blocks it from being re-registered or
  *                                       unregistered. Default false.

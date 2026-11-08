@@ -187,10 +187,7 @@ class Walker_Comment extends Walker {
 			return;
 		}
 
-		/*
-		 * Allow a registered comment type to render itself. An explicit `callback`
-		 * argument passed to wp_list_comments() takes precedence and is handled above.
-		 */
+		// A registered comment type's render callback, after an explicit `callback` argument.
 		$comment_type_object = get_comment_type_object( $comment->comment_type );
 
 		if ( $comment_type_object && is_callable( $comment_type_object->render_callback ) ) {
