@@ -434,23 +434,27 @@ function create_initial_comment_types(): void {
  * @param array|string $args {
  *     Optional. Array or string of arguments for registering a comment type. Default empty array.
  *
- *     @type string     $label       Name of the comment type. Usually plural.
- *                                   Default is the value of $labels['name'].
- *     @type string[]   $labels      An array of labels for this comment type. If not set, the
- *                                   default comment labels are used. See get_comment_type_labels()
- *                                   for a full list of supported labels.
- *     @type string     $description A short descriptive summary of what the comment type is.
- *                                   Default empty.
- *     @type bool       $public      Whether the comment type is intended for use publicly either via
- *                                   the admin interface or by front-end users. Core does not
- *                                   currently act on this argument. Default true.
- *     @type bool       $internal    Whether the comment type is for internal use only. Internal
- *                                   types are meant to be excluded from comment queries and counts
- *                                   by default. Core does not currently act on this argument.
- *                                   Default false.
- *     @type bool       $_builtin    For internal core use only. Marks the type as native to
- *                                   WordPress, which blocks it from being re-registered or
- *                                   unregistered. Default false.
+ *     @type string     $label        Name of the comment type. Usually plural.
+ *                                    Default is the value of $labels['name'].
+ *     @type string[]   $labels       An array of labels for this comment type. If not set, the
+ *                                    default comment labels are used. See get_comment_type_labels()
+ *                                    for a full list of supported labels.
+ *     @type string     $description  A short descriptive summary of what the comment type is.
+ *                                    Default empty.
+ *     @type bool       $public       Whether the comment type is intended for use publicly either via
+ *                                    the admin interface or by front-end users. Core does not
+ *                                    currently act on this argument. Default true.
+ *     @type bool       $internal     Whether the comment type is for internal use only. Internal
+ *                                    types are meant to be excluded from comment queries and counts
+ *                                    by default. Core does not currently act on this argument.
+ *                                    Default false.
+ *     @type bool       $show_in_rest Whether to expose this comment type in the REST API comment types
+ *                                    discovery endpoint (`/wp/v2/comment-types`). Does not affect
+ *                                    access to comments of this type via `/wp/v2/comments`.
+ *                                    Default is the value of $public.
+ *     @type bool       $_builtin     For internal core use only. Marks the type as native to
+ *                                    WordPress, which blocks it from being re-registered or
+ *                                    unregistered. Default false.
  * }
  * @return WP_Comment_Type|WP_Error The registered comment type object on success,
  *                                  WP_Error object on failure.

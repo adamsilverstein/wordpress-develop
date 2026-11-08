@@ -86,6 +86,17 @@ final class WP_Comment_Type {
 	public $internal = false;
 
 	/**
+	 * Whether to expose this comment type in the `/wp/v2/comment-types` endpoint.
+	 *
+	 * Does not affect access to comments of this type via `/wp/v2/comments`.
+	 * Default is the value of $public.
+	 *
+	 * @since 7.3.0
+	 * @var bool
+	 */
+	public $show_in_rest;
+
+	/**
 	 * Whether this comment type is a native or "built-in" comment type.
 	 *
 	 * Default false.
@@ -172,14 +183,20 @@ final class WP_Comment_Type {
 
 		// No 'label' default, so get_comment_type_labels() can fall back to the default name.
 		$defaults = array(
-			'labels'      => array(),
-			'description' => '',
-			'public'      => true,
-			'internal'    => false,
-			'_builtin'    => false,
+			'labels'       => array(),
+			'description'  => '',
+			'public'       => true,
+			'internal'     => false,
+			'show_in_rest' => null,
+			'_builtin'     => false,
 		);
 
 		$args = array_merge( $defaults, $args );
+
+		// Unlike WP_Post_Type, there is no back-compat reason to default this to false.
+		if ( null === $args['show_in_rest'] ) {
+			$args['show_in_rest'] = $args['public'];
+		}
 
 		$args['name'] = $this->name;
 
