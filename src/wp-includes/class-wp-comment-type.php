@@ -90,12 +90,10 @@ final class WP_Comment_Type {
 	public $internal = false;
 
 	/**
-	 * The string to use to build the edit, delete, and moderate capabilities.
+	 * The base used to build the edit, delete, and moderate capabilities.
 	 *
-	 * May be registered as an array to allow for alternative plurals when using
-	 * this argument as a base to construct the capabilities, e.g.
-	 * array( 'story', 'stories' ). set_props() collapses the array form back to
-	 * the singular base once the capabilities are built. Default 'comment'.
+	 * Registered as an array of singular and plural bases, this holds the
+	 * singular base. Default 'comment'.
 	 *
 	 * @since 7.2.0
 	 * @var string
@@ -105,11 +103,8 @@ final class WP_Comment_Type {
 	/**
 	 * Capabilities for this comment type.
 	 *
-	 * Built by {@see get_comment_type_capabilities()} from the
-	 * `capability_type` and `capabilities` arguments. This is advisory metadata
-	 * describing the capabilities associated with the comment type; the
-	 * capability mapping in {@see map_meta_cap()} is not affected by this
-	 * property in this release.
+	 * Advisory only; map_meta_cap() does not consult them yet.
+	 * See get_comment_type_capabilities().
 	 *
 	 * @since 7.2.0
 	 * @var stdClass
@@ -223,7 +218,6 @@ final class WP_Comment_Type {
 
 		$args['name'] = $this->name;
 
-		// Build the capabilities object, then remove the input array from the props.
 		$this->cap = get_comment_type_capabilities( (object) $args );
 		unset( $args['capabilities'] );
 

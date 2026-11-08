@@ -452,19 +452,12 @@ function create_initial_comment_types(): void {
  *                                          queries and counts by default. Core does not currently
  *                                          act on this argument.
  *                                          Default false.
- *     @type string|array  $capability_type The string to use to build the edit, delete, and moderate
- *                                          capabilities. May be passed as an array to allow for
- *                                          alternative plurals when using this argument as a base to
- *                                          construct the capabilities, e.g. array( 'story', 'stories' ).
- *                                          These capabilities are advisory metadata and are not
- *                                          enforced by core's capability mapping in this release.
- *                                          Default 'comment'.
- *     @type string[]      $capabilities    Array of capabilities for this comment type.
- *                                          $capability_type is used as a base to construct
- *                                          capabilities by default. As with $capability_type, these
- *                                          are advisory metadata and are not enforced by core's
- *                                          capability mapping in this release.
- *                                          See get_comment_type_capabilities().
+ *     @type string|array  $capability_type The base used to build the edit, delete, and moderate
+ *                                          capabilities. May be an array of singular and plural
+ *                                          bases, e.g. array( 'story', 'stories' ). Default 'comment'.
+ *     @type string[]      $capabilities    Capabilities for this comment type, overriding those built
+ *                                          from $capability_type. Advisory only; core does not
+ *                                          enforce them. See get_comment_type_capabilities().
  *     @type bool          $_builtin        For internal core use only. Marks the type as native to
  *                                          WordPress, which blocks it from being re-registered or
  *                                          unregistered. Default false.
@@ -666,7 +659,7 @@ function comment_type_exists( $comment_type ) {
  * @since 7.2.0
  *
  * @param WP_Comment_Type $comment_type_object Comment type object.
- * @return stdClass {
+ * @return object {
  *     Comment type labels object.
  *
  *     @type string $name          General name for the comment type, usually plural. The same as and
@@ -734,45 +727,18 @@ function get_comment_type_labels( $comment_type_object ) {
 /**
  * Builds an object with all comment type capabilities out of a comment type object.
  *
- * Comment type capabilities use the `capability_type` argument as a base, if
- * the capability is not set in the `capabilities` argument.
+ * Capabilities not set in the `capabilities` argument are built from the
+ * `capability_type` argument. A string base is pluralized by appending an 's';
+ * an array supplies the singular and plural bases, e.g. array( 'story', 'stories' ).
  *
- * This is advisory metadata describing the capabilities associated with a comment
- * type, modeled on {@see get_post_type_capabilities()}. The capability mapping in
- * {@see map_meta_cap()} is not affected by these capabilities in this release.
+ * The capabilities are advisory: map_meta_cap() does not consult them yet, and
+ * most of the generated names are not granted to any default role.
  *
- * The capability strings are built from the `capability_type` argument, which may
- * be a string or an array. When a string, the plural is created by appending an
- * 's'. When an array, the first element is the singular base and the second the
- * plural base, e.g. array( 'story', 'stories' ).
+ * Do not reuse a post type's `capability_type` as the base. A base of 'post'
+ * generates `edit_comment => 'edit_post'`, which map_meta_cap() resolves
+ * against a post with the comment's ID.
  *
- * Note: With the default `capability_type` of 'comment', most of the generated
- * primitive capabilities (`edit_comments`, `edit_others_comments`,
- * `delete_comments`) exist in no default role and are not consulted by the
- * default capability mapping; `moderate_comments` is the only generated
- * primitive that default roles grant. Consumers should check the meta
- * capabilities together with a comment ID instead of testing those primitives
- * directly.
- *
- * Note: In this release, `edit_comment` on the default 'comment' base is the
- * only generated capability that map_meta_cap() resolves. The remaining meta
- * capabilities, and every capability generated from a custom base, are treated
- * as primitives: a check requires the literal capability, which no default role
- * grants, so it denies everyone until comment type capability mapping is added.
- *
- * Note: The "others" axis is deliberately edit-only for now: `edit_others_comments`
- * is generated with no `delete_others_comments` counterpart, unlike the post type
- * pairing. A delete counterpart can be added compatibly once the enforcement
- * follow-up settles which primitives the moderation flows actually consult.
- *
- * Note: Do not reuse a post type's `capability_type` as a comment type base.
- * A base of 'post' generates `edit_comment => 'edit_post'`, which map_meta_cap()
- * resolves through its post branch, so the check would be answered by a post
- * with the passed comment's ID.
- *
- * Note: The `capability_type` property of the passed object is normalized to
- * its array form as a side effect of calling this function, matching
- * get_post_type_capabilities().
+ * Normalizes the `capability_type` property of `$args` to its array form.
  *
  * @since 7.2.0
  *
@@ -810,7 +776,7 @@ function get_comment_type_capabilities( $args ) {
 		'edit_comment'         => 'edit_' . $singular_base,
 		'delete_comment'       => 'delete_' . $singular_base,
 		'moderate_comment'     => 'moderate_' . $singular_base,
-		// Primitive capabilities used outside of map_meta_cap().
+		// Primitive capabilities.
 		'edit_comments'        => 'edit_' . $plural_base,
 		'edit_others_comments' => 'edit_others_' . $plural_base,
 		'delete_comments'      => 'delete_' . $plural_base,
@@ -2011,7 +1977,7 @@ function wp_check_comment_disallowed_list( $author, $email, $url, $comment, $use
  *
  * @param int $post_id Optional. Restrict the comment counts to the given post. Default 0, which indicates that
  *                     comment counts for the whole site will be retrieved.
- * @return stdClass {
+ * @return object {
  *     The number of comments keyed by their status.
  *
  *     @type int $approved       The number of approved comments.

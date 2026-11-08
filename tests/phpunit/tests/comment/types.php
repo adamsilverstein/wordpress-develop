@@ -677,11 +677,8 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	}
 
 	/**
-	 * A 'read_comment' meta capability is deliberately not generated: unlike editing,
-	 * deleting, or moderating, reading a single comment has no defined semantics in core,
-	 * so there is nothing for a future map_meta_cap() case to enforce. The other meta
-	 * capabilities are advertised ahead of their mappings as advisory metadata; this one
-	 * is pinned out until real read semantics exist.
+	 * No 'read_comment' meta capability is generated, as core defines no semantics
+	 * for reading a single comment.
 	 *
 	 * @ticket 35214
 	 *
@@ -700,8 +697,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	}
 
 	/**
-	 * The built-in types all register without a capability type, so they share one cap set.
-	 * Anything that gated on the existing comment capabilities keeps working for all four.
+	 * The built-in types register without a capability type, so they share one cap set.
 	 *
 	 * @ticket 35214
 	 *
