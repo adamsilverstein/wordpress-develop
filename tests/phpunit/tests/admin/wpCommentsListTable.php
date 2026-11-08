@@ -215,27 +215,30 @@ OPTIONS;
 	}
 
 	/**
-	 * Verify that the comments table never shows the note comment_type.
+	 * Verify that the comments table never shows internal comment types.
 	 *
 	 * @ticket 64198
 	 * @ticket 64474
+	 * @ticket 64638
 	 *
 	 * @dataProvider data_comment_type
 	 *
 	 * @param string $comment_type The comment_type parameter value to test.
 	 */
-	public function test_comments_list_table_does_not_show_note_comment_type( string $comment_type ) {
+	public function test_comments_list_table_does_not_show_internal_comment_types( string $comment_type ) {
 		$post_id = self::factory()->post->create();
-		self::factory()->comment->create(
-			array(
-				'comment_post_ID'  => $post_id,
-				'comment_content'  => 'This is a note.',
-				'comment_type'     => 'note',
-				'comment_approved' => '1',
-				'comment_date'     => '2024-01-01 10:00:00',
-				'comment_date_gmt' => '2024-01-01 10:00:00',
-			)
-		);
+		foreach ( array( 'note', 'reaction' ) as $internal_type ) {
+			self::factory()->comment->create(
+				array(
+					'comment_post_ID'  => $post_id,
+					'comment_content'  => 'This is a ' . $internal_type . '.',
+					'comment_type'     => $internal_type,
+					'comment_approved' => '1',
+					'comment_date'     => '2024-01-01 10:00:00',
+					'comment_date_gmt' => '2024-01-01 10:00:00',
+				)
+			);
+		}
 		$regular_comment_id       = self::factory()->comment->create(
 			array(
 				'comment_post_ID'  => $post_id,
@@ -260,19 +263,20 @@ OPTIONS;
 		$this->table->prepare_items();
 		$items = $this->table->items;
 		$this->assertCount( 2, $items );
-		$this->assertEquals( $pingback_comment_id, $items[0]->comment_ID );
-		$this->assertEquals( $regular_comment_id, $items[1]->comment_ID );
+		$this->assertSame( (string) $pingback_comment_id, $items[0]->comment_ID );
+		$this->assertSame( (string) $regular_comment_id, $items[1]->comment_ID );
 	}
 
 	/**
-	 * Data provider for test_comments_list_table_does_not_show_note_comment_type().
+	 * Data provider for test_comments_list_table_does_not_show_internal_comment_types().
 	 *
 	 * @return array<string, string[]>
 	 */
-	public function data_comment_type(): array {
+	public static function data_comment_type(): array {
 		return array(
-			'note type explicitly requested' => array( 'note' ),
-			'all type requested'             => array( 'all' ),
+			'note type explicitly requested'     => array( 'note' ),
+			'reaction type explicitly requested' => array( 'reaction' ),
+			'all type requested'                 => array( 'all' ),
 		);
 	}
 
@@ -412,6 +416,47 @@ OPTIONS;
 			array( $note_id, $regular_comment_id ),
 			array_map( 'intval', wp_list_pluck( $this->table->items, 'comment_ID' ) ),
 			'A request for the note type should be dropped rather than filter the table.'
+		);
+	}
+
+	/**
+	 * A non-string 'comment_type' request is ignored rather than raising a warning.
+	 *
+	 * The requested type is subtracted from the default-excluded set with
+	 * array_diff(), which casts its arguments to strings. An array request such as
+	 * comment_type[]=private would otherwise raise an "Array to string conversion"
+	 * warning and could skip the exclusion it names.
+	 *
+	 * @ticket 65537
+	 */
+	public function test_comments_list_table_ignores_a_non_string_comment_type_request() {
+		$post_id = self::factory()->post->create();
+
+		self::factory()->comment->create(
+			array(
+				'comment_post_ID'  => $post_id,
+				'comment_type'     => 'private',
+				'comment_approved' => '1',
+			)
+		);
+
+		$regular_comment_id = self::factory()->comment->create(
+			array(
+				'comment_post_ID'  => $post_id,
+				'comment_type'     => '',
+				'comment_approved' => '1',
+			)
+		);
+
+		add_filter( 'default_excluded_comment_types', array( $this, 'filter_add_private_comment_type' ) );
+
+		$_REQUEST['comment_type'] = array( 'private' );
+		$this->table->prepare_items();
+
+		$this->assertSame(
+			array( $regular_comment_id ),
+			array_map( 'intval', wp_list_pluck( $this->table->items, 'comment_ID' ) ),
+			'An array request should be treated as no type filter and keep the excluded type hidden.'
 		);
 	}
 

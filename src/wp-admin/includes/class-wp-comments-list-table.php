@@ -62,6 +62,8 @@ class WP_Comments_List_Table extends WP_List_Table {
 	 * @param string $name       Comment author name.
 	 * @param int    $comment_id Comment ID.
 	 * @return string Avatar with the user name.
+	 *
+	 * @phpstan-return non-falsy-string
 	 */
 	public function floated_admin_avatar( $name, $comment_id ) {
 		$comment = get_comment( $comment_id );
@@ -104,7 +106,7 @@ class WP_Comments_List_Table extends WP_List_Table {
 		}
 
 		/*
-		 * Notes carry their own visibility rules, so they are never listed here and a
+		 * Notes and reactions carry their own visibility rules, so they are never listed here and a
 		 * request for them is dropped outright. This is deliberately narrower than the
 		 * treatment of the other default-excluded types below, which can be listed when
 		 * explicitly requested. Emptying the excluded set does surface notes in the
@@ -112,7 +114,12 @@ class WP_Comments_List_Table extends WP_List_Table {
 		 */
 		$comment_type = '';
 
-		if ( ! empty( $_REQUEST['comment_type'] ) && 'note' !== $_REQUEST['comment_type'] ) {
+		/*
+		 * Only a string is honoured. A request that supplies an array, for example
+		 * comment_type[]=review, is treated as no type filter at all so that the
+		 * value can safely be compared and diffed as a string below.
+		 */
+		if ( ! empty( $_REQUEST['comment_type'] ) && is_string( $_REQUEST['comment_type'] ) && ! in_array( $_REQUEST['comment_type'], array( 'note', 'reaction' ), true ) ) {
 			$comment_type = $_REQUEST['comment_type'];
 		}
 
@@ -127,8 +134,10 @@ class WP_Comments_List_Table extends WP_List_Table {
 		 * expanded first, matching how WP_Comment_Query resolves them.
 		 */
 		switch ( $comment_type ) {
-			// Kept for symmetry with WP_Comment_Query; the accessor strips these tokens
-			// from the excluded set, so this branch can never subtract anything.
+			/*
+			 * Kept for symmetry with WP_Comment_Query; the accessor strips these tokens
+			 * from the excluded set, so this branch can never subtract anything.
+			 */
 			case 'comment':
 			case 'comments':
 				$requested_types = array( '', 'comment' );

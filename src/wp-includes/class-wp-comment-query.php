@@ -72,7 +72,7 @@ class WP_Comment_Query {
 	 * Resolved once per query in get_comments(), so that the set folded into the cache
 	 * key is the same one get_comment_ids() builds the SQL from. Null until resolved.
 	 *
-	 * @since 7.1.0
+	 * @since 7.2.0
 	 * @var string[]|null
 	 */
 	protected $default_excluded_comment_types = null;
@@ -376,7 +376,12 @@ class WP_Comment_Query {
 	 *
 	 * @param string|array $query Array or URL query string of parameters.
 	 * @return WP_Comment[]|int[]|int List of comments, or number of comments when 'count' is passed as a query var.
-	 * @phpstan-return array<int, WP_Comment>|non-negative-int[]|non-negative-int
+	 *
+	 * @phpstan-return (
+	 *     $query is array{ count: true, ... } ? non-negative-int : (
+	 *         $query is array{ fields: 'ids', ... } ? non-negative-int[] : array<int, WP_Comment>
+	 *     )
+	 * )
 	 */
 	public function query( $query ) {
 		$this->query_vars = wp_parse_args( $query );
@@ -567,7 +572,8 @@ class WP_Comment_Query {
 	 *
 	 * @since 4.4.0
 	 * @since 6.9.0 Excludes the 'note' comment type, unless 'all' or the 'note' types are requested.
-	 * @since 7.1.0 The default-excluded comment types are filterable via {@see 'default_excluded_comment_types'}.
+	 * @since 7.2.0 Excludes the 'reaction' comment type, unless 'all' or the 'reaction' types are requested.
+	 * @since 7.2.0 The default-excluded comment types are filterable via {@see 'default_excluded_comment_types'}.
 	 *
 	 * @global wpdb $wpdb WordPress database abstraction object.
 	 *
@@ -718,11 +724,7 @@ class WP_Comment_Query {
 					}
 				}
 
-				// Default to DESC.
-				if ( ! $comment_id_order ) {
-					$comment_id_order = 'DESC';
-				}
-
+				// The logic above ensures $comment_id_order is set to 'ASC' or defaults to 'DESC'.
 				$orderby_array[] = "$wpdb->comments.comment_ID $comment_id_order";
 			}
 
@@ -810,12 +812,14 @@ class WP_Comment_Query {
 
 		$excluded_types = $this->default_excluded_comment_types;
 
-		// Unless all types are requested, exclude each default-excluded type
-		// that the query does not explicitly request. The special type tokens
-		// in the request ('comment', 'comments', 'pings') are first expanded to
-		// the literal comment_type values they represent, so a type requested
-		// via an alias (for example 'pings' for 'pingback' and 'trackback') is
-		// still treated as explicitly requested and is not excluded.
+		/*
+		 * Unless all types are requested, exclude each default-excluded type
+		 * that the query does not explicitly request. The special type tokens
+		 * in the request ('comment', 'comments', 'pings') are first expanded to
+		 * the literal comment_type values they represent, so a type requested
+		 * via an alias (for example 'pings' for 'pingback' and 'trackback') is
+		 * still treated as explicitly requested and is not excluded.
+		 */
 		if ( ! in_array( 'all', $raw_types['IN'], true ) ) {
 			$requested_types = array();
 			foreach ( $raw_types['IN'] as $requested_type ) {
@@ -838,7 +842,10 @@ class WP_Comment_Query {
 			}
 
 			foreach ( $excluded_types as $excluded_type ) {
-				if ( ! in_array( $excluded_type, $requested_types, true ) ) {
+				if (
+					! in_array( $excluded_type, $requested_types, true ) &&
+					! in_array( $excluded_type, $raw_types['NOT IN'], true )
+				) {
 					$raw_types['NOT IN'][] = $excluded_type;
 				}
 			}
@@ -1175,7 +1182,10 @@ class WP_Comment_Query {
 		// Assemble a flat array of all comments + descendants.
 		$all_comments = $comments;
 		foreach ( $descendant_ids as $descendant_id ) {
-			$all_comments[] = get_comment( $descendant_id );
+			$descendant = get_comment( $descendant_id );
+			if ( $descendant instanceof WP_Comment ) {
+				$all_comments[] = $descendant;
+			}
 		}
 
 		// If a threaded representation was requested, build the tree.
