@@ -3454,46 +3454,28 @@ function wp_update_comment_count_now( $post_id ) {
 /**
  * Recalculates the stored comment count for one or more posts.
  *
- * Each post's `comment_count` is recomputed with wp_update_comment_count_now(),
- * so the result honors the {@see 'default_excluded_comment_types'} filter.
+ * Counts are recomputed with wp_update_comment_count_now(), so they honor the
+ * {@see 'default_excluded_comment_types'} filter. Call this once after changing
+ * the excluded types, the same way flush_rewrite_rules() is called after
+ * changing rewrite rules.
  *
- * This is the bulk counterpart to wp_update_comment_count(): the stored count
- * is only refreshed for a post when its comments change, so an existing count can
- * become stale after the set of excluded comment types changes (for example when
- * a plugin registers a type that opts out of default listings). A plugin that
- * changes that set should call this once, the same way rewrite rules are flushed
- * with flush_rewrite_rules().
+ * Each recount fires the `wp_update_comment_count` and `edit_post` hooks and is
+ * written immediately, ignoring wp_defer_comment_counting(). A full recount on a
+ * large site is slow, so run it from WP-CLI or a scheduled event rather than an
+ * activation hook. It is idempotent and safe to interrupt.
  *
- * Cached comment query results are bumped through the comment `last_changed` key
- * when there is at least one post to visit, so that queries cached alongside the
- * previous counts are not served afterwards.
+ * Bumps the comment `last_changed` cache key when there is a post to recount.
+ * Performs no capability checks.
  *
- * Recalculating every post is proportional to the number of posts that have
- * comments and can be expensive on large sites. Each recalculation also fires
- * the usual post-update hooks (`wp_update_comment_count`, `edit_post`), so cache
- * purgers and search indexers run once per post. Pass a specific list of post IDs
- * to limit the work. A full recount on a large site does not belong in a plugin
- * activation routine, which runs in a normal web request and will hit
- * `max_execution_time` partway through: schedule it with wp_schedule_single_event()
- * or run it from WP-CLI instead. Stopping partway is safe - every post visited
- * before the stop has a correct count, and the operation is idempotent, so a
- * re-run simply redoes the earlier posts.
- *
- * Counts are written immediately: this does not participate in
- * wp_defer_comment_counting().
- *
- * There is no capability check, matching the rest of this family. Anything that
- * exposes it to a request has to perform its own capability and nonce checks.
- *
- * @since 7.1.0
+ * @since 7.2.0
  *
  * @global wpdb $wpdb WordPress database abstraction object.
  *
  * @param int[]|int|null $post_ids Optional. Post ID or array of post IDs to recalculate.
  *                                 Default null, which recalculates every post that has
  *                                 at least one comment or a nonzero stored count.
- * @return int Number of posts whose comment count was recalculated. Post IDs that do not
- *             exist are skipped and are not included in the count.
+ * @return int Number of posts whose comment count was recalculated. Nonexistent
+ *             post IDs are skipped.
  */
 function wp_update_comment_counts( $post_ids = null ) {
 	global $wpdb;
@@ -3529,10 +3511,7 @@ function wp_update_comment_counts( $post_ids = null ) {
 	/**
 	 * Filters how many posts wp_update_comment_counts() recalculates per batch.
 	 *
-	 * Lower it to spread a large recount over shorter queries, or raise it to trade
-	 * memory for fewer round trips.
-	 *
-	 * @since 7.1.0
+	 * @since 7.2.0
 	 *
 	 * @param int $batch_size Number of posts to look up per query. Default 1000.
 	 */
@@ -3543,16 +3522,10 @@ function wp_update_comment_counts( $post_ids = null ) {
 	}
 
 	/*
-	 * Visit every post that has at least one comment row, plus every post with
-	 * a nonzero stored count (whose comment rows may all have been deleted), in
-	 * keyset batches so the full ID list is never materialized in memory.
-	 *
-	 * Each arm carries its own ORDER BY and LIMIT. MySQL cannot push the outer
-	 * ones into a parenthesized UNION arm, so without them every iteration
-	 * materializes all remaining rows into a temp table before taking a batch,
-	 * and the posts arm scans the whole remaining table because comment_count is
-	 * unindexed. Limiting the arms is safe: the first N rows of the union of two
-	 * ascending sets are always among the first N of each.
+	 * Visit posts with comment rows plus posts with a nonzero stored count, in
+	 * keyset batches. Each union arm needs its own ORDER BY and LIMIT because
+	 * MySQL does not push the outer ones into the arms. The first N rows of the
+	 * union of two ascending sets are always among the first N of each.
 	 */
 	$last_post_id = 0;
 
