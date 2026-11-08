@@ -793,7 +793,7 @@ function get_comment_type_capabilities( object $args ): stdClass {
  * Only `edit_comment`, `delete_comment`, and `moderate_comment` are stored.
  * Names already registered as post type meta capabilities are skipped.
  *
- * @since 7.2.0
+ * @since 7.3.0
  * @access private
  *
  * @global array<string, string> $comment_type_meta_caps Used to store comment type meta capabilities.
@@ -819,7 +819,7 @@ function _comment_type_meta_capabilities( array $capabilities ): void {
 					__( 'The meta capability "%s" is already registered for a post type and cannot be reused for a comment type.' ),
 					$custom
 				),
-				'7.2.0'
+				'7.3.0'
 			);
 			continue;
 		}

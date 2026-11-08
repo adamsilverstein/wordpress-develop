@@ -34,7 +34,7 @@
  *              `edit_app_password`, `delete_app_passwords`, `delete_app_password`,
  *              and `update_https` capabilities.
  * @since 6.7.0 Added the `edit_block_binding` capability.
- * @since 7.2.0 Added the `delete_comment` and `moderate_comment` meta capabilities
+ * @since 7.3.0 Added the `delete_comment` and `moderate_comment` meta capabilities
  *              and support for registered comment type capabilities.
  *
  * @global array                 $post_type_meta_caps    Used to get post type meta capabilities.
@@ -564,7 +564,7 @@ function map_meta_cap( $cap, $user_id, ...$args ) {
 				_doing_it_wrong(
 					__FUNCTION__,
 					sprintf( $message, '<code>' . $cap . '</code>' ),
-					'edit_comment' === $cap ? '6.1.0' : '7.2.0'
+					'edit_comment' === $cap ? '6.1.0' : '7.3.0'
 				);
 
 				$caps[] = 'do_not_allow';
