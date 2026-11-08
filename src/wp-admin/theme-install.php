@@ -10,7 +10,7 @@
 require_once __DIR__ . '/admin.php';
 require ABSPATH . 'wp-admin/includes/theme-install.php';
 
-wp_reset_vars( array( 'tab' ) );
+$tab = ! empty( $_REQUEST['tab'] ) ? sanitize_text_field( $_REQUEST['tab'] ) : '';
 
 if ( ! current_user_can( 'install_themes' ) ) {
 	wp_die( __( 'Sorry, you are not allowed to install themes on this site.' ) );
@@ -54,9 +54,8 @@ wp_localize_script(
 			'adminUrl'   => parse_url( self_admin_url(), PHP_URL_PATH ),
 		),
 		'l10n'            => array(
-			'addNew'              => __( 'Add New Theme' ),
+			'addNew'              => __( 'Add Theme' ),
 			'search'              => __( 'Search Themes' ),
-			'searchPlaceholder'   => __( 'Search themes...' ), // Placeholder (no ellipsis).
 			'upload'              => __( 'Upload Theme' ),
 			'back'                => __( 'Back' ),
 			'error'               => sprintf(
@@ -183,9 +182,14 @@ require_once ABSPATH . 'wp-admin/admin-header.php';
 
 	<hr class="wp-header-end">
 
-	<div class="error hide-if-js">
-		<p><?php _e( 'The Theme Installer screen requires JavaScript.' ); ?></p>
-	</div>
+	<?php
+	wp_admin_notice(
+		__( 'The Theme Installer screen requires JavaScript.' ),
+		array(
+			'additional_classes' => array( 'error', 'hide-if-js' ),
+		)
+	);
+	?>
 
 	<div class="upload-theme">
 	<?php install_themes_upload(); ?>
@@ -212,7 +216,7 @@ require_once ABSPATH . 'wp-admin/admin-header.php';
 
 		<button type="button" class="button drawer-toggle" aria-expanded="false"><?php _e( 'Feature Filter' ); ?></button>
 
-		<form class="search-form"></form>
+		<form class="search-form"><p class="search-box"></p></form>
 
 		<div class="favorites-form">
 			<?php
@@ -226,7 +230,7 @@ require_once ABSPATH . 'wp-admin/admin-header.php';
 			?>
 			<p class="install-help"><?php _e( 'If you have marked themes as favorites on WordPress.org, you can browse them here.' ); ?></p>
 
-			<p>
+			<p class="favorites-username">
 				<label for="wporg-username-input"><?php _e( 'Your WordPress.org username:' ); ?></label>
 				<input type="hidden" id="wporg-username-nonce" name="_wpnonce" value="<?php echo esc_attr( wp_create_nonce( $action ) ); ?>" />
 				<input type="search" id="wporg-username-input" value="<?php echo esc_attr( $user ); ?>" />
@@ -318,7 +322,15 @@ if ( $tab ) {
 	<# } #>
 
 	<# if ( data.installed ) { #>
-		<div class="notice notice-success notice-alt"><p><?php _ex( 'Installed', 'theme' ); ?></p></div>
+		<?php
+		wp_admin_notice(
+			_x( 'Installed', 'theme' ),
+			array(
+				'type'               => 'success',
+				'additional_classes' => array( 'notice-alt' ),
+			)
+		);
+		?>
 	<# } #>
 
 	<# if ( ! data.compatible_wp || ! data.compatible_php ) { #>
@@ -410,7 +422,7 @@ if ( $tab ) {
 							<a class="button load-customize" href="{{ data.customize_url }}"><?php _e( 'Customize' ); ?></a>
 						<# } #>
 					<# } else { #>
-						<button class="button preview install-theme-preview"><?php _e( 'Preview' ); ?></button>
+						<button class="button preview install-theme-preview"><?php echo esc_html_x( 'Preview', 'verb' ); ?></button>
 					<# } #>
 				<# } else { #>
 					<?php
@@ -423,7 +435,7 @@ if ( $tab ) {
 					<# if ( data.customize_url ) { #>
 						<a class="button disabled"><?php _e( 'Live Preview' ); ?></a>
 					<# } else { #>
-						<button class="button disabled"><?php _e( 'Preview' ); ?></button>
+						<button class="button disabled"><?php echo esc_html_x( 'Preview', 'verb' ); ?></button>
 					<# } #>
 				<# } #>
 			<# } else { #>
@@ -433,14 +445,14 @@ if ( $tab ) {
 					$aria_label = sprintf( _x( 'Install %s', 'theme' ), '{{ data.name }}' );
 					?>
 					<a class="button button-primary theme-install" data-name="{{ data.name }}" data-slug="{{ data.id }}" href="{{ data.install_url }}" aria-label="<?php echo esc_attr( $aria_label ); ?>"><?php _e( 'Install' ); ?></a>
-					<button class="button preview install-theme-preview"><?php _e( 'Preview' ); ?></button>
+					<button class="button preview install-theme-preview"><?php echo esc_html_x( 'Preview', 'verb' ); ?></button>
 				<# } else { #>
 					<?php
 					/* translators: %s: Theme name. */
 					$aria_label = sprintf( _x( 'Cannot Install %s', 'theme' ), '{{ data.name }}' );
 					?>
 					<a class="button button-primary disabled" data-name="{{ data.name }}" aria-label="<?php echo esc_attr( $aria_label ); ?>"><?php _ex( 'Cannot Install', 'theme' ); ?></a>
-					<button class="button disabled"><?php _e( 'Preview' ); ?></button>
+					<button class="button disabled"><?php echo esc_html_x( 'Preview', 'verb' ); ?></button>
 				<# } #>
 			<# } #>
 		</div>
@@ -475,18 +487,18 @@ if ( $tab ) {
 					$aria_label = sprintf( _x( 'Activate %s', 'theme' ), '{{ data.name }}' );
 					?>
 					<# if ( ! data.active ) { #>
-						<a class="button button-primary activate" href="{{ data.activate_url }}" aria-label="<?php echo esc_attr( $aria_label ); ?>"><?php _e( 'Activate' ); ?></a>
+						<a class="button button-primary button-compact activate" href="{{ data.activate_url }}" aria-label="<?php echo esc_attr( $aria_label ); ?>"><?php _e( 'Activate' ); ?></a>
 					<# } else { #>
-						<button class="button button-primary disabled"><?php _ex( 'Activated', 'theme' ); ?></button>
+						<button class="button button-primary button-compact disabled"><?php _ex( 'Activated', 'theme' ); ?></button>
 					<# } #>
 				<# } else { #>
-					<a class="button button-primary disabled" ><?php _ex( 'Cannot Activate', 'theme' ); ?></a>
+					<a class="button button-primary button-compact disabled" ><?php _ex( 'Cannot Activate', 'theme' ); ?></a>
 				<# } #>
 			<# } else { #>
 				<# if ( data.compatible_wp && data.compatible_php ) { #>
-					<a href="{{ data.install_url }}" class="button button-primary theme-install" data-name="{{ data.name }}" data-slug="{{ data.id }}"><?php _e( 'Install' ); ?></a>
+					<a href="{{ data.install_url }}" class="button button-primary button-compact theme-install" data-name="{{ data.name }}" data-slug="{{ data.id }}"><?php _e( 'Install' ); ?></a>
 				<# } else { #>
-					<a class="button button-primary disabled" ><?php _ex( 'Cannot Install', 'theme' ); ?></a>
+					<a class="button button-primary button-compact disabled" ><?php _ex( 'Cannot Install', 'theme' ); ?></a>
 				<# } #>
 			<# } #>
 		</div>
@@ -587,13 +599,13 @@ if ( $tab ) {
 			</div>
 			<div class="wp-full-overlay-footer">
 				<button type="button" class="collapse-sidebar button" aria-expanded="true" aria-label="<?php esc_attr_e( 'Collapse Sidebar' ); ?>">
-					<span class="collapse-sidebar-arrow"></span>
+					<span class="collapse-sidebar-arrow" aria-hidden="true"></span>
 					<span class="collapse-sidebar-label"><?php _e( 'Collapse' ); ?></span>
 				</button>
 			</div>
 		</div>
 		<div class="wp-full-overlay-main">
-		<iframe src="{{ data.preview_url }}" title="<?php esc_attr_e( 'Preview' ); ?>"></iframe>
+		<iframe src="{{ data.preview_url }}" title="<?php echo esc_attr_x( 'Preview', 'noun' ); ?>"></iframe>
 	</div>
 </script>
 

@@ -13,6 +13,10 @@
  * It allows for WordPress to upgrade itself in combination with
  * the wp-admin/includes/update-core.php file.
  *
+ * Note: Newly introduced functions and methods cannot be used here.
+ * All functions must be present in the previous version being upgraded from
+ * as this file is used there too.
+ *
  * @since 2.8.0
  * @since 4.6.0 Moved to its own file from wp-admin/includes/class-wp-upgrader.php.
  *
@@ -44,7 +48,7 @@ class Core_Upgrader extends WP_Upgrader {
 	 * @since 2.8.0
 	 *
 	 * @global WP_Filesystem_Base $wp_filesystem                WordPress filesystem subclass.
-	 * @global callable           $_wp_filesystem_direct_method
+	 * @global callable           $_wp_filesystem_direct_method Filesystem direct method callback.
 	 *
 	 * @param object $current Response object for whether WordPress is current.
 	 * @param array  $args {
@@ -121,10 +125,12 @@ class Core_Upgrader extends WP_Upgrader {
 			return new WP_Error( 'locked', $this->strings['locked'] );
 		}
 
-		$download = $this->download_package( $current->packages->$to_download, true );
+		$download = $this->download_package( $current->packages->$to_download, false );
 
-		// Allow for signature soft-fail.
-		// WARNING: This may be removed in the future.
+		/*
+		 * Allow for signature soft-fail.
+		 * WARNING: This may be removed in the future.
+		 */
 		if ( is_wp_error( $download ) && $download->get_error_data( 'softfail-filename' ) ) {
 			// Output the failure error as a normal feedback, and not as an error:
 			/** This filter is documented in wp-admin/includes/update-core.php */
@@ -181,9 +187,9 @@ class Core_Upgrader extends WP_Upgrader {
 				 * mkdir_failed__copy_dir, copy_failed__copy_dir_retry, and disk_full.
 				 * do_rollback allows for update_core() to trigger a rollback if needed.
 				 */
-				if ( false !== strpos( $error_code, 'do_rollback' ) ) {
+				if ( str_contains( $error_code, 'do_rollback' ) ) {
 					$try_rollback = true;
-				} elseif ( false !== strpos( $error_code, '__copy_dir' ) ) {
+				} elseif ( str_contains( $error_code, '__copy_dir' ) ) {
 					$try_rollback = true;
 				} elseif ( 'disk_full' === $error_code ) {
 					$try_rollback = true;
@@ -323,7 +329,7 @@ class Core_Upgrader extends WP_Upgrader {
 			}
 
 			// Don't claim we can update on update-core.php if we have a non-critical failure logged.
-			if ( $wp_version === $failure_data['current'] && false !== strpos( $offered_ver, '.1.next.minor' ) ) {
+			if ( $wp_version === $failure_data['current'] && str_contains( $offered_ver, '.1.next.minor' ) ) {
 				return false;
 			}
 
@@ -397,7 +403,7 @@ class Core_Upgrader extends WP_Upgrader {
 	public function check_files() {
 		global $wp_version, $wp_local_package;
 
-		$checksums = get_core_checksums( $wp_version, isset( $wp_local_package ) ? $wp_local_package : 'en_US' );
+		$checksums = get_core_checksums( $wp_version, $wp_local_package ?? 'en_US' );
 
 		if ( ! is_array( $checksums ) ) {
 			return false;
@@ -405,7 +411,7 @@ class Core_Upgrader extends WP_Upgrader {
 
 		foreach ( $checksums as $file => $checksum ) {
 			// Skip files which get updated.
-			if ( 'wp-content' === substr( $file, 0, 10 ) ) {
+			if ( str_starts_with( $file, 'wp-content' ) ) {
 				continue;
 			}
 			if ( ! file_exists( ABSPATH . $file ) || md5_file( ABSPATH . $file ) !== $checksum ) {

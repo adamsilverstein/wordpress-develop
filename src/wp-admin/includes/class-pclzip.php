@@ -48,7 +48,7 @@
   // 0 : PclZip Class integrated error handling
   // 1 : PclError external library error handling. By enabling this
   //     you must ensure that you have included PclError library.
-  // [2,...] : reserved for futur use
+  // [2,...] : reserved for future use
   if (!defined('PCLZIP_ERROR_EXTERNAL')) {
     define( 'PCLZIP_ERROR_EXTERNAL', 0 );
   }
@@ -166,7 +166,7 @@
   define( 'PCLZIP_CB_POST_EXTRACT', 78002 );
   define( 'PCLZIP_CB_PRE_ADD', 78003 );
   define( 'PCLZIP_CB_POST_ADD', 78004 );
-  /* For futur use
+  /* For future use
   define( 'PCLZIP_CB_PRE_LIST', 78005 );
   define( 'PCLZIP_CB_POST_LIST', 78006 );
   define( 'PCLZIP_CB_PRE_DELETE', 78007 );
@@ -296,7 +296,7 @@
       $v_size--;
 
       // ----- Look for first arg
-      if ((is_integer($v_arg_list[0])) && ($v_arg_list[0] > 77000)) {
+      if ((is_int($v_arg_list[0])) && ($v_arg_list[0] > 77000)) {
 
         // ----- Parse the options
         $v_result = $this->privParseOptions($v_arg_list, $v_size, $v_options,
@@ -479,7 +479,7 @@
       $v_size--;
 
       // ----- Look for first arg
-      if ((is_integer($v_arg_list[0])) && ($v_arg_list[0] > 77000)) {
+      if ((is_int($v_arg_list[0])) && ($v_arg_list[0] > 77000)) {
 
         // ----- Parse the options
         $v_result = $this->privParseOptions($v_arg_list, $v_size, $v_options,
@@ -732,7 +732,7 @@
       $v_arg_list = func_get_args();
 
       // ----- Look for first arg
-      if ((is_integer($v_arg_list[0])) && ($v_arg_list[0] > 77000)) {
+      if ((is_int($v_arg_list[0])) && ($v_arg_list[0] > 77000)) {
 
         // ----- Parse the options
         $v_result = $this->privParseOptions($v_arg_list, $v_size, $v_options,
@@ -893,7 +893,7 @@
       $v_size--;
 
       // ----- Look for first arg
-      if ((is_integer($v_arg_list[0])) && ($v_arg_list[0] > 77000)) {
+      if ((is_int($v_arg_list[0])) && ($v_arg_list[0] > 77000)) {
 
         // ----- Parse the options
         $v_result = $this->privParseOptions($v_arg_list, $v_size, $v_options,
@@ -1364,12 +1364,12 @@
   // Function : privCheckFormat()
   // Description :
   //   This method check that the archive exists and is a valid zip archive.
-  //   Several level of check exists. (futur)
+  //   Several level of check exists. (future)
   // Parameters :
   //   $p_level : Level of check. Default 0.
   //              0 : Check the first bytes (magic codes) (default value))
-  //              1 : 0 + Check the central directory (futur)
-  //              2 : 1 + Check each file header (futur)
+  //              1 : 0 + Check the central directory (future)
+  //              2 : 1 + Check each file header (future)
   // Return Values :
   //   true on success,
   //   false on error, the error code is set.
@@ -1479,7 +1479,7 @@
 
           // ----- Check the value
           $v_value = $p_options_list[$i+1];
-          if ((!is_integer($v_value)) || ($v_value<0)) {
+          if ((!is_int($v_value)) || ($v_value<0)) {
             PclZip::privErrorLog(PCLZIP_ERR_INVALID_OPTION_VALUE, "Integer expected for option '".PclZipUtilOptionText($p_options_list[$i])."'");
             return PclZip::errorCode();
           }
@@ -1646,7 +1646,7 @@
               // ----- Parse items
               $v_work_list = explode(",", $p_options_list[$i+1]);
           }
-          else if (is_integer($p_options_list[$i+1])) {
+          else if (is_int($p_options_list[$i+1])) {
               $v_work_list[0] = $p_options_list[$i+1].'-'.$p_options_list[$i+1];
           }
           else if (is_array($p_options_list[$i+1])) {
@@ -1748,7 +1748,7 @@
         case PCLZIP_CB_POST_EXTRACT :
         case PCLZIP_CB_PRE_ADD :
         case PCLZIP_CB_POST_ADD :
-        /* for futur use
+        /* for future use
         case PCLZIP_CB_PRE_DELETE :
         case PCLZIP_CB_POST_DELETE :
         case PCLZIP_CB_PRE_LIST :
@@ -1854,7 +1854,7 @@
     $p_options[PCLZIP_OPT_TEMP_FILE_THRESHOLD] = floor($v_memory_limit_int*PCLZIP_TEMPORARY_FILE_RATIO);
 
 
-    // ----- Sanity check : No threshold if value lower than 1M
+    // ----- Confidence check : No threshold if value lower than 1M
     if ($p_options[PCLZIP_OPT_TEMP_FILE_THRESHOLD] < 1048576) {
       unset($p_options[PCLZIP_OPT_TEMP_FILE_THRESHOLD]);
     }
@@ -1944,7 +1944,7 @@
         break;
 
         case PCLZIP_ATT_FILE_MTIME :
-          if (!is_integer($v_value)) {
+          if (!is_int($v_value)) {
             PclZip::privErrorLog(PCLZIP_ERR_INVALID_ATTRIBUTE_VALUE, "Invalid type ".gettype($v_value).". Integer expected for attribute '".PclZipUtilOptionText($v_key)."'");
             return PclZip::errorCode();
           }
@@ -5714,7 +5714,7 @@
   // --------------------------------------------------------------------------------
   function PclZipUtilTranslateWinPath($p_path, $p_remove_disk_letter=true)
   {
-    if (stristr(php_uname(), 'windows')) {
+    if (PHP_OS_FAMILY == 'Windows') {
       // ----- Look for potential disk letter
       if (($p_remove_disk_letter) && (($v_position = strpos($p_path, ':')) != false)) {
           $p_path = substr($p_path, $v_position+1);

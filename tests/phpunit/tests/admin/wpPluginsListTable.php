@@ -19,24 +19,64 @@ class Tests_Admin_wpPluginsListTable extends WP_UnitTestCase {
 	private static $admin_id;
 
 	/**
-	 * Creates an admin user before any tests run.
+	 * The original value of the `$s` global.
+	 *
+	 * @var string|null
+	 */
+	private static $original_s;
+
+	/**
+	 * @var array
+	 */
+	public $fake_plugin = array(
+		'fake-plugin.php' => array(
+			'Name'        => 'Fake Plugin',
+			'PluginURI'   => 'https://wordpress.org/',
+			'Version'     => '1.0.0',
+			'Description' => 'A fake plugin for testing.',
+			'Author'      => 'WordPress',
+			'AuthorURI'   => 'https://wordpress.org/',
+			'TextDomain'  => 'fake-plugin',
+			'DomainPath'  => '/languages',
+			'Network'     => false,
+			'Title'       => 'Fake Plugin',
+			'AuthorName'  => 'WordPress',
+		),
+	);
+
+	/**
+	 * Creates an admin user before any tests run and backs up the `$s` global.
 	 */
 	public static function set_up_before_class() {
+		global $s;
+
 		parent::set_up_before_class();
 
-		self::$admin_id = self::factory()->user->create(
+		self::$admin_id   = self::factory()->user->create(
 			array(
 				'role'       => 'administrator',
 				'user_login' => 'test_wp_plugins_list_table',
 				'user_pass'  => 'password',
-				'user_email' => 'testadmin@test.com',
+				'user_email' => 'testadmin@example.com',
 			)
 		);
+		self::$original_s = $s;
 	}
 
 	public function set_up() {
 		parent::set_up();
 		$this->table = _get_list_table( 'WP_Plugins_List_Table', array( 'screen' => 'plugins' ) );
+	}
+
+	/**
+	 * Restores the `$s` global after each test.
+	 */
+	public function tear_down() {
+		global $s;
+
+		$s = self::$original_s;
+
+		parent::tear_down();
 	}
 
 	/**
@@ -97,7 +137,7 @@ class Tests_Admin_wpPluginsListTable extends WP_UnitTestCase {
 	 * @param string $status The value for $_REQUEST['plugin_status'].
 	 */
 	public function test_construct_should_not_set_show_autoupdates_to_false_for_mustuse_and_dropins( $status ) {
-		$original_status           = isset( $_REQUEST['plugin_status'] ) ? $_REQUEST['plugin_status'] : null;
+		$original_status           = $_REQUEST['plugin_status'] ?? null;
 		$_REQUEST['plugin_status'] = $status;
 
 		// Enable plugin auto-updates.
@@ -109,9 +149,13 @@ class Tests_Admin_wpPluginsListTable extends WP_UnitTestCase {
 		$list_table       = new WP_Plugins_List_Table();
 		$show_autoupdates = new ReflectionProperty( $list_table, 'show_autoupdates' );
 
-		$show_autoupdates->setAccessible( true );
+		if ( PHP_VERSION_ID < 80100 ) {
+			$show_autoupdates->setAccessible( true );
+		}
 		$actual = $show_autoupdates->getValue( $list_table );
-		$show_autoupdates->setAccessible( false );
+		if ( PHP_VERSION_ID < 80100 ) {
+			$show_autoupdates->setAccessible( false );
+		}
 
 		$_REQUEST['plugin_status'] = $original_status;
 
@@ -252,5 +296,45 @@ class Tests_Admin_wpPluginsListTable extends WP_UnitTestCase {
 			'Must-Use' => array( 'mustuse' ),
 			'Drop-ins' => array( 'dropins' ),
 		);
+	}
+
+	/**
+	 * Tests that WP_Plugins_List_Table::prepare_items()
+	 * applies 'plugins_list' filters.
+	 *
+	 * @ticket 57278
+	 *
+	 * @covers WP_Plugins_List_Table::prepare_items
+	 */
+	public function test_plugins_list_filter() {
+		global $status, $s;
+
+		$old_status = $status;
+		$status     = 'mustuse';
+		$s          = '';
+
+		add_filter( 'plugins_list', array( $this, 'plugins_list_filter' ), 10, 1 );
+		$this->table->prepare_items();
+		$plugins = $this->table->items;
+		remove_filter( 'plugins_list', array( $this, 'plugins_list_filter' ), 10 );
+
+		// Restore to default.
+		$status = $old_status;
+		$this->table->prepare_items();
+
+		$this->assertSame( $plugins, $this->fake_plugin );
+	}
+
+	/**
+	 * Adds a fake plugin to an array of plugins.
+	 *
+	 * Used as a callback for the 'plugins_list' hook.
+	 *
+	 * @return array
+	 */
+	public function plugins_list_filter( $plugins_list ) {
+		$plugins_list['mustuse'] = $this->fake_plugin;
+
+		return $plugins_list;
 	}
 }
