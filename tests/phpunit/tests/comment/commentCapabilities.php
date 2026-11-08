@@ -449,4 +449,25 @@ class Tests_Comment_CommentCapabilities extends WP_UnitTestCase {
 		$this->assertSame( 'moderate_comment', ( (array) $comment_type_meta_caps )['moderate_book'] ?? null );
 	}
 
+	/**
+	 * A non-string capability name is ignored rather than stored as a translation.
+	 *
+	 * @ticket 35214
+	 *
+	 * @covers ::get_comment_type_capabilities
+	 */
+	public function test_non_string_meta_cap_name_is_not_stored(): void {
+		global $comment_type_meta_caps;
+
+		$before = (array) $comment_type_meta_caps;
+
+		get_comment_type_capabilities(
+			(object) array(
+				'capability_type' => 'comment',
+				'capabilities'    => array( 'edit_comment' => array( 'edit_odd' ) ),
+			)
+		);
+
+		$this->assertSame( $before, (array) $comment_type_meta_caps );
+	}
 }

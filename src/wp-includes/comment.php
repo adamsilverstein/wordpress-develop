@@ -569,8 +569,8 @@ function register_comment_type( $comment_type, $args = array() ) {
  *
  * @since 7.2.0
  *
- * @global WP_Comment_Type[] $wp_comment_types       List of comment types.
- * @global array             $comment_type_meta_caps Used to remove meta capabilities.
+ * @global WP_Comment_Type[]     $wp_comment_types       List of comment types.
+ * @global array<string, string> $comment_type_meta_caps Used to remove meta capabilities.
  *
  * @param string $comment_type Comment type key.
  * @return true|WP_Error True on success, WP_Error on failure or if the comment type doesn't exist.
@@ -589,9 +589,10 @@ function unregister_comment_type( $comment_type ) {
 		return new WP_Error( 'invalid_comment_type', __( 'Unregistering a built-in comment type is not allowed.' ) );
 	}
 
-	// Remove custom meta capabilities registered for this comment type.
 	foreach ( (array) $comment_type_object->cap as $custom_cap ) {
-		unset( $comment_type_meta_caps[ $custom_cap ] );
+		if ( is_string( $custom_cap ) ) {
+			unset( $comment_type_meta_caps[ $custom_cap ] );
+		}
 	}
 
 	unset( $wp_comment_types[ $comment_type ] );
@@ -743,30 +744,22 @@ function get_comment_type_labels( $comment_type_object ) {
  * Comment type capabilities use the `capability_type` argument as a base, if
  * the capability is not set in the `capabilities` argument.
  *
- * This is modeled on {@see get_post_type_capabilities()}. By default the
- * capability model is the historical one: edit and delete permission for a
- * comment derives from the comment's parent post, and moderation requires the
- * global `moderate_comments` capability. Overriding a singular meta capability -
- * for example registering with `capability_type => 'review'`, or passing a
- * custom `edit_comment` name in `capabilities` - opts that action into the
- * independent model: {@see map_meta_cap()} then requires the type's
- * corresponding plural primitive capabilities (e.g. `edit_reviews`,
- * `edit_others_reviews`), which exist in no role by default. As with custom
- * post type capabilities, the plugin registering the type must grant those
- * primitives to roles, typically on activation.
+ * This is modeled on {@see get_post_type_capabilities()}. By default, editing and
+ * deleting a comment derive from its parent post, and moderating requires
+ * `moderate_comments`. When a type overrides a singular meta capability, for
+ * example with `capability_type => 'review'`, {@see map_meta_cap()} instead
+ * requires the matching plural primitive (e.g. `edit_reviews`). No role has
+ * these by default; the plugin registering the type must grant them.
  *
  * The capability strings are built from the `capability_type` argument, which may
  * be a string or an array. When a string, the plural is created by appending an
  * 's'. When an array, the first element is the singular base and the second the
  * plural base, e.g. array( 'story', 'stories' ).
  *
- * Warning: The two models can mix per action. Registering with the default
- * `capability_type` of 'comment' but a `capabilities` array of
- * `array( 'edit_comment' => 'edit_my_comment' )` flips only editing to the
- * independent model, gated by the generated `edit_comments` primitive - which
- * no default role has. Similarly, an empty `capability_type` produces
- * capabilities such as `edit_` and `edit_s` that lock everyone out; the value
- * is not validated, matching register_post_type().
+ * The choice is per action: overriding only `edit_comment` gates editing by
+ * the type's `edit_comments` primitive while deletion still follows the parent
+ * post. An empty `capability_type` is not validated and produces capabilities
+ * such as `edit_` that no one has, matching register_post_type().
  *
  * Note: With the default `capability_type` of 'comment', most of the generated
  * primitive capabilities (`edit_comments`, `edit_others_comments`,
@@ -776,16 +769,9 @@ function get_comment_type_labels( $comment_type_object ) {
  * capabilities together with a comment ID instead of testing those primitives
  * directly.
  *
- * Note: In this release, `edit_comment` on the default 'comment' base is the
- * only generated capability that map_meta_cap() resolves. The remaining meta
- * capabilities, and every capability generated from a custom base, are treated
- * as primitives: a check requires the literal capability, which no default role
- * grants, so it denies everyone until comment type capability mapping is added.
- *
  * Note: The "others" axis is deliberately edit-only for now: `edit_others_comments`
  * is generated with no `delete_others_comments` counterpart, unlike the post type
- * pairing. A delete counterpart can be added compatibly once the enforcement
- * follow-up settles which primitives the moderation flows actually consult.
+ * pairing. A delete counterpart can be added compatibly later.
  *
  * Note: Do not reuse a post type's `capability_type` as a comment type base.
  * A base of 'post' generates `edit_comment => 'edit_post'`, which map_meta_cap()
@@ -832,7 +818,7 @@ function get_comment_type_capabilities( $args ) {
 		'edit_comment'         => 'edit_' . $singular_base,
 		'delete_comment'       => 'delete_' . $singular_base,
 		'moderate_comment'     => 'moderate_' . $singular_base,
-		// Primitive capabilities used outside of map_meta_cap().
+		// Primitive capabilities.
 		'edit_comments'        => 'edit_' . $plural_base,
 		'edit_others_comments' => 'edit_others_' . $plural_base,
 		'delete_comments'      => 'delete_' . $plural_base,
@@ -841,41 +827,32 @@ function get_comment_type_capabilities( $args ) {
 
 	$capabilities = array_merge( $default_capabilities, $args->capabilities );
 
-	$capabilities = (object) $capabilities;
-
-	// Remember custom meta capabilities so map_meta_cap() can translate them.
 	_comment_type_meta_capabilities( $capabilities );
 
-	return $capabilities;
+	return (object) $capabilities;
 }
 
 /**
- * Stores a list of comment type meta capabilities for map_meta_cap().
+ * Stores custom comment type meta capability names for map_meta_cap().
  *
- * Only the singular meta capabilities that map_meta_cap() can translate are
- * remembered: `edit_comment`, `delete_comment`, and `moderate_comment`.
- * `read_comment` is excluded until a corresponding case exists in
- * map_meta_cap(). Identity mappings (a custom name equal to the generic name)
- * are skipped, as are names already registered as post type meta capabilities,
- * which take precedence in map_meta_cap().
+ * Only `edit_comment`, `delete_comment`, and `moderate_comment` are stored.
+ * Names already registered as post type meta capabilities are skipped.
  *
- * @since 7.1.0
+ * @since 7.2.0
  * @access private
  *
- * @global array $comment_type_meta_caps Used to store comment type meta capabilities.
- * @global array $post_type_meta_caps    Post type meta capabilities, checked for collisions.
+ * @global array<string, string> $comment_type_meta_caps Used to store comment type meta capabilities.
+ * @global array<string, string> $post_type_meta_caps    Post type meta capabilities, checked for collisions.
  *
- * @param object $capabilities Comment type capabilities object.
+ * @param array<mixed> $capabilities Comment type capabilities, keyed by generic capability name.
  */
-function _comment_type_meta_capabilities( $capabilities ) {
+function _comment_type_meta_capabilities( array $capabilities ): void {
 	global $comment_type_meta_caps, $post_type_meta_caps;
 
-	foreach ( (array) $capabilities as $core => $custom ) {
-		if ( ! in_array( $core, array( 'edit_comment', 'delete_comment', 'moderate_comment' ), true ) ) {
-			continue;
-		}
+	foreach ( array( 'edit_comment', 'delete_comment', 'moderate_comment' ) as $core ) {
+		$custom = $capabilities[ $core ] ?? null;
 
-		if ( $core === $custom ) {
+		if ( ! is_string( $custom ) || $core === $custom ) {
 			continue;
 		}
 
@@ -887,7 +864,7 @@ function _comment_type_meta_capabilities( $capabilities ) {
 					__( 'The meta capability "%s" is already registered for a post type and cannot be reused for a comment type.' ),
 					$custom
 				),
-				'7.1.0'
+				'7.2.0'
 			);
 			continue;
 		}
