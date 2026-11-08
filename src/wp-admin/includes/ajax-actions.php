@@ -926,7 +926,7 @@ function wp_ajax_delete_page( $action ) {
  * Handles dimming a comment via AJAX.
  *
  * @since 3.1.0
- * @since 7.2.0 Moderators are checked with the `moderate_comment` meta capability.
+ * @since 7.3.0 Moderators are checked with the `moderate_comment` meta capability.
  */
 function wp_ajax_dim_comment() {
 	$id      = isset( $_POST['id'] ) ? (int) $_POST['id'] : 0;
