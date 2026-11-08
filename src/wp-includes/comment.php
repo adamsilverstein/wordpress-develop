@@ -434,23 +434,32 @@ function create_initial_comment_types(): void {
  * @param array|string $args {
  *     Optional. Array or string of arguments for registering a comment type. Default empty array.
  *
- *     @type string     $label       Name of the comment type. Usually plural.
- *                                   Default is the value of $labels['name'].
- *     @type string[]   $labels      An array of labels for this comment type. If not set, the
- *                                   default comment labels are used. See get_comment_type_labels()
- *                                   for a full list of supported labels.
- *     @type string     $description A short descriptive summary of what the comment type is.
- *                                   Default empty.
- *     @type bool       $public      Whether the comment type is intended for use publicly either via
- *                                   the admin interface or by front-end users. Core does not
- *                                   currently act on this argument. Default true.
- *     @type bool       $internal    Whether the comment type is for internal use only. Internal
- *                                   types are meant to be excluded from comment queries and counts
- *                                   by default. Core does not currently act on this argument.
- *                                   Default false.
- *     @type bool       $_builtin    For internal core use only. Marks the type as native to
- *                                   WordPress, which blocks it from being re-registered or
- *                                   unregistered. Default false.
+ *     @type string        $label           Name of the comment type. Usually plural.
+ *                                          Default is the value of $labels['name'].
+ *     @type string[]      $labels          An array of labels for this comment type. If not set, the
+ *                                          default comment labels are used. See
+ *                                          get_comment_type_labels() for a full list of supported
+ *                                          labels.
+ *     @type string        $description     A short descriptive summary of what the comment type is.
+ *                                          Default empty.
+ *     @type bool          $public          Whether the comment type is intended for use publicly
+ *                                          either via the admin interface or by front-end users.
+ *                                          Core does not currently act on this argument.
+ *                                          Default true.
+ *     @type bool          $internal        Whether the comment type is for internal use only.
+ *                                          Internal types are meant to be excluded from comment
+ *                                          queries and counts by default. Core does not currently
+ *                                          act on this argument.
+ *                                          Default false.
+ *     @type string|array  $capability_type The base used to build the edit, delete, and moderate
+ *                                          capabilities. May be an array of singular and plural
+ *                                          bases, e.g. array( 'story', 'stories' ). Default 'comment'.
+ *     @type string[]      $capabilities    Capabilities for this comment type, overriding those built
+ *                                          from $capability_type. Advisory only; core does not
+ *                                          enforce them. See get_comment_type_capabilities().
+ *     @type bool          $_builtin        For internal core use only. Marks the type as native to
+ *                                          WordPress, which blocks it from being re-registered or
+ *                                          unregistered. Default false.
  * }
  * @return WP_Comment_Type|WP_Error The registered comment type object on success,
  *                                  WP_Error object on failure.
@@ -641,7 +650,7 @@ function comment_type_exists( $comment_type ) {
  * @since 7.3.0
  *
  * @param WP_Comment_Type $comment_type_object Comment type object.
- * @return stdClass {
+ * @return object {
  *     Comment type labels object.
  *
  *     @type string $name          General name for the comment type, usually plural. The same as and
@@ -696,6 +705,70 @@ function get_comment_type_labels( $comment_type_object ) {
 	$labels = (object) array_merge( (array) $default_labels, (array) $labels );
 
 	return $labels;
+}
+
+/**
+ * Builds an object with all comment type capabilities out of a comment type object.
+ *
+ * Capabilities not set in the `capabilities` argument are built from the
+ * `capability_type` argument. A string base is pluralized by appending an 's';
+ * an array supplies the singular and plural bases, e.g. array( 'story', 'stories' ).
+ *
+ * The capabilities are advisory: map_meta_cap() does not consult them yet, and
+ * most of the generated names are not granted to any default role.
+ *
+ * Do not reuse a post type's `capability_type` as the base. A base of 'post'
+ * generates `edit_comment => 'edit_post'`, which map_meta_cap() resolves
+ * against a post with the comment's ID.
+ *
+ * Normalizes the `capability_type` property of `$args` to its array form.
+ *
+ * @since 7.3.0
+ *
+ * @param object $args Comment type registration arguments. Expects the
+ *                     `capability_type` and `capabilities` properties.
+ * @return stdClass {
+ *     Object with all the capabilities as member variables.
+ *
+ *     @type string $edit_comment         Meta capability to edit a comment of this type.
+ *                                        Default 'edit_comment'.
+ *     @type string $delete_comment       Meta capability to delete a comment of this type.
+ *                                        Default 'delete_comment'.
+ *     @type string $moderate_comment     Meta capability to moderate a comment of this type.
+ *                                        Default 'moderate_comment'.
+ *     @type string $edit_comments        Primitive capability to edit comments of this type.
+ *                                        Default 'edit_comments'.
+ *     @type string $edit_others_comments Primitive capability to edit comments of this type
+ *                                        authored by other users. Default 'edit_others_comments'.
+ *     @type string $delete_comments      Primitive capability to delete comments of this type.
+ *                                        Default 'delete_comments'.
+ *     @type string $moderate_comments    Primitive capability to moderate comments of this type.
+ *                                        Default 'moderate_comments'.
+ * }
+ */
+function get_comment_type_capabilities( object $args ): stdClass {
+	if ( ! is_array( $args->capability_type ) ) {
+		$args->capability_type = array( $args->capability_type, $args->capability_type . 's' );
+	}
+
+	// Singular base for meta capabilities, plural base for primitive capabilities.
+	list( $singular_base, $plural_base ) = $args->capability_type;
+
+	$default_capabilities = array(
+		// Meta capabilities.
+		'edit_comment'         => 'edit_' . $singular_base,
+		'delete_comment'       => 'delete_' . $singular_base,
+		'moderate_comment'     => 'moderate_' . $singular_base,
+		// Primitive capabilities.
+		'edit_comments'        => 'edit_' . $plural_base,
+		'edit_others_comments' => 'edit_others_' . $plural_base,
+		'delete_comments'      => 'delete_' . $plural_base,
+		'moderate_comments'    => 'moderate_' . $plural_base,
+	);
+
+	$capabilities = array_merge( $default_capabilities, $args->capabilities );
+
+	return (object) $capabilities;
 }
 
 /**
@@ -1887,7 +1960,7 @@ function wp_check_comment_disallowed_list( $author, $email, $url, $comment, $use
  *
  * @param int $post_id Optional. Restrict the comment counts to the given post. Default 0, which indicates that
  *                     comment counts for the whole site will be retrieved.
- * @return stdClass {
+ * @return object {
  *     The number of comments keyed by their status.
  *
  *     @type int $approved       The number of approved comments.
