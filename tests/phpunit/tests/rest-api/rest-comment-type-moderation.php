@@ -210,6 +210,65 @@ class Tests_REST_Comment_Type_Moderation extends WP_Test_REST_TestCase {
 		$this->assertErrorResponse( 'rest_cannot_edit', $response, 403 );
 	}
 
+	/**
+	 * Dispatches a REST request to move a comment to another post.
+	 *
+	 * @param int $comment_id Comment to move.
+	 * @param int $post_id    Destination post.
+	 * @return WP_REST_Response
+	 */
+	private function dispatch_move( int $comment_id, int $post_id ): WP_REST_Response {
+		$request = new WP_REST_Request( 'POST', '/wp/v2/comments/' . $comment_id );
+		$request->set_param( 'post', $post_id );
+
+		return rest_get_server()->dispatch( $request );
+	}
+
+	/**
+	 * Only the site-wide `moderate_comments` primitive skips the destination
+	 * check, so a type moderator cannot move a comment onto a post they cannot
+	 * edit, such as another user's private post.
+	 *
+	 * @ticket 35214
+	 */
+	public function test_review_moderator_cannot_move_review_comment_to_uneditable_post(): void {
+		$comment_id = $this->make_comment( 'review' );
+		$target_id  = self::factory()->post->create(
+			array(
+				'post_status' => 'private',
+				'post_author' => self::$admin_id,
+			)
+		);
+
+		wp_set_current_user( self::$review_moderator_id );
+
+		$response = $this->dispatch_move( $comment_id, $target_id );
+
+		$this->assertErrorResponse( 'rest_cannot_edit', $response, 403 );
+		$comment = get_comment( $comment_id );
+		$this->assertInstanceOf( WP_Comment::class, $comment );
+		$this->assertSame( (string) self::$post_id, $comment->comment_post_ID, 'The comment should stay on its original post.' );
+	}
+
+	/**
+	 * @ticket 35214
+	 */
+	public function test_review_moderator_can_move_review_comment_to_editable_post(): void {
+		$moderator = self::factory()->user->create_and_get( array( 'role' => 'author' ) );
+		$moderator->add_cap( 'moderate_reviews' );
+		$comment_id = $this->make_comment( 'review' );
+		$target_id  = self::factory()->post->create( array( 'post_author' => $moderator->ID ) );
+
+		wp_set_current_user( $moderator->ID );
+
+		$response = $this->dispatch_move( $comment_id, $target_id );
+
+		$this->assertSame( 200, $response->get_status() );
+		$comment = get_comment( $comment_id );
+		$this->assertInstanceOf( WP_Comment::class, $comment );
+		$this->assertSame( (string) $target_id, $comment->comment_post_ID );
+	}
+
 	/*
 	 * Default capability model: unchanged from historical behavior.
 	 */
@@ -232,6 +291,22 @@ class Tests_REST_Comment_Type_Moderation extends WP_Test_REST_TestCase {
 		wp_set_current_user( self::$global_moderator_id );
 
 		$response = $this->dispatch_delete( $this->make_comment( 'comment' ) );
+
+		$this->assertSame( 200, $response->get_status() );
+	}
+
+	/**
+	 * A site-wide moderator may still move a default comment to any post.
+	 *
+	 * @ticket 35214
+	 */
+	public function test_global_moderator_can_move_default_comment_to_another_post(): void {
+		$comment_id = $this->make_comment( 'comment' );
+		$target_id  = self::factory()->post->create( array( 'post_status' => 'private' ) );
+
+		wp_set_current_user( self::$global_moderator_id );
+
+		$response = $this->dispatch_move( $comment_id, $target_id );
 
 		$this->assertSame( 200, $response->get_status() );
 	}
