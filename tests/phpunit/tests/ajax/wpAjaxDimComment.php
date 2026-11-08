@@ -30,7 +30,7 @@ class Tests_Ajax_wpAjaxDimComment extends WP_Ajax_UnitTestCase {
 	 *
 	 * @var int
 	 */
-	protected $_post_id;
+	protected int $_post_id;
 
 	/**
 	 * Sets up the test fixture.
@@ -256,7 +256,7 @@ class Tests_Ajax_wpAjaxDimComment extends WP_Ajax_UnitTestCase {
 	 * @param string $comment_type Comment type slug.
 	 * @return int The new comment ID.
 	 */
-	private function make_comment( $comment_type ) {
+	private function make_comment( string $comment_type ): int {
 		return self::factory()->comment->create(
 			array(
 				'comment_post_ID'  => $this->_post_id,
@@ -271,7 +271,7 @@ class Tests_Ajax_wpAjaxDimComment extends WP_Ajax_UnitTestCase {
 	 *
 	 * @param int $comment_id Comment to dim.
 	 */
-	private function set_up_dim_request( $comment_id ) {
+	private function set_up_dim_request( int $comment_id ): void {
 		$this->_clear_post_action();
 
 		$_POST['id']          = $comment_id;
@@ -287,7 +287,7 @@ class Tests_Ajax_wpAjaxDimComment extends WP_Ajax_UnitTestCase {
 	 *
 	 * @ticket 35214
 	 */
-	public function test_dim_review_comment_as_type_moderator_is_allowed() {
+	public function test_dim_review_comment_as_type_moderator_is_allowed(): void {
 		$comment_id = $this->make_comment( 'review' );
 
 		$moderator = self::factory()->user->create_and_get( array( 'role' => 'subscriber' ) );
@@ -311,7 +311,7 @@ class Tests_Ajax_wpAjaxDimComment extends WP_Ajax_UnitTestCase {
 	 *
 	 * @ticket 35214
 	 */
-	public function test_dim_review_comment_as_global_moderator_is_denied() {
+	public function test_dim_review_comment_as_global_moderator_is_denied(): void {
 		$comment_id = $this->make_comment( 'review' );
 
 		$global_moderator = self::factory()->user->create_and_get( array( 'role' => 'subscriber' ) );
@@ -330,7 +330,7 @@ class Tests_Ajax_wpAjaxDimComment extends WP_Ajax_UnitTestCase {
 	 *
 	 * @ticket 35214
 	 */
-	public function test_dim_approved_review_comment_as_type_moderator_unapproves_it() {
+	public function test_dim_approved_review_comment_as_type_moderator_unapproves_it(): void {
 		$comment_id = $this->make_comment( 'review' );
 		wp_set_comment_status( $comment_id, 'approve' );
 
@@ -354,7 +354,7 @@ class Tests_Ajax_wpAjaxDimComment extends WP_Ajax_UnitTestCase {
 	 *
 	 * @ticket 35214
 	 */
-	public function test_dim_default_comment_as_type_moderator_is_denied() {
+	public function test_dim_default_comment_as_type_moderator_is_denied(): void {
 		$comment_id = $this->make_comment( 'comment' );
 
 		$moderator = self::factory()->user->create_and_get( array( 'role' => 'subscriber' ) );
@@ -369,13 +369,49 @@ class Tests_Ajax_wpAjaxDimComment extends WP_Ajax_UnitTestCase {
 	}
 
 	/**
-	 * A global moderator keeps full control over UNREGISTERED comment types
-	 * (the null type object back-compat fallback).
+	 * A global moderator keeps full control over unregistered comment types.
 	 *
 	 * @ticket 35214
 	 */
-	public function test_dim_unregistered_type_comment_as_global_moderator_is_allowed() {
+	public function test_dim_unregistered_type_comment_as_global_moderator_is_allowed(): void {
 		$comment_id = $this->make_comment( 'webmention' );
+
+		$global_moderator = self::factory()->user->create_and_get( array( 'role' => 'subscriber' ) );
+		$global_moderator->add_cap( 'moderate_comments' );
+		wp_set_current_user( $global_moderator->ID );
+
+		$this->set_up_dim_request( $comment_id );
+
+		try {
+			$this->_handleAjax( 'dim-comment' );
+		} catch ( WPAjaxDieContinueException $e ) {
+			unset( $e );
+		}
+
+		$this->assertSame( 'approved', wp_get_comment_status( $comment_id ) );
+	}
+
+	/**
+	 * Data provider.
+	 *
+	 * @return array<string, array{0: string}>
+	 */
+	public function data_editorial_comment_types(): array {
+		return array(
+			'note'     => array( 'note' ),
+			'reaction' => array( 'reaction' ),
+		);
+	}
+
+	/**
+	 * Notes and reactions use the default model, so a global moderator can still dim them.
+	 *
+	 * @ticket 35214
+	 *
+	 * @dataProvider data_editorial_comment_types
+	 */
+	public function test_dim_editorial_comment_as_global_moderator_is_allowed( string $comment_type ): void {
+		$comment_id = $this->make_comment( $comment_type );
 
 		$global_moderator = self::factory()->user->create_and_get( array( 'role' => 'subscriber' ) );
 		$global_moderator->add_cap( 'moderate_comments' );
