@@ -238,20 +238,20 @@ function image_downsize( $id, $size = 'medium' ) {
 		$width           = $intermediate['width'];
 		$height          = $intermediate['height'];
 		$is_intermediate = true;
-	} elseif ( 'thumbnail' === $size ) {
+	} elseif ( 'thumbnail' === $size && ! empty( $meta['thumb'] ) && is_string( $meta['thumb'] ) ) {
 		// Fall back to the old thumbnail.
-		$thumb_file = wp_get_attachment_thumb_file( $id );
-		$info       = null;
+		$imagefile = get_attached_file( $id );
+		$thumbfile = str_replace( wp_basename( $imagefile ), wp_basename( $meta['thumb'] ), $imagefile );
 
-		if ( $thumb_file ) {
-			$info = wp_getimagesize( $thumb_file );
-		}
+		if ( file_exists( $thumbfile ) ) {
+			$info = wp_getimagesize( $thumbfile );
 
-		if ( $thumb_file && $info ) {
-			$img_url         = str_replace( $img_url_basename, wp_basename( $thumb_file ), $img_url );
-			$width           = $info[0];
-			$height          = $info[1];
-			$is_intermediate = true;
+			if ( $info ) {
+				$img_url         = str_replace( $img_url_basename, wp_basename( $thumbfile ), $img_url );
+				$width           = $info[0];
+				$height          = $info[1];
+				$is_intermediate = true;
+			}
 		}
 	}
 
@@ -1883,7 +1883,7 @@ function wp_filter_content_tags( $content, $context = null ) {
 			}
 
 			// Use alternate mime types when specified and available.
-			if ( $attachment_id > 0 ) {
+			if ( $attachment_id > 0 && _wp_in_front_end_context() ) {
 				$filtered_image = wp_image_use_alternate_mime_types( $filtered_image, $context, $attachment_id );
 			}
 
@@ -1934,7 +1934,7 @@ function wp_filter_content_tags( $content, $context = null ) {
 }
 
 /**
- * Use alternate mime type images in the content output when available.
+ * Use alternate mime type images in the front end content output when available.
  *
  * @since 6.1.0
  *
@@ -1976,13 +1976,26 @@ function wp_image_use_alternate_mime_types( $image, $context, $attachment_id ) {
 
 	// Find the appropriate size for the provided URL in the first available mime type.
 	foreach ( $target_mimes as $target_mime ) {
-		if ( ! isset( $metadata['sources'][ $target_mime ] ) || empty( $metadata['sources'][ $target_mime ]['file'] ) ) {
-			continue;
+		// Handle full size image replacement.
+		if ( ! empty( $metadata['sources'][ $target_mime ]['file'] ) ) {
+			$src_filename = wp_basename( $metadata['file'] );
+
+			// This is the same MIME type as the original, so the entire $target_mime can be skipped.
+			// Since it is already the preferred MIME type, the entire loop can be cancelled.
+			if ( $metadata['sources'][ $target_mime ]['file'] === $src_filename ) {
+				break;
+			}
+
+			$image = str_replace( $src_filename, $metadata['sources'][ $target_mime ]['file'], $image );
+
+			// The full size was replaced, so unset this entirely here so that in the next iteration it is no longer
+			// considered, simply for a small performance optimization.
+			unset( $metadata['sources'] );
 		}
 
-		// Go through each image and replace with the first available mime type version.
+		// Go through each image size and replace with the first available mime type version.
 		foreach ( $metadata['sizes'] as $name => $size_data ) {
-			// Check if size has a file.
+			// Check if size has an original file.
 			if ( empty( $size_data['file'] ) ) {
 				continue;
 			}
@@ -1991,32 +2004,44 @@ function wp_image_use_alternate_mime_types( $image, $context, $attachment_id ) {
 			if ( empty( $size_data['sources'][ $target_mime ]['file'] ) ) {
 				continue;
 			}
-			$target_file = $size_data['sources'][ $target_mime ]['file'];
 
-			// Replace the existing output image for this size.
 			$src_filename = wp_basename( $size_data['file'] );
 
-			// This is the same as the file we want to replace nothing to do here.
-			if ( $target_file === $src_filename ) {
-				continue;
+			// This is the same MIME type as the original, so the entire $target_mime can be skipped.
+			// Since it is already the preferred MIME type, the entire loop can be cancelled.
+			if ( $size_data['sources'][ $target_mime ]['file'] === $src_filename ) {
+				break 2;
 			}
 
-			// Found a match, replace with the new filename and stop searching.
+			// Found a match, replace with the new filename.
 			$image = str_replace( $src_filename, $size_data['sources'][ $target_mime ]['file'], $image );
-			continue;
+
+			// This size was replaced, so unset this entirely here so that in the next iteration it is no longer
+			// considered, simply for a small performance optimization.
+			unset( $metadata['sizes'][ $name ] );
 		}
-
-		// Handle full size image replacement.
-		$src_filename = wp_basename( $metadata['file'] );
-
-		// This is the same as the file we want to replace nothing else to do here.
-		if ( $metadata['sources'][ $target_mime ]['file'] === $src_filename ) {
-			return $image;
-		}
-
-		$image = str_replace( $src_filename, $metadata['sources'][ $target_mime ]['file'], $image );
 	}
 	return $image;
+}
+
+/**
+ * Check if execution is currently in the front end content context, outside of <head>.
+ *
+ * @since 6.1.0
+ * @access private
+ *
+ * @return bool True if in the front end content context, false otherwise.
+ */
+function _wp_in_front_end_context() {
+	global $wp_query;
+
+	// Check if this request is generally outside (or before) any frontend context.
+	if ( ! isset( $wp_query ) || defined( 'XMLRPC_REQUEST' ) || defined( 'REST_REQUEST' ) || is_feed() ) {
+		return false;
+	}
+
+	// Check if we're anywhere before the 'wp_head' action has completed.
+	return did_action( 'template_redirect' ) && ! doing_action( 'wp_head' );
 }
 
 /**
@@ -4420,7 +4445,7 @@ function wp_prepare_attachment_for_js( $attachment ) {
  * @param array $args {
  *     Arguments for enqueuing media scripts.
  *
- *     @type int|WP_Post $post A post object or ID.
+ *     @type int|WP_Post $post Post ID or post object.
  * }
  */
 function wp_enqueue_media( $args = array() ) {
