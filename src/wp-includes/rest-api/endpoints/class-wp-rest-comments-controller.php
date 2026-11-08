@@ -479,7 +479,7 @@ class WP_REST_Comments_Controller extends WP_REST_Controller {
 	 * Checks if a given request has access to read the comment.
 	 *
 	 * @since 4.7.0
-	 * @since 7.2.0 The edit context is gated by the `moderate_comment` meta capability.
+	 * @since 7.3.0 The edit context is gated by the `moderate_comment` meta capability.
 	 *
 	 * @param WP_REST_Request $request Full details about the request.
 	 * @return true|WP_Error True if the request has read access for the item, error object otherwise.
@@ -2408,7 +2408,7 @@ class WP_REST_Comments_Controller extends WP_REST_Controller {
 	 * Checks if the comment can be read.
 	 *
 	 * @since 4.7.0
-	 * @since 7.2.0 Orphaned comments are gated by the `moderate_comment` meta capability.
+	 * @since 7.3.0 Orphaned comments are gated by the `moderate_comment` meta capability.
 	 *
 	 * @param WP_Comment      $comment Comment object.
 	 * @param WP_REST_Request $request Request data to check.
@@ -2443,7 +2443,7 @@ class WP_REST_Comments_Controller extends WP_REST_Controller {
 	 * Checks if a comment can be edited or deleted.
 	 *
 	 * @since 4.7.0
-	 * @since 7.2.0 Moderators are checked with the `moderate_comment` meta capability.
+	 * @since 7.3.0 Moderators are checked with the `moderate_comment` meta capability.
 	 *
 	 * @param WP_Comment $comment Comment object.
 	 * @return bool Whether the comment can be edited or deleted.
