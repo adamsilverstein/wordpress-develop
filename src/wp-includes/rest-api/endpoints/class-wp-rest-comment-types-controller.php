@@ -4,13 +4,13 @@
  *
  * @package WordPress
  * @subpackage REST_API
- * @since 7.2.0
+ * @since 7.3.0
  */
 
 /**
  * Core class to access comment types via the REST API.
  *
- * @since 7.2.0
+ * @since 7.3.0
  *
  * @see WP_REST_Controller
  */
@@ -19,7 +19,7 @@ class WP_REST_Comment_Types_Controller extends WP_REST_Controller {
 	/**
 	 * Constructor.
 	 *
-	 * @since 7.2.0
+	 * @since 7.3.0
 	 */
 	public function __construct() {
 		$this->namespace = 'wp/v2';
@@ -29,7 +29,7 @@ class WP_REST_Comment_Types_Controller extends WP_REST_Controller {
 	/**
 	 * Registers the routes for comment types.
 	 *
-	 * @since 7.2.0
+	 * @since 7.3.0
 	 *
 	 * @see register_rest_route()
 	 *
@@ -77,7 +77,7 @@ class WP_REST_Comment_Types_Controller extends WP_REST_Controller {
 	/**
 	 * Checks whether a given request has permission to read comment types.
 	 *
-	 * @since 7.2.0
+	 * @since 7.3.0
 	 *
 	 * @param WP_REST_Request $request Full details about the request.
 	 * @return true|WP_Error True if the request has read access, WP_Error object otherwise.
@@ -97,7 +97,7 @@ class WP_REST_Comment_Types_Controller extends WP_REST_Controller {
 	/**
 	 * Retrieves comment types exposed in the REST API.
 	 *
-	 * @since 7.2.0
+	 * @since 7.3.0
 	 *
 	 * @param WP_REST_Request $request Full details about the request.
 	 * @return WP_REST_Response|WP_Error Response object on success, or WP_Error object on failure.
@@ -123,7 +123,7 @@ class WP_REST_Comment_Types_Controller extends WP_REST_Controller {
 	/**
 	 * Checks if a given request has access to read a comment type.
 	 *
-	 * @since 7.2.0
+	 * @since 7.3.0
 	 *
 	 * @param WP_REST_Request $request Full details about the request.
 	 * @return true|WP_Error True if the request has read access for the item, WP_Error object otherwise.
@@ -143,7 +143,7 @@ class WP_REST_Comment_Types_Controller extends WP_REST_Controller {
 	/**
 	 * Retrieves a specific comment type.
 	 *
-	 * @since 7.2.0
+	 * @since 7.3.0
 	 *
 	 * @param WP_REST_Request $request Full details about the request.
 	 * @return WP_REST_Response|WP_Error Response object on success, or WP_Error object on failure.
@@ -175,7 +175,7 @@ class WP_REST_Comment_Types_Controller extends WP_REST_Controller {
 	/**
 	 * Prepares a comment type object for serialization.
 	 *
-	 * @since 7.2.0
+	 * @since 7.3.0
 	 *
 	 * @param WP_Comment_Type $item    Comment type object.
 	 * @param WP_REST_Request $request Full details about the request.
@@ -226,7 +226,7 @@ class WP_REST_Comment_Types_Controller extends WP_REST_Controller {
 		 *
 		 * Allows modification of the comment type data right before it is returned.
 		 *
-		 * @since 7.2.0
+		 * @since 7.3.0
 		 *
 		 * @param WP_REST_Response $response     The response object.
 		 * @param WP_Comment_Type  $comment_type The original comment type object.
@@ -241,7 +241,7 @@ class WP_REST_Comment_Types_Controller extends WP_REST_Controller {
 	 * The 'items' link is always advertised, but the comments endpoint only lets users
 	 * with `edit_posts` filter by types other than 'comment'.
 	 *
-	 * @since 7.2.0
+	 * @since 7.3.0
 	 *
 	 * @param WP_Comment_Type $comment_type The comment type.
 	 * @return array<non-falsy-string, array{href: string}> Links for the given comment type.
@@ -260,7 +260,7 @@ class WP_REST_Comment_Types_Controller extends WP_REST_Controller {
 	/**
 	 * Retrieves the comment type's schema, conforming to JSON Schema.
 	 *
-	 * @since 7.2.0
+	 * @since 7.3.0
 	 *
 	 * @return array<mixed> Item schema data.
 	 */
@@ -309,7 +309,7 @@ class WP_REST_Comment_Types_Controller extends WP_REST_Controller {
 	/**
 	 * Retrieves the query params for collections.
 	 *
-	 * @since 7.2.0
+	 * @since 7.3.0
 	 *
 	 * @return array<string, mixed> Collection parameters.
 	 */

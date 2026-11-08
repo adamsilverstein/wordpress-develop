@@ -91,7 +91,7 @@ final class WP_Comment_Type {
 	 * Does not affect access to comments of this type via `/wp/v2/comments`.
 	 * Default is the value of $public.
 	 *
-	 * @since 7.2.0
+	 * @since 7.3.0
 	 * @var bool
 	 */
 	public $show_in_rest;
