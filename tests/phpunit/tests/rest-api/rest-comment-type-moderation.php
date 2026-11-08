@@ -21,51 +21,54 @@ class Tests_REST_Comment_Type_Moderation extends WP_Test_REST_TestCase {
 	 *
 	 * @var int
 	 */
-	protected static $post_id;
+	protected static int $post_id;
 
 	/**
 	 * Administrator user ID (moderate_comments plus edit_posts).
 	 *
 	 * @var int
 	 */
-	protected static $admin_id;
+	protected static int $admin_id;
 
 	/**
 	 * User with the global `moderate_comments` primitive only.
 	 *
 	 * @var int
 	 */
-	protected static $global_moderator_id;
+	protected static int $global_moderator_id;
 
 	/**
 	 * User with the `review` type's `moderate_reviews` primitive only.
 	 *
 	 * @var int
 	 */
-	protected static $review_moderator_id;
+	protected static int $review_moderator_id;
 
 	/**
 	 * User with the `review` type's `edit_others_reviews` primitive only.
 	 *
 	 * @var int
 	 */
-	protected static $review_editor_id;
+	protected static int $review_editor_id;
 
-	public static function wpSetUpBeforeClass( WP_UnitTest_Factory $factory ) {
+	public static function wpSetUpBeforeClass( WP_UnitTest_Factory $factory ): void {
 		self::$post_id  = $factory->post->create();
 		self::$admin_id = $factory->user->create( array( 'role' => 'administrator' ) );
 
-		self::$global_moderator_id = $factory->user->create( array( 'role' => 'subscriber' ) );
-		get_userdata( self::$global_moderator_id )->add_cap( 'moderate_comments' );
+		$user = $factory->user->create_and_get( array( 'role' => 'subscriber' ) );
+		$user->add_cap( 'moderate_comments' );
+		self::$global_moderator_id = $user->ID;
 
-		self::$review_moderator_id = $factory->user->create( array( 'role' => 'subscriber' ) );
-		get_userdata( self::$review_moderator_id )->add_cap( 'moderate_reviews' );
+		$user = $factory->user->create_and_get( array( 'role' => 'subscriber' ) );
+		$user->add_cap( 'moderate_reviews' );
+		self::$review_moderator_id = $user->ID;
 
-		self::$review_editor_id = $factory->user->create( array( 'role' => 'subscriber' ) );
-		get_userdata( self::$review_editor_id )->add_cap( 'edit_others_reviews' );
+		$user = $factory->user->create_and_get( array( 'role' => 'subscriber' ) );
+		$user->add_cap( 'edit_others_reviews' );
+		self::$review_editor_id = $user->ID;
 	}
 
-	public function set_up() {
+	public function set_up(): void {
 		parent::set_up();
 
 		// A comment type with an independent capability model.
@@ -77,10 +80,10 @@ class Tests_REST_Comment_Type_Moderation extends WP_Test_REST_TestCase {
 	 *
 	 * @param string $comment_type Comment type slug.
 	 * @param int    $post_id      Optional. Post to attach the comment to; 0 for an
-	 *                             orphaned comment. Default the shared post.
+	 *                             orphaned comment. Default null (the shared post).
 	 * @return int The new comment ID.
 	 */
-	private function make_comment( $comment_type, $post_id = null ) {
+	private function make_comment( string $comment_type, ?int $post_id = null ): int {
 		return self::factory()->comment->create(
 			array(
 				'comment_post_ID'  => null === $post_id ? self::$post_id : $post_id,
@@ -96,7 +99,7 @@ class Tests_REST_Comment_Type_Moderation extends WP_Test_REST_TestCase {
 	 * @param int $comment_id Comment to update.
 	 * @return WP_REST_Response
 	 */
-	private function dispatch_update( $comment_id ) {
+	private function dispatch_update( int $comment_id ): WP_REST_Response {
 		$request = new WP_REST_Request( 'POST', '/wp/v2/comments/' . $comment_id );
 		$request->set_param( 'content', 'Updated content' );
 
@@ -109,7 +112,7 @@ class Tests_REST_Comment_Type_Moderation extends WP_Test_REST_TestCase {
 	 * @param int $comment_id Comment to delete.
 	 * @return WP_REST_Response
 	 */
-	private function dispatch_delete( $comment_id ) {
+	private function dispatch_delete( int $comment_id ): WP_REST_Response {
 		$request = new WP_REST_Request( 'DELETE', '/wp/v2/comments/' . $comment_id );
 		$request->set_param( 'force', true );
 
@@ -123,7 +126,7 @@ class Tests_REST_Comment_Type_Moderation extends WP_Test_REST_TestCase {
 	 * @param string $context    Optional. Request context. Default 'view'.
 	 * @return WP_REST_Response
 	 */
-	private function dispatch_get( $comment_id, $context = 'view' ) {
+	private function dispatch_get( int $comment_id, string $context = 'view' ): WP_REST_Response {
 		$request = new WP_REST_Request( 'GET', '/wp/v2/comments/' . $comment_id );
 		$request->set_param( 'context', $context );
 
@@ -137,7 +140,7 @@ class Tests_REST_Comment_Type_Moderation extends WP_Test_REST_TestCase {
 	/**
 	 * @ticket 35214
 	 */
-	public function test_review_moderator_can_update_review_comment() {
+	public function test_review_moderator_can_update_review_comment(): void {
 		wp_set_current_user( self::$review_moderator_id );
 
 		$response = $this->dispatch_update( $this->make_comment( 'review' ) );
@@ -148,7 +151,7 @@ class Tests_REST_Comment_Type_Moderation extends WP_Test_REST_TestCase {
 	/**
 	 * @ticket 35214
 	 */
-	public function test_review_moderator_can_delete_review_comment() {
+	public function test_review_moderator_can_delete_review_comment(): void {
 		wp_set_current_user( self::$review_moderator_id );
 
 		$response = $this->dispatch_delete( $this->make_comment( 'review' ) );
@@ -162,7 +165,7 @@ class Tests_REST_Comment_Type_Moderation extends WP_Test_REST_TestCase {
 	 *
 	 * @ticket 35214
 	 */
-	public function test_review_editor_can_update_review_comment() {
+	public function test_review_editor_can_update_review_comment(): void {
 		wp_set_current_user( self::$review_editor_id );
 
 		$response = $this->dispatch_update( $this->make_comment( 'review' ) );
@@ -175,7 +178,7 @@ class Tests_REST_Comment_Type_Moderation extends WP_Test_REST_TestCase {
 	 *
 	 * @ticket 35214
 	 */
-	public function test_global_moderator_cannot_update_review_comment() {
+	public function test_global_moderator_cannot_update_review_comment(): void {
 		wp_set_current_user( self::$global_moderator_id );
 
 		$response = $this->dispatch_update( $this->make_comment( 'review' ) );
@@ -186,7 +189,7 @@ class Tests_REST_Comment_Type_Moderation extends WP_Test_REST_TestCase {
 	/**
 	 * @ticket 35214
 	 */
-	public function test_global_moderator_cannot_delete_review_comment() {
+	public function test_global_moderator_cannot_delete_review_comment(): void {
 		wp_set_current_user( self::$global_moderator_id );
 
 		$response = $this->dispatch_delete( $this->make_comment( 'review' ) );
@@ -199,12 +202,71 @@ class Tests_REST_Comment_Type_Moderation extends WP_Test_REST_TestCase {
 	 *
 	 * @ticket 35214
 	 */
-	public function test_review_moderator_cannot_update_default_comment() {
+	public function test_review_moderator_cannot_update_default_comment(): void {
 		wp_set_current_user( self::$review_moderator_id );
 
 		$response = $this->dispatch_update( $this->make_comment( 'comment' ) );
 
 		$this->assertErrorResponse( 'rest_cannot_edit', $response, 403 );
+	}
+
+	/**
+	 * Dispatches a REST request to move a comment to another post.
+	 *
+	 * @param int $comment_id Comment to move.
+	 * @param int $post_id    Destination post.
+	 * @return WP_REST_Response
+	 */
+	private function dispatch_move( int $comment_id, int $post_id ): WP_REST_Response {
+		$request = new WP_REST_Request( 'POST', '/wp/v2/comments/' . $comment_id );
+		$request->set_param( 'post', $post_id );
+
+		return rest_get_server()->dispatch( $request );
+	}
+
+	/**
+	 * Only the site-wide `moderate_comments` primitive skips the destination
+	 * check, so a type moderator cannot move a comment onto a post they cannot
+	 * edit, such as another user's private post.
+	 *
+	 * @ticket 35214
+	 */
+	public function test_review_moderator_cannot_move_review_comment_to_uneditable_post(): void {
+		$comment_id = $this->make_comment( 'review' );
+		$target_id  = self::factory()->post->create(
+			array(
+				'post_status' => 'private',
+				'post_author' => self::$admin_id,
+			)
+		);
+
+		wp_set_current_user( self::$review_moderator_id );
+
+		$response = $this->dispatch_move( $comment_id, $target_id );
+
+		$this->assertErrorResponse( 'rest_cannot_edit', $response, 403 );
+		$comment = get_comment( $comment_id );
+		$this->assertInstanceOf( WP_Comment::class, $comment );
+		$this->assertSame( (string) self::$post_id, $comment->comment_post_ID, 'The comment should stay on its original post.' );
+	}
+
+	/**
+	 * @ticket 35214
+	 */
+	public function test_review_moderator_can_move_review_comment_to_editable_post(): void {
+		$moderator = self::factory()->user->create_and_get( array( 'role' => 'author' ) );
+		$moderator->add_cap( 'moderate_reviews' );
+		$comment_id = $this->make_comment( 'review' );
+		$target_id  = self::factory()->post->create( array( 'post_author' => $moderator->ID ) );
+
+		wp_set_current_user( $moderator->ID );
+
+		$response = $this->dispatch_move( $comment_id, $target_id );
+
+		$this->assertSame( 200, $response->get_status() );
+		$comment = get_comment( $comment_id );
+		$this->assertInstanceOf( WP_Comment::class, $comment );
+		$this->assertSame( (string) $target_id, $comment->comment_post_ID );
 	}
 
 	/*
@@ -214,7 +276,7 @@ class Tests_REST_Comment_Type_Moderation extends WP_Test_REST_TestCase {
 	/**
 	 * @ticket 35214
 	 */
-	public function test_global_moderator_can_update_default_comment() {
+	public function test_global_moderator_can_update_default_comment(): void {
 		wp_set_current_user( self::$global_moderator_id );
 
 		$response = $this->dispatch_update( $this->make_comment( 'comment' ) );
@@ -225,10 +287,26 @@ class Tests_REST_Comment_Type_Moderation extends WP_Test_REST_TestCase {
 	/**
 	 * @ticket 35214
 	 */
-	public function test_global_moderator_can_delete_default_comment() {
+	public function test_global_moderator_can_delete_default_comment(): void {
 		wp_set_current_user( self::$global_moderator_id );
 
 		$response = $this->dispatch_delete( $this->make_comment( 'comment' ) );
+
+		$this->assertSame( 200, $response->get_status() );
+	}
+
+	/**
+	 * A site-wide moderator may still move a default comment to any post.
+	 *
+	 * @ticket 35214
+	 */
+	public function test_global_moderator_can_move_default_comment_to_another_post(): void {
+		$comment_id = $this->make_comment( 'comment' );
+		$target_id  = self::factory()->post->create( array( 'post_status' => 'private' ) );
+
+		wp_set_current_user( self::$global_moderator_id );
+
+		$response = $this->dispatch_move( $comment_id, $target_id );
 
 		$this->assertSame( 200, $response->get_status() );
 	}
@@ -238,7 +316,7 @@ class Tests_REST_Comment_Type_Moderation extends WP_Test_REST_TestCase {
 	 *
 	 * @ticket 35214
 	 */
-	public function test_global_moderator_can_update_builtin_ping_comment() {
+	public function test_global_moderator_can_update_builtin_ping_comment(): void {
 		wp_set_current_user( self::$global_moderator_id );
 
 		$response = $this->dispatch_update( $this->make_comment( 'pingback' ) );
@@ -256,7 +334,7 @@ class Tests_REST_Comment_Type_Moderation extends WP_Test_REST_TestCase {
 	 *
 	 * @ticket 35214
 	 */
-	public function test_global_moderator_retains_control_over_unregistered_type() {
+	public function test_global_moderator_retains_control_over_unregistered_type(): void {
 		wp_set_current_user( self::$global_moderator_id );
 
 		$webmention_id = $this->make_comment( 'webmention' );
@@ -273,7 +351,7 @@ class Tests_REST_Comment_Type_Moderation extends WP_Test_REST_TestCase {
 	 *
 	 * @ticket 35214
 	 */
-	public function test_global_moderator_can_update_legacy_empty_type_comment() {
+	public function test_global_moderator_can_update_legacy_empty_type_comment(): void {
 		wp_set_current_user( self::$global_moderator_id );
 
 		$response = $this->dispatch_update( $this->make_comment( '' ) );
@@ -289,7 +367,7 @@ class Tests_REST_Comment_Type_Moderation extends WP_Test_REST_TestCase {
 	/**
 	 * @ticket 35214
 	 */
-	public function test_review_moderator_can_read_review_comment_in_edit_context() {
+	public function test_review_moderator_can_read_review_comment_in_edit_context(): void {
 		wp_set_current_user( self::$review_moderator_id );
 
 		$response = $this->dispatch_get( $this->make_comment( 'review' ), 'edit' );
@@ -300,7 +378,7 @@ class Tests_REST_Comment_Type_Moderation extends WP_Test_REST_TestCase {
 	/**
 	 * @ticket 35214
 	 */
-	public function test_global_moderator_cannot_read_review_comment_in_edit_context() {
+	public function test_global_moderator_cannot_read_review_comment_in_edit_context(): void {
 		wp_set_current_user( self::$global_moderator_id );
 
 		$response = $this->dispatch_get( $this->make_comment( 'review' ), 'edit' );
@@ -311,7 +389,7 @@ class Tests_REST_Comment_Type_Moderation extends WP_Test_REST_TestCase {
 	/**
 	 * @ticket 35214
 	 */
-	public function test_global_moderator_can_read_default_comment_in_edit_context() {
+	public function test_global_moderator_can_read_default_comment_in_edit_context(): void {
 		wp_set_current_user( self::$global_moderator_id );
 
 		$response = $this->dispatch_get( $this->make_comment( 'comment' ), 'edit' );
@@ -331,7 +409,7 @@ class Tests_REST_Comment_Type_Moderation extends WP_Test_REST_TestCase {
 	 *
 	 * @ticket 35214
 	 */
-	public function test_admin_can_read_orphaned_default_comment() {
+	public function test_admin_can_read_orphaned_default_comment(): void {
 		wp_set_current_user( self::$admin_id );
 
 		$response = $this->dispatch_get( $this->make_comment( 'comment', 0 ) );
@@ -342,7 +420,7 @@ class Tests_REST_Comment_Type_Moderation extends WP_Test_REST_TestCase {
 	/**
 	 * @ticket 35214
 	 */
-	public function test_subscriber_cannot_read_orphaned_default_comment() {
+	public function test_subscriber_cannot_read_orphaned_default_comment(): void {
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'subscriber' ) ) );
 
 		$response = $this->dispatch_get( $this->make_comment( 'comment', 0 ) );
@@ -357,7 +435,7 @@ class Tests_REST_Comment_Type_Moderation extends WP_Test_REST_TestCase {
 	 *
 	 * @ticket 35214
 	 */
-	public function test_review_moderator_with_edit_cap_can_read_orphaned_review_comment() {
+	public function test_review_moderator_with_edit_cap_can_read_orphaned_review_comment(): void {
 		$full_review_moderator = self::factory()->user->create_and_get( array( 'role' => 'subscriber' ) );
 		$full_review_moderator->add_cap( 'moderate_reviews' );
 		$full_review_moderator->add_cap( 'edit_others_reviews' );
@@ -375,7 +453,7 @@ class Tests_REST_Comment_Type_Moderation extends WP_Test_REST_TestCase {
 	 *
 	 * @ticket 35214
 	 */
-	public function test_admin_cannot_read_orphaned_review_comment() {
+	public function test_admin_cannot_read_orphaned_review_comment(): void {
 		wp_set_current_user( self::$admin_id );
 
 		$response = $this->dispatch_get( $this->make_comment( 'review', 0 ) );
@@ -391,7 +469,7 @@ class Tests_REST_Comment_Type_Moderation extends WP_Test_REST_TestCase {
 	 *
 	 * @ticket 35214
 	 */
-	public function test_orphan_collection_gate_uses_global_primitive() {
+	public function test_orphan_collection_gate_uses_global_primitive(): void {
 		$default_orphan = $this->make_comment( 'comment', 0 );
 		$review_orphan  = $this->make_comment( 'review', 0 );
 
@@ -402,7 +480,9 @@ class Tests_REST_Comment_Type_Moderation extends WP_Test_REST_TestCase {
 		$response = rest_get_server()->dispatch( $request );
 
 		$this->assertSame( 200, $response->get_status() );
-		$ids = wp_list_pluck( $response->get_data(), 'id' );
+		$data = $response->get_data();
+		$this->assertIsArray( $data );
+		$ids = wp_list_pluck( $data, 'id' );
 		$this->assertContains( $default_orphan, $ids, 'The default-type orphan should be listed for an administrator.' );
 		$this->assertNotContains( $review_orphan, $ids, 'The independent-type orphan should be filtered out for an administrator.' );
 
@@ -413,5 +493,109 @@ class Tests_REST_Comment_Type_Moderation extends WP_Test_REST_TestCase {
 		$response = rest_get_server()->dispatch( $request );
 
 		$this->assertErrorResponse( 'rest_cannot_read', $response, 403 );
+	}
+
+	/*
+	 * Notes and reactions keep trunk behavior: `edit_comment`, not moderation, gates them.
+	 */
+
+	/**
+	 * Creates a note on the shared post, or a reaction to one, authored by the given user.
+	 *
+	 * @param string $comment_type Either 'note' or 'reaction'.
+	 * @param int    $user_id      Comment author.
+	 * @return int The new comment ID.
+	 */
+	private function make_editorial_comment( string $comment_type, int $user_id ): int {
+		$args = array(
+			'comment_post_ID'  => self::$post_id,
+			'comment_type'     => $comment_type,
+			'comment_approved' => '1',
+			'user_id'          => $user_id,
+		);
+
+		if ( 'reaction' === $comment_type ) {
+			// An approved note is a resolved thread, whose reactions are frozen.
+			$args['comment_parent'] = self::factory()->comment->create(
+				array(
+					'comment_post_ID'  => self::$post_id,
+					'comment_type'     => 'note',
+					'comment_approved' => '0',
+					'user_id'          => self::$admin_id,
+				)
+			);
+		}
+
+		return self::factory()->comment->create( $args );
+	}
+
+	/**
+	 * Data provider.
+	 *
+	 * @return array<string, array{0: string}>
+	 */
+	public function data_editorial_comment_types(): array {
+		return array(
+			'note'     => array( 'note' ),
+			'reaction' => array( 'reaction' ),
+		);
+	}
+
+	/**
+	 * A global moderator who cannot edit the post cannot read their own note or
+	 * reaction in the edit context.
+	 *
+	 * @ticket 35214
+	 *
+	 * @dataProvider data_editorial_comment_types
+	 */
+	public function test_global_moderator_cannot_read_editorial_comment_in_edit_context( string $comment_type ): void {
+		wp_set_current_user( self::$global_moderator_id );
+
+		$response = $this->dispatch_get( $this->make_editorial_comment( $comment_type, self::$global_moderator_id ), 'edit' );
+
+		$this->assertErrorResponse( 'rest_forbidden_context', $response, 403 );
+	}
+
+	/**
+	 * @ticket 35214
+	 *
+	 * @dataProvider data_editorial_comment_types
+	 */
+	public function test_post_editor_can_read_editorial_comment_in_edit_context( string $comment_type ): void {
+		wp_set_current_user( self::$admin_id );
+
+		$response = $this->dispatch_get( $this->make_editorial_comment( $comment_type, self::$admin_id ), 'edit' );
+
+		$this->assertSame( 200, $response->get_status() );
+	}
+
+	/**
+	 * A global moderator who cannot edit the post cannot delete their own note or
+	 * reaction.
+	 *
+	 * @ticket 35214
+	 *
+	 * @dataProvider data_editorial_comment_types
+	 */
+	public function test_global_moderator_cannot_delete_editorial_comment( string $comment_type ): void {
+		wp_set_current_user( self::$global_moderator_id );
+
+		$response = $this->dispatch_delete( $this->make_editorial_comment( $comment_type, self::$global_moderator_id ) );
+
+		$this->assertErrorResponse( 'rest_cannot_delete', $response, 403 );
+	}
+
+	/**
+	 * @ticket 35214
+	 *
+	 * @dataProvider data_editorial_comment_types
+	 */
+	public function test_post_editor_can_delete_own_editorial_comment( string $comment_type ): void {
+		wp_set_current_user( self::$admin_id );
+
+		$response = $this->dispatch_delete( $this->make_editorial_comment( $comment_type, self::$admin_id ) );
+
+		$this->assertSame( 200, $response->get_status() );
 	}
 }
