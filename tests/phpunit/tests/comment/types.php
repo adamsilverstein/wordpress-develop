@@ -8,13 +8,26 @@
 class Tests_Comment_Types extends WP_UnitTestCase {
 
 	/**
+	 * Gets a registered comment type object, failing the test if it is missing.
+	 *
+	 * @param string $comment_type Comment type key.
+	 * @return WP_Comment_Type The registered comment type object.
+	 */
+	private function get_registered_comment_type( string $comment_type ): WP_Comment_Type {
+		$comment_type_object = get_comment_type_object( $comment_type );
+		$this->assertInstanceOf( WP_Comment_Type::class, $comment_type_object, "The {$comment_type} comment type should be registered." );
+		return $comment_type_object;
+	}
+
+	/**
 	 * @ticket 35214
 	 *
 	 * @covers ::register_comment_type
 	 * @covers ::get_comment_type_object
 	 */
-	public function test_register_comment_type() {
-		$this->assertNull( get_comment_type_object( 'foo' ) );
+	public function test_register_comment_type(): void {
+		$before = get_comment_type_object( 'foo' );
+		$this->assertNull( $before );
 
 		register_comment_type( 'foo' );
 
@@ -34,10 +47,10 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 * @covers ::register_comment_type
 	 * @covers ::get_comment_type_labels
 	 */
-	public function test_register_comment_type_without_labels_uses_default_labels() {
+	public function test_register_comment_type_without_labels_uses_default_labels(): void {
 		register_comment_type( 'foo' );
 
-		$cobj = get_comment_type_object( 'foo' );
+		$cobj = $this->get_registered_comment_type( 'foo' );
 
 		$this->assertSame( 'Comments', $cobj->label );
 		$this->assertSame( 'Comments', $cobj->labels->name );
@@ -49,7 +62,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::register_comment_type
 	 */
-	public function test_register_comment_type_return_value() {
+	public function test_register_comment_type_return_value(): void {
 		$this->assertInstanceOf( 'WP_Comment_Type', register_comment_type( 'foo' ) );
 	}
 
@@ -60,7 +73,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @expectedIncorrectUsage register_comment_type
 	 */
-	public function test_register_comment_type_with_too_long_name() {
+	public function test_register_comment_type_with_too_long_name(): void {
 		$this->assertInstanceOf( 'WP_Error', register_comment_type( 'comment_type_with_a_too_long_name' ) );
 	}
 
@@ -71,7 +84,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @expectedIncorrectUsage register_comment_type
 	 */
-	public function test_register_comment_type_with_empty_name() {
+	public function test_register_comment_type_with_empty_name(): void {
 		$this->assertInstanceOf( 'WP_Error', register_comment_type( '' ) );
 	}
 
@@ -80,7 +93,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::create_initial_comment_types
 	 */
-	public function test_built_in_comment_types_are_registered() {
+	public function test_built_in_comment_types_are_registered(): void {
 		$this->assertTrue( comment_type_exists( 'comment' ) );
 		$this->assertTrue( comment_type_exists( 'pingback' ) );
 		$this->assertTrue( comment_type_exists( 'trackback' ) );
@@ -92,8 +105,8 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::create_initial_comment_types
 	 */
-	public function test_built_in_note_type_is_internal_and_non_public() {
-		$note = get_comment_type_object( 'note' );
+	public function test_built_in_note_type_is_internal_and_non_public(): void {
+		$note = $this->get_registered_comment_type( 'note' );
 
 		$this->assertTrue( $note->internal );
 		$this->assertFalse( $note->public );
@@ -104,7 +117,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::comment_type_exists
 	 */
-	public function test_comment_type_exists() {
+	public function test_comment_type_exists(): void {
 		$this->assertFalse( comment_type_exists( 'foo' ) );
 
 		register_comment_type( 'foo' );
@@ -117,7 +130,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::get_comment_types
 	 */
-	public function test_get_comment_types_names() {
+	public function test_get_comment_types_names(): void {
 		register_comment_type( 'foo' );
 
 		$types = get_comment_types();
@@ -131,7 +144,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::get_comment_types
 	 */
-	public function test_get_comment_types_objects() {
+	public function test_get_comment_types_objects(): void {
 		register_comment_type( 'foo' );
 
 		$types = get_comment_types( array(), 'objects' );
@@ -144,7 +157,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::get_comment_types
 	 */
-	public function test_get_comment_types_filtered_by_property() {
+	public function test_get_comment_types_filtered_by_property(): void {
 		register_comment_type( 'foo', array( 'public' => false ) );
 
 		$public = get_comment_types( array( 'public' => true ) );
@@ -159,7 +172,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::unregister_comment_type
 	 */
-	public function test_unregister_comment_type() {
+	public function test_unregister_comment_type(): void {
 		register_comment_type( 'foo' );
 
 		$this->assertTrue( unregister_comment_type( 'foo' ) );
@@ -171,7 +184,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::unregister_comment_type
 	 */
-	public function test_unregister_comment_type_unknown_returns_error() {
+	public function test_unregister_comment_type_unknown_returns_error(): void {
 		$this->assertWPError( unregister_comment_type( 'does_not_exist' ) );
 	}
 
@@ -180,7 +193,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::unregister_comment_type
 	 */
-	public function test_unregister_comment_type_twice_returns_error() {
+	public function test_unregister_comment_type_twice_returns_error(): void {
 		register_comment_type( 'foo' );
 
 		$this->assertTrue( unregister_comment_type( 'foo' ) );
@@ -194,7 +207,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @dataProvider data_built_in_comment_types
 	 */
-	public function test_unregister_built_in_comment_type_is_not_allowed( $comment_type ) {
+	public function test_unregister_built_in_comment_type_is_not_allowed( string $comment_type ): void {
 		$this->assertWPError( unregister_comment_type( $comment_type ) );
 		$this->assertTrue( comment_type_exists( $comment_type ) );
 	}
@@ -202,9 +215,9 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	/**
 	 * Data provider.
 	 *
-	 * @return array[]
+	 * @return array<int, array{0: string}>
 	 */
-	public function data_built_in_comment_types() {
+	public function data_built_in_comment_types(): array {
 		return array(
 			array( 'comment' ),
 			array( 'pingback' ),
@@ -222,14 +235,14 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @dataProvider data_built_in_comment_types
 	 */
-	public function test_register_built_in_comment_type_is_rejected( $comment_type ) {
-		$original_label = get_comment_type_object( $comment_type )->label;
+	public function test_register_built_in_comment_type_is_rejected( string $comment_type ): void {
+		$original_label = $this->get_registered_comment_type( $comment_type )->label;
 
 		$result = register_comment_type( $comment_type, array( 'label' => 'Hijacked' ) );
 
 		$this->assertWPError( $result );
 		$this->assertSame( 'comment_type_builtin', $result->get_error_code() );
-		$this->assertSame( $original_label, get_comment_type_object( $comment_type )->label );
+		$this->assertSame( $original_label, $this->get_registered_comment_type( $comment_type )->label );
 	}
 
 	/**
@@ -237,11 +250,11 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::register_comment_type
 	 */
-	public function test_register_comment_type_twice_overwrites_previous_registration() {
+	public function test_register_comment_type_twice_overwrites_previous_registration(): void {
 		register_comment_type( 'foo', array( 'label' => 'First' ) );
 		register_comment_type( 'foo', array( 'label' => 'Second' ) );
 
-		$this->assertSame( 'Second', get_comment_type_object( 'foo' )->label );
+		$this->assertSame( 'Second', $this->get_registered_comment_type( 'foo' )->label );
 	}
 
 	/**
@@ -250,7 +263,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 * @covers ::register_comment_type
 	 * @covers ::unregister_comment_type
 	 */
-	public function test_register_after_unregister_succeeds() {
+	public function test_register_after_unregister_succeeds(): void {
 		register_comment_type( 'foo' );
 		unregister_comment_type( 'foo' );
 
@@ -263,7 +276,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::register_comment_type
 	 */
-	public function test_registered_comment_type_actions_fire() {
+	public function test_registered_comment_type_actions_fire(): void {
 		$action         = new MockAction();
 		$action_for_foo = new MockAction();
 
@@ -281,7 +294,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::unregister_comment_type
 	 */
-	public function test_unregistered_comment_type_action_fires() {
+	public function test_unregistered_comment_type_action_fires(): void {
 		register_comment_type( 'foo' );
 
 		$action = new MockAction();
@@ -297,7 +310,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::register_comment_type
 	 */
-	public function test_register_comment_type_with_20_character_name_succeeds() {
+	public function test_register_comment_type_with_20_character_name_succeeds(): void {
 		$comment_type = str_repeat( 'a', 20 );
 
 		$this->assertInstanceOf( 'WP_Comment_Type', register_comment_type( $comment_type ) );
@@ -309,9 +322,10 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::register_comment_type
 	 */
-	public function test_register_comment_type_name_is_sanitized() {
+	public function test_register_comment_type_name_is_sanitized(): void {
 		$comment_type_object = register_comment_type( 'Foo Bar!' );
 
+		$this->assertInstanceOf( WP_Comment_Type::class, $comment_type_object );
 		$this->assertSame( 'foobar', $comment_type_object->name );
 		$this->assertFalse( comment_type_exists( 'Foo Bar!' ) );
 		$this->assertTrue( comment_type_exists( 'foobar' ) );
@@ -322,7 +336,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::get_comment_types
 	 */
-	public function test_get_comment_types_with_or_operator() {
+	public function test_get_comment_types_with_or_operator(): void {
 		register_comment_type( 'foo', array( 'public' => false ) );
 
 		$types = get_comment_types(
@@ -345,7 +359,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::get_comment_types
 	 */
-	public function test_get_comment_types_with_not_operator() {
+	public function test_get_comment_types_with_not_operator(): void {
 		register_comment_type( 'foo', array( 'internal' => true ) );
 
 		$types = get_comment_types( array( 'internal' => true ), 'names', 'not' );
@@ -360,7 +374,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::get_comment_types
 	 */
-	public function test_get_comment_types_names_output_is_keyed_by_type_name() {
+	public function test_get_comment_types_names_output_is_keyed_by_type_name(): void {
 		register_comment_type( 'foo' );
 
 		$types = get_comment_types();
@@ -374,8 +388,8 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::get_comment_type_object
 	 */
-	public function test_get_comment_type_object_with_non_scalar_returns_null() {
-		$this->assertNull( get_comment_type_object( array() ) );
+	public function test_get_comment_type_object_with_non_scalar_returns_null(): void {
+		$this->assertNull( get_comment_type_object( array() ) ); // @phpstan-ignore argument.type (Intentionally passing a non-scalar value.)
 	}
 
 	/**
@@ -383,7 +397,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::create_initial_comment_types
 	 */
-	public function test_create_initial_comment_types_is_idempotent() {
+	public function test_create_initial_comment_types_is_idempotent(): void {
 		create_initial_comment_types();
 		create_initial_comment_types();
 
@@ -395,7 +409,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::get_comment_type_labels
 	 */
-	public function test_labels_are_built_from_args() {
+	public function test_labels_are_built_from_args(): void {
 		register_comment_type(
 			'foo',
 			array(
@@ -406,7 +420,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 			)
 		);
 
-		$cobj = get_comment_type_object( 'foo' );
+		$cobj = $this->get_registered_comment_type( 'foo' );
 
 		$this->assertSame( 'Foos', $cobj->label );
 		$this->assertSame( 'Foos', $cobj->labels->name );
@@ -418,10 +432,10 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::get_comment_type_labels
 	 */
-	public function test_comment_type_labels_filter() {
+	public function test_comment_type_labels_filter(): void {
 		add_filter(
 			'comment_type_labels_foo',
-			static function ( $labels ) {
+			static function ( stdClass $labels ): stdClass {
 				$labels->singular_name = 'Filtered Foo';
 				return $labels;
 			}
@@ -429,7 +443,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 
 		register_comment_type( 'foo' );
 
-		$this->assertSame( 'Filtered Foo', get_comment_type_object( 'foo' )->labels->singular_name );
+		$this->assertSame( 'Filtered Foo', $this->get_registered_comment_type( 'foo' )->labels->singular_name );
 	}
 
 	/**
@@ -437,10 +451,10 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::get_comment_type_labels
 	 */
-	public function test_label_only_registration_populates_label_fallback_chain() {
+	public function test_label_only_registration_populates_label_fallback_chain(): void {
 		register_comment_type( 'foo', array( 'label' => 'Foos' ) );
 
-		$labels = get_comment_type_object( 'foo' )->labels;
+		$labels = $this->get_registered_comment_type( 'foo' )->labels;
 
 		$this->assertSame( 'Foos', $labels->name );
 		$this->assertSame( 'Foos', $labels->singular_name );
@@ -452,10 +466,10 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::get_comment_type_labels
 	 */
-	public function test_labels_do_not_include_post_type_only_labels() {
+	public function test_labels_do_not_include_post_type_only_labels(): void {
 		register_comment_type( 'foo', array( 'label' => 'Foos' ) );
 
-		$labels = get_comment_type_object( 'foo' )->labels;
+		$labels = $this->get_registered_comment_type( 'foo' )->labels;
 
 		$this->assertObjectNotHasProperty( 'name_admin_bar', $labels );
 		$this->assertObjectNotHasProperty( 'all_items', $labels );
@@ -467,7 +481,26 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::get_comment_type_labels
 	 */
-	public function test_labels_do_not_spawn_post_type_only_labels_from_menu_name() {
+	public function test_get_comment_type_labels_does_not_modify_a_registered_type(): void {
+		register_comment_type( 'foo', array( 'label' => 'Foos' ) );
+
+		$comment_type_object = $this->get_registered_comment_type( 'foo' );
+		$registered_labels   = get_object_vars( $comment_type_object->labels );
+
+		$first  = get_comment_type_labels( $comment_type_object );
+		$second = get_comment_type_labels( $comment_type_object );
+
+		$this->assertSame( $registered_labels, get_object_vars( $comment_type_object->labels ), 'The registered labels should not change.' );
+		$this->assertEquals( $first, $second, 'Repeated calls should return the same labels.' );
+		$this->assertObjectNotHasProperty( 'archives', $second, 'Post-type-only labels should not appear on repeated calls.' );
+	}
+
+	/**
+	 * @ticket 35214
+	 *
+	 * @covers ::get_comment_type_labels
+	 */
+	public function test_labels_do_not_spawn_post_type_only_labels_from_menu_name(): void {
 		register_comment_type(
 			'foo',
 			array(
@@ -478,7 +511,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 			)
 		);
 
-		$labels = get_comment_type_object( 'foo' )->labels;
+		$labels = $this->get_registered_comment_type( 'foo' )->labels;
 
 		$this->assertSame( 'Foo Menu', $labels->menu_name );
 		$this->assertObjectNotHasProperty( 'all_items', $labels );
@@ -490,10 +523,10 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::get_comment_type_labels
 	 */
-	public function test_comment_type_labels_filter_missing_name_is_backfilled() {
+	public function test_comment_type_labels_filter_missing_name_is_backfilled(): void {
 		add_filter(
 			'comment_type_labels_foo',
-			static function ( $labels ) {
+			static function ( stdClass $labels ): stdClass {
 				unset( $labels->name );
 				return $labels;
 			}
@@ -501,7 +534,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 
 		register_comment_type( 'foo', array( 'label' => 'Foos' ) );
 
-		$this->assertSame( 'Foos', get_comment_type_object( 'foo' )->labels->name );
+		$this->assertSame( 'Foos', $this->get_registered_comment_type( 'foo' )->labels->name );
 	}
 
 	/**
@@ -509,7 +542,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::register_comment_type
 	 */
-	public function test_registered_comment_type_action_receives_type_and_object() {
+	public function test_registered_comment_type_action_receives_type_and_object(): void {
 		$action = new MockAction();
 
 		add_action( 'registered_comment_type', array( $action, 'action' ), 10, 2 );
@@ -525,6 +558,8 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 
 	/**
 	 * @ticket 35214
+	 *
+	 * @covers ::register_comment_type
 	 */
 	public function test_registered_comment_type_exposes_cap_object() {
 		register_comment_type( 'foo', array( 'capability_type' => 'review' ) );
@@ -539,6 +574,8 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 * The built-in comment type's capabilities match the existing core comment capabilities.
 	 *
 	 * @ticket 35214
+	 *
+	 * @covers ::get_comment_type_capabilities
 	 */
 	public function test_built_in_comment_type_capabilities_are_backward_compatible() {
 		$cobj = get_comment_type_object( 'comment' );
@@ -603,7 +640,6 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 		$expected = array(
 			// Meta capabilities.
 			'edit_comment'         => 'edit_review',
-			'read_comment'         => 'read_review',
 			'delete_comment'       => 'delete_review',
 			'moderate_comment'     => 'moderate_review',
 			// Primitive capabilities.
@@ -633,10 +669,249 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 
 		// Singular base drives the meta capabilities.
 		$this->assertSame( 'edit_story', $caps->edit_comment );
-		$this->assertSame( 'read_story', $caps->read_comment );
+		$this->assertSame( 'delete_story', $caps->delete_comment );
 		// Explicit plural base drives the primitive capabilities.
 		$this->assertSame( 'edit_stories', $caps->edit_comments );
 		$this->assertSame( 'delete_stories', $caps->delete_comments );
 		$this->assertSame( 'moderate_stories', $caps->moderate_comments );
+	}
+
+	/**
+	 * A 'read_comment' meta capability is deliberately not generated: unlike editing,
+	 * deleting, or moderating, reading a single comment has no defined semantics in core,
+	 * so there is nothing for a future map_meta_cap() case to enforce. The other meta
+	 * capabilities are advertised ahead of their mappings as advisory metadata; this one
+	 * is pinned out until real read semantics exist.
+	 *
+	 * @ticket 35214
+	 *
+	 * @covers ::get_comment_type_capabilities
+	 */
+	public function test_get_comment_type_capabilities_omits_read_comment() {
+		$caps = get_comment_type_capabilities(
+			(object) array(
+				'capability_type' => 'review',
+				'capabilities'    => array(),
+			)
+		);
+
+		$this->assertObjectNotHasProperty( 'read_comment', $caps );
+		$this->assertObjectNotHasProperty( 'read_comment', get_comment_type_object( 'comment' )->cap );
+	}
+
+	/**
+	 * The built-in types all register without a capability type, so they share one cap set.
+	 * Anything that gated on the existing comment capabilities keeps working for all four.
+	 *
+	 * @ticket 35214
+	 *
+	 * @covers ::get_comment_type_capabilities
+	 *
+	 * @dataProvider data_built_in_comment_types
+	 *
+	 * @param string $comment_type Built-in comment type name.
+	 */
+	public function test_built_in_comment_types_share_the_comment_capabilities( $comment_type ) {
+		$this->assertEquals(
+			get_comment_type_object( 'comment' )->cap,
+			get_comment_type_object( $comment_type )->cap
+		);
+	}
+
+	/**
+	 * An override applies to meta capabilities as well as primitives, so a type can point a
+	 * meta capability at a name that map_meta_cap() already resolves.
+	 *
+	 * @ticket 35214
+	 *
+	 * @covers ::get_comment_type_capabilities
+	 */
+	public function test_get_comment_type_capabilities_honors_a_meta_capability_override() {
+		$caps = get_comment_type_capabilities(
+			(object) array(
+				'capability_type' => 'review',
+				'capabilities'    => array(
+					'edit_comment' => 'edit_review_item',
+				),
+			)
+		);
+
+		$this->assertSame( 'edit_review_item', $caps->edit_comment, 'The override should win.' );
+		$this->assertSame( 'delete_review', $caps->delete_comment, 'The rest should still derive from the base.' );
+	}
+
+	/**
+	 * Comment types are never hierarchical. The default labels reserve the hierarchical
+	 * slot as null, so honoring a provided value would resolve every label to null.
+	 *
+	 * @ticket 35214
+	 *
+	 * @covers WP_Comment_Type::set_props
+	 */
+	public function test_register_comment_type_ignores_hierarchical_argument(): void {
+		register_comment_type( 'foo', array( 'hierarchical' => true ) );
+
+		$cobj = $this->get_registered_comment_type( 'foo' );
+
+		$this->assertFalse( $cobj->hierarchical, 'A comment type should never be hierarchical.' );
+		$this->assertSame( 'Comments', $cobj->label, 'The default label should survive the argument.' );
+		$this->assertSame( 'Comments', $cobj->labels->name );
+		$this->assertSame( 'Comment', $cobj->labels->singular_name );
+	}
+
+	/**
+	 * The names WP_Comment_Query reads as query tokens cannot be registered, since a type
+	 * stored under one of them could never be queried for on its own.
+	 *
+	 * @ticket 35214
+	 *
+	 * @covers ::register_comment_type
+	 *
+	 * @dataProvider data_reserved_comment_type_names
+	 *
+	 * @expectedIncorrectUsage register_comment_type
+	 *
+	 * @param string $comment_type Reserved comment type name.
+	 */
+	public function test_register_reserved_comment_type_is_rejected( string $comment_type ): void {
+		$result = register_comment_type( $comment_type );
+
+		$this->assertInstanceOf( 'WP_Error', $result );
+		$this->assertSame( 'comment_type_reserved', $result->get_error_code() );
+		$this->assertNull( get_comment_type_object( $comment_type ) );
+	}
+
+	/**
+	 * Data provider for test_register_reserved_comment_type_is_rejected().
+	 *
+	 * @return array<string, string[]>
+	 */
+	public function data_reserved_comment_type_names(): array {
+		return array(
+			'all type token'   => array( 'all' ),
+			'comments alias'   => array( 'comments' ),
+			'pings bucket key' => array( 'pings' ),
+		);
+	}
+
+	/**
+	 * The built-in guard reads the raw arguments, so passing '_builtin' bypasses it. This
+	 * matches register_post_type(), where '_builtin' is an accepted internal-use argument
+	 * with no guard at all. Pinned so the follow-ups that give '_builtin' more meaning
+	 * cannot change it by accident.
+	 *
+	 * @ticket 35214
+	 *
+	 * @covers ::register_comment_type
+	 */
+	public function test_register_comment_type_builtin_argument_bypasses_the_built_in_guard(): void {
+		$result = register_comment_type(
+			'pingback',
+			array(
+				'_builtin' => true,
+				'label'    => 'Hijacked',
+			)
+		);
+
+		$this->assertInstanceOf( 'WP_Comment_Type', $result, 'Passing _builtin bypasses the guard.' );
+		$this->assertSame( 'Hijacked', $this->get_registered_comment_type( 'pingback' )->label );
+	}
+
+	/**
+	 * Passing '_builtin' on a custom type makes it behave like a built-in for everyone
+	 * else: it can no longer be re-registered or unregistered.
+	 *
+	 * @ticket 35214
+	 *
+	 * @covers ::register_comment_type
+	 * @covers ::unregister_comment_type
+	 *
+	 * @expectedIncorrectUsage register_comment_type
+	 */
+	public function test_register_comment_type_builtin_argument_locks_a_custom_type(): void {
+		register_comment_type( 'foo', array( '_builtin' => true ) );
+
+		$this->assertInstanceOf( 'WP_Error', register_comment_type( 'foo' ) );
+		$this->assertInstanceOf( 'WP_Error', unregister_comment_type( 'foo' ) );
+	}
+
+	/**
+	 * Built-in labels are rebuilt on a locale change rather than served from the static
+	 * default-labels cache.
+	 *
+	 * @ticket 35214
+	 *
+	 * @covers ::create_initial_comment_types
+	 */
+	public function test_built_in_labels_are_rebuilt_on_locale_change(): void {
+		$original = $this->get_registered_comment_type( 'comment' )->label;
+
+		add_filter(
+			'gettext',
+			static function ( $translation, $text ) {
+				return 'Comments' === $text ? 'Kommentare' : $translation;
+			},
+			10,
+			2
+		);
+
+		/** This action is documented in wp-includes/class-wp-locale-switcher.php */
+		do_action( 'change_locale', 'de_DE' );
+
+		$this->assertSame(
+			'Kommentare',
+			$this->get_registered_comment_type( 'comment' )->label,
+			'A locale change should rebuild the built-in labels.'
+		);
+		$this->assertNotSame( $original, $this->get_registered_comment_type( 'comment' )->label );
+	}
+
+	/**
+	 * Before wp-settings.php registers the built-ins, the registry global does not exist.
+	 * Both accessors have to cope with that rather than warn.
+	 *
+	 * @ticket 35214
+	 *
+	 * @covers ::get_comment_types
+	 * @covers ::get_comment_type_object
+	 */
+	public function test_accessors_handle_an_unset_registry(): void {
+		$registry = $GLOBALS['wp_comment_types'];
+		unset( $GLOBALS['wp_comment_types'] );
+
+		try {
+			$this->assertSame( array(), get_comment_types() );
+			$this->assertNull( get_comment_type_object( 'comment' ) );
+		} finally {
+			$GLOBALS['wp_comment_types'] = $registry;
+		}
+	}
+
+	/**
+	 * The registry is a per-process global, so it is not scoped to a site. This matches
+	 * post types, and is worth pinning because comment counts and query exclusions are
+	 * per-site data.
+	 *
+	 * @ticket 35214
+	 *
+	 * @group ms-required
+	 *
+	 * @covers ::register_comment_type
+	 */
+	public function test_registry_is_not_scoped_to_a_site(): void {
+		register_comment_type( 'foo' );
+
+		$blog_id = self::factory()->blog->create();
+
+		switch_to_blog( $blog_id );
+
+		$registered_after_switch = comment_type_exists( 'foo' );
+
+		restore_current_blog();
+
+		$this->assertTrue(
+			$registered_after_switch,
+			'A registered comment type should still be registered after switch_to_blog().'
+		);
 	}
 }
