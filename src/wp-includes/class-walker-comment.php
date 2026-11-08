@@ -260,7 +260,7 @@ class Walker_Comment extends Walker {
 	 * Outputs a pingback comment.
 	 *
 	 * @since 3.6.0
-	 * @since 7.2.0 A registered ping type with its own singular name is labeled with it.
+	 * @since 7.3.0 A registered ping type with its own singular name is labeled with it.
 	 *
 	 * @see wp_list_comments()
 	 *

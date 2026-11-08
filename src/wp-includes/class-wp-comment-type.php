@@ -123,7 +123,7 @@ final class WP_Comment_Type {
 	 * set, unless the type has a `render_callback`. Validation, moderation, and
 	 * notifications still key on the 'pingback' and 'trackback' type names. Default false.
 	 *
-	 * @since 7.2.0
+	 * @since 7.3.0
 	 * @var bool
 	 */
 	public $is_ping = false;

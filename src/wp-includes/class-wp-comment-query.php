@@ -124,7 +124,7 @@ class WP_Comment_Query {
 	 *
 	 * Resolved once per parsed query so the cache keys and the SQL use the same set.
 	 *
-	 * @since 7.2.0
+	 * @since 7.3.0
 	 * @var string[]|null
 	 */
 	protected $ping_comment_types = null;
@@ -159,7 +159,7 @@ class WP_Comment_Query {
 	 * @since 4.9.0 Introduced the `$paged` argument.
 	 * @since 5.1.0 Introduced the `$meta_compare_key` argument.
 	 * @since 5.3.0 Introduced the `$meta_type_key` argument.
-	 * @since 7.2.0 A `$type` of 'pings' expands to every comment type registered with `is_ping`.
+	 * @since 7.3.0 A `$type` of 'pings' expands to every comment type registered with `is_ping`.
 	 *
 	 * @param string|array $query {
 	 *     Optional. Array or query string of comment query parameters. Default empty.
@@ -1027,7 +1027,7 @@ class WP_Comment_Query {
 	 * which do not affect query results. Adds the resolved ping types when 'pings' is
 	 * queried, since registering a ping type does not bump the comment last_changed value.
 	 *
-	 * @since 7.2.0
+	 * @since 7.3.0
 	 *
 	 * @return array<string, mixed> Query vars to hash into a cache key.
 	 */
@@ -1053,7 +1053,7 @@ class WP_Comment_Query {
 	 *
 	 * Matches the 'pings' group built by separate_comments().
 	 *
-	 * @since 7.2.0
+	 * @since 7.3.0
 	 *
 	 * @return string[] Comment type names.
 	 */

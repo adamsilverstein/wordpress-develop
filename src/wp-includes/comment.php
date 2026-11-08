@@ -1390,7 +1390,7 @@ function wp_check_comment_flood( $is_flood, $ip, $email, $date, $avoid_die = fal
  * Separates an array of comments into an array keyed by comment_type.
  *
  * @since 2.7.0
- * @since 7.2.0 The 'pings' group includes every comment type registered with `is_ping`.
+ * @since 7.3.0 The 'pings' group includes every comment type registered with `is_ping`.
  *
  * @param WP_Comment[] $comments Array of comments.
  * @return array<string, WP_Comment[]> Array of comments keyed by comment type.
