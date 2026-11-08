@@ -1102,8 +1102,7 @@ function get_comment_pages_count( $comments = null, $per_page = null, $threaded 
  * Calculates what page number a comment will appear on for comment paging.
  *
  * @since 2.7.0
- * @since 7.2.0 The default 'type' changed from 'all' to '', so that the page math
- *              applies the same default exclusions as the rendered comment list.
+ * @since 7.2.0 Comment types excluded by default are no longer counted when 'type' is 'all'.
  *
  * @global wpdb $wpdb WordPress database abstraction object.
  *
@@ -1113,10 +1112,9 @@ function get_comment_pages_count( $comments = null, $per_page = null, $threaded 
  *
  *     @type string     $type      Limit paginated comments to those matching a given type.
  *                                 Accepts 'comment', 'trackback', 'pingback', 'pings'
- *                                 (trackbacks and pingbacks), or 'all'. An empty string
- *                                 counts every type except those excluded by default, which
- *                                 is what comments_template() renders. Pass 'all' to count
- *                                 the excluded types as well. Default empty string.
+ *                                 (trackbacks and pingbacks), or 'all'. 'all' leaves out the
+ *                                 comment types excluded by default, as the comment list does
+ *                                 not render them. Default 'all'.
  *     @type int        $per_page  Per-page count to use when calculating pagination.
  *                                 Defaults to the value of the 'comments_per_page' option.
  *     @type int|string $max_depth If greater than 1, comment page will be determined
@@ -1135,13 +1133,8 @@ function get_page_of_comment( $comment_id, $args = array() ) {
 		return null;
 	}
 
-	/*
-	 * The default type is empty rather than 'all' so the comments counted here are the
-	 * ones comments_template() actually renders. Counting the default-excluded types
-	 * would put a comment's permalink on a page the visitor never sees.
-	 */
 	$defaults      = array(
-		'type'      => '',
+		'type'      => 'all',
 		'page'      => '',
 		'per_page'  => '',
 		'max_depth' => '',
@@ -1199,6 +1192,15 @@ function get_page_of_comment( $comment_id, $args = array() ) {
 			),
 		);
 
+		/*
+		 * WP_Comment_Query stops excluding the default-excluded types when 'all' is
+		 * requested, but comments_template() never renders them. Counting them would put
+		 * a comment's permalink on a page the visitor never sees.
+		 */
+		if ( in_array( 'all', (array) $args['type'], true ) ) {
+			$comment_args['type__not_in'] = wp_get_default_excluded_comment_types();
+		}
+
 		if ( is_user_logged_in() ) {
 			$comment_args['include_unapproved'] = array( get_current_user_id() );
 		} else {
@@ -1213,6 +1215,7 @@ function get_page_of_comment( $comment_id, $args = array() ) {
 		 * Filters the arguments used to query comments in get_page_of_comment().
 		 *
 		 * @since 5.5.0
+		 * @since 7.2.0 Added the `$type__not_in` argument.
 		 *
 		 * @see WP_Comment_Query::__construct()
 		 *
@@ -1221,9 +1224,9 @@ function get_page_of_comment( $comment_id, $args = array() ) {
 		 *
 		 *     @type string $type               Limit paginated comments to those matching a given type.
 		 *                                      Accepts 'comment', 'trackback', 'pingback', 'pings'
-		 *                                      (trackbacks and pingbacks), or 'all'. An empty string
-		 *                                      counts every type except those excluded by default.
-		 *                                      Default empty string.
+		 *                                      (trackbacks and pingbacks), or 'all'. Default 'all'.
+		 *     @type string[] $type__not_in     Comment types excluded by default. Only set when
+		 *                                      `$type` is 'all'.
 		 *     @type int    $post_id            ID of the post.
 		 *     @type string $fields             Comment fields to return.
 		 *     @type bool   $count              Whether to return a comment count (true) or array
@@ -3341,17 +3344,16 @@ function wp_get_default_excluded_comment_types( $query = null ) {
  * honor the same {@see 'default_excluded_comment_types'} filter output.
  *
  * @since 7.2.0
- * @access private
  *
  * @global wpdb $wpdb WordPress database abstraction object.
  *
  * @param string $column Optional. The `comment_type` column to filter on, qualified with a
- *                       table name where the query joins other tables. Must not contain
- *                       user input. Default 'comment_type'.
+ *                       table name where the query joins other tables, for example
+ *                       'wp_comments.comment_type'. Default 'comment_type'.
  * @return string Prepared ` AND <column> NOT IN (...)` condition, or an empty string when
  *                no comment types are excluded.
  */
-function _wp_get_excluded_comment_types_clause( $column = 'comment_type' ) {
+function wp_get_excluded_comment_types_clause( string $column = 'comment_type' ): string {
 	global $wpdb;
 
 	$excluded_types = wp_get_default_excluded_comment_types();
@@ -3360,12 +3362,13 @@ function _wp_get_excluded_comment_types_clause( $column = 'comment_type' ) {
 		return '';
 	}
 
+	// Each part of a qualified name is its own identifier, so `table`.`column` quotes correctly.
+	$column_parts = explode( '.', $column );
+	$column_sql   = implode( '.', array_fill( 0, count( $column_parts ), '%i' ) );
 	$placeholders = implode( ', ', array_fill( 0, count( $excluded_types ), '%s' ) );
-	$clause       = sprintf( ' AND %s NOT IN ( %s )', $column, $placeholders );
 
-	// The column name comes from core call sites; the type values are prepared here.
-	// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-	return $wpdb->prepare( $clause, $excluded_types );
+	// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Both hold placeholders only.
+	return (string) $wpdb->prepare( " AND $column_sql NOT IN ( $placeholders )", array_merge( $column_parts, $excluded_types ) );
 }
 
 /**
@@ -3412,7 +3415,7 @@ function wp_update_comment_count_now( $post_id ) {
 	$new = apply_filters( 'pre_wp_update_comment_count_now', null, $old, $post_id );
 
 	if ( is_null( $new ) ) {
-		$type_not_in = _wp_get_excluded_comment_types_clause();
+		$type_not_in = wp_get_excluded_comment_types_clause();
 
 		$new = (int) $wpdb->get_var(
 			$wpdb->prepare(
