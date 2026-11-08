@@ -15,29 +15,29 @@ class Tests_Comment_CommentCapabilities extends WP_UnitTestCase {
 	 *
 	 * @var int
 	 */
-	protected static $post_id;
+	protected static int $post_id;
 
 	/**
 	 * Administrator user ID (has moderate_comments and can edit the post).
 	 *
 	 * @var int
 	 */
-	protected static $admin_id;
+	protected static int $admin_id;
 
 	/**
 	 * Subscriber user ID (no comment capabilities).
 	 *
 	 * @var int
 	 */
-	protected static $subscriber_id;
+	protected static int $subscriber_id;
 
-	public static function wpSetUpBeforeClass( WP_UnitTest_Factory $factory ) {
+	public static function wpSetUpBeforeClass( WP_UnitTest_Factory $factory ): void {
 		self::$admin_id      = $factory->user->create( array( 'role' => 'administrator' ) );
 		self::$subscriber_id = $factory->user->create( array( 'role' => 'subscriber' ) );
 		self::$post_id       = $factory->post->create( array( 'post_author' => self::$admin_id ) );
 	}
 
-	public function set_up() {
+	public function set_up(): void {
 		parent::set_up();
 
 		// A comment type with an independent capability model.
@@ -51,7 +51,7 @@ class Tests_Comment_CommentCapabilities extends WP_UnitTestCase {
 	 * @param int    $user_id      Authoring user ID. Default 0 (anonymous).
 	 * @return int The new comment ID.
 	 */
-	private function make_comment( $comment_type = 'comment', $user_id = 0 ) {
+	private function make_comment( string $comment_type = 'comment', int $user_id = 0 ): int {
 		return self::factory()->comment->create(
 			array(
 				'comment_post_ID' => self::$post_id,
@@ -68,7 +68,7 @@ class Tests_Comment_CommentCapabilities extends WP_UnitTestCase {
 	/**
 	 * @ticket 35214
 	 */
-	public function test_default_edit_comment_follows_parent_post() {
+	public function test_default_edit_comment_follows_parent_post(): void {
 		$comment_id = $this->make_comment();
 
 		$this->assertTrue( user_can( self::$admin_id, 'edit_comment', $comment_id ) );
@@ -78,7 +78,7 @@ class Tests_Comment_CommentCapabilities extends WP_UnitTestCase {
 	/**
 	 * @ticket 35214
 	 */
-	public function test_orphaned_comment_edit_falls_back_to_edit_posts() {
+	public function test_orphaned_comment_edit_falls_back_to_edit_posts(): void {
 		$comment_id = self::factory()->comment->create(
 			array(
 				'comment_post_ID' => 0,
@@ -93,7 +93,7 @@ class Tests_Comment_CommentCapabilities extends WP_UnitTestCase {
 	/**
 	 * @ticket 35214
 	 */
-	public function test_default_moderate_comment_requires_moderate_comments() {
+	public function test_default_moderate_comment_requires_moderate_comments(): void {
 		$comment_id = $this->make_comment();
 
 		$this->assertTrue( user_can( self::$admin_id, 'moderate_comment', $comment_id ) );
@@ -103,7 +103,7 @@ class Tests_Comment_CommentCapabilities extends WP_UnitTestCase {
 	/**
 	 * @ticket 35214
 	 */
-	public function test_default_delete_comment_follows_parent_post() {
+	public function test_default_delete_comment_follows_parent_post(): void {
 		$comment_id = $this->make_comment();
 
 		$this->assertTrue( user_can( self::$admin_id, 'delete_comment', $comment_id ) );
@@ -115,7 +115,7 @@ class Tests_Comment_CommentCapabilities extends WP_UnitTestCase {
 	 *
 	 * @expectedIncorrectUsage map_meta_cap
 	 */
-	public function test_moderate_comment_without_comment_id_is_denied() {
+	public function test_moderate_comment_without_comment_id_is_denied(): void {
 		$this->assertFalse( user_can( self::$admin_id, 'moderate_comment' ) );
 	}
 
@@ -127,7 +127,7 @@ class Tests_Comment_CommentCapabilities extends WP_UnitTestCase {
 	/**
 	 * @ticket 35214
 	 */
-	public function test_independent_type_moderation_requires_its_own_primitive() {
+	public function test_independent_type_moderation_requires_its_own_primitive(): void {
 		$review_id  = $this->make_comment( 'review' );
 		$comment_id = $this->make_comment( 'comment' );
 
@@ -146,7 +146,7 @@ class Tests_Comment_CommentCapabilities extends WP_UnitTestCase {
 	/**
 	 * @ticket 35214
 	 */
-	public function test_independent_type_edit_distinguishes_own_and_others() {
+	public function test_independent_type_edit_distinguishes_own_and_others(): void {
 		$author = self::factory()->user->create_and_get( array( 'role' => 'subscriber' ) );
 		$author->add_cap( 'edit_reviews' );
 
@@ -167,7 +167,7 @@ class Tests_Comment_CommentCapabilities extends WP_UnitTestCase {
 	/**
 	 * @ticket 35214
 	 */
-	public function test_independent_type_delete_requires_its_own_primitive() {
+	public function test_independent_type_delete_requires_its_own_primitive(): void {
 		$review_id = $this->make_comment( 'review' );
 
 		$deleter = self::factory()->user->create_and_get( array( 'role' => 'subscriber' ) );
@@ -183,7 +183,7 @@ class Tests_Comment_CommentCapabilities extends WP_UnitTestCase {
 	 *
 	 * @ticket 35214
 	 */
-	public function test_legacy_empty_type_uses_default_model_for_all_meta_caps() {
+	public function test_legacy_empty_type_uses_default_model_for_all_meta_caps(): void {
 		$comment_id = self::factory()->comment->create(
 			array(
 				'comment_post_ID' => self::$post_id,
@@ -203,7 +203,7 @@ class Tests_Comment_CommentCapabilities extends WP_UnitTestCase {
 	 *
 	 * @ticket 35214
 	 */
-	public function test_independent_type_ignores_parent_post_entirely() {
+	public function test_independent_type_ignores_parent_post_entirely(): void {
 		$orphan_review = self::factory()->comment->create(
 			array(
 				'comment_post_ID' => 0,
@@ -229,7 +229,7 @@ class Tests_Comment_CommentCapabilities extends WP_UnitTestCase {
 	 *
 	 * @ticket 35214
 	 */
-	public function test_invalid_comment_id_is_denied_for_all_meta_caps() {
+	public function test_invalid_comment_id_is_denied_for_all_meta_caps(): void {
 		$invalid_id = PHP_INT_MAX;
 
 		foreach ( array( 'edit_comment', 'delete_comment', 'moderate_comment' ) as $meta_cap ) {
@@ -249,7 +249,7 @@ class Tests_Comment_CommentCapabilities extends WP_UnitTestCase {
 	 *
 	 * @expectedIncorrectUsage map_meta_cap
 	 */
-	public function test_delete_comment_without_comment_id_is_denied() {
+	public function test_delete_comment_without_comment_id_is_denied(): void {
 		$this->assertFalse( user_can( self::$admin_id, 'delete_comment' ) );
 	}
 
@@ -259,7 +259,7 @@ class Tests_Comment_CommentCapabilities extends WP_UnitTestCase {
 	 *
 	 * @ticket 35214
 	 */
-	public function test_anonymous_independent_comment_never_matches_own() {
+	public function test_anonymous_independent_comment_never_matches_own(): void {
 		$anon_review = $this->make_comment( 'review', 0 );
 
 		$author = self::factory()->user->create_and_get( array( 'role' => 'subscriber' ) );
@@ -278,7 +278,7 @@ class Tests_Comment_CommentCapabilities extends WP_UnitTestCase {
 	 *
 	 * @ticket 35214
 	 */
-	public function test_array_capability_type_is_enforced_end_to_end() {
+	public function test_array_capability_type_is_enforced_end_to_end(): void {
 		register_comment_type( 'story_note', array( 'capability_type' => array( 'story', 'stories' ) ) );
 
 		$story_id = $this->make_comment( 'story_note', self::$admin_id );
@@ -305,7 +305,7 @@ class Tests_Comment_CommentCapabilities extends WP_UnitTestCase {
 	 *
 	 * @ticket 35214
 	 */
-	public function test_single_capability_override_flips_only_that_action() {
+	public function test_single_capability_override_flips_only_that_action(): void {
 		register_comment_type(
 			'annotation',
 			array(
@@ -329,7 +329,7 @@ class Tests_Comment_CommentCapabilities extends WP_UnitTestCase {
 	 *
 	 * @ticket 35214
 	 */
-	public function test_unregistered_type_falls_back_to_default_model() {
+	public function test_unregistered_type_falls_back_to_default_model(): void {
 		$review_id = $this->make_comment( 'review' );
 
 		$moderator = self::factory()->user->create_and_get( array( 'role' => 'subscriber' ) );
@@ -350,7 +350,7 @@ class Tests_Comment_CommentCapabilities extends WP_UnitTestCase {
 	 *
 	 * @ticket 35214
 	 */
-	public function test_default_model_still_consults_trashed_parent_post() {
+	public function test_default_model_still_consults_trashed_parent_post(): void {
 		$post_id    = self::factory()->post->create( array( 'post_author' => self::$admin_id ) );
 		$comment_id = self::factory()->comment->create(
 			array(
@@ -373,7 +373,7 @@ class Tests_Comment_CommentCapabilities extends WP_UnitTestCase {
 	/**
 	 * @ticket 35214
 	 */
-	public function test_custom_meta_cap_name_translates_via_map_meta_cap() {
+	public function test_custom_meta_cap_name_translates_via_map_meta_cap(): void {
 		$review_id = $this->make_comment( 'review' );
 
 		$moderator = self::factory()->user->create_and_get( array( 'role' => 'subscriber' ) );
@@ -392,7 +392,7 @@ class Tests_Comment_CommentCapabilities extends WP_UnitTestCase {
 	/**
 	 * @ticket 35214
 	 */
-	public function test_custom_edit_meta_cap_name_respects_own_others_split() {
+	public function test_custom_edit_meta_cap_name_respects_own_others_split(): void {
 		$author = self::factory()->user->create_and_get( array( 'role' => 'subscriber' ) );
 		$author->add_cap( 'edit_reviews' );
 
@@ -408,7 +408,7 @@ class Tests_Comment_CommentCapabilities extends WP_UnitTestCase {
 	 *
 	 * @ticket 35214
 	 */
-	public function test_unregistering_type_removes_custom_meta_cap_translation() {
+	public function test_unregistering_type_removes_custom_meta_cap_translation(): void {
 		$review_id = $this->make_comment( 'review' );
 
 		$moderator = self::factory()->user->create_and_get( array( 'role' => 'subscriber' ) );
@@ -429,7 +429,7 @@ class Tests_Comment_CommentCapabilities extends WP_UnitTestCase {
 	 *
 	 * @expectedIncorrectUsage register_comment_type
 	 */
-	public function test_comment_type_cannot_claim_post_type_meta_cap_names() {
+	public function test_comment_type_cannot_claim_post_type_meta_cap_names(): void {
 		global $post_type_meta_caps, $comment_type_meta_caps;
 
 		register_post_type(
@@ -441,11 +441,12 @@ class Tests_Comment_CommentCapabilities extends WP_UnitTestCase {
 		);
 		register_comment_type( 'book_note', array( 'capability_type' => 'book' ) );
 
-		$this->assertSame( 'edit_post', $post_type_meta_caps['edit_book'], 'The post type translation should be preserved.' );
+		$this->assertSame( 'edit_post', ( (array) $post_type_meta_caps )['edit_book'] ?? null, 'The post type translation should be preserved.' );
 		$this->assertArrayNotHasKey( 'edit_book', (array) $comment_type_meta_caps );
 		$this->assertArrayNotHasKey( 'delete_book', (array) $comment_type_meta_caps );
 
 		// The non-colliding moderation capability is still registered.
-		$this->assertSame( 'moderate_comment', $comment_type_meta_caps['moderate_book'] );
+		$this->assertSame( 'moderate_comment', ( (array) $comment_type_meta_caps )['moderate_book'] ?? null );
 	}
+
 }
