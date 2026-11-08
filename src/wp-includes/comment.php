@@ -744,7 +744,7 @@ function get_comment_type_labels( $comment_type_object ) {
  *
  * @param object $args Comment type registration arguments. Expects the
  *                     `capability_type` and `capabilities` properties.
- * @return object {
+ * @return stdClass {
  *     Object with all the capabilities as member variables.
  *
  *     @type string $edit_comment         Meta capability to edit a comment of this type.
@@ -763,7 +763,7 @@ function get_comment_type_labels( $comment_type_object ) {
  *                                        Default 'moderate_comments'.
  * }
  */
-function get_comment_type_capabilities( $args ) {
+function get_comment_type_capabilities( object $args ): stdClass {
 	if ( ! is_array( $args->capability_type ) ) {
 		$args->capability_type = array( $args->capability_type, $args->capability_type . 's' );
 	}
