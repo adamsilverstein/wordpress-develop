@@ -32,6 +32,8 @@ class WP_REST_Comment_Types_Controller extends WP_REST_Controller {
 	 * @since 7.2.0
 	 *
 	 * @see register_rest_route()
+	 *
+	 * @return void
 	 */
 	public function register_routes() {
 
@@ -236,18 +238,13 @@ class WP_REST_Comment_Types_Controller extends WP_REST_Controller {
 	/**
 	 * Prepares links for the request.
 	 *
-	 * Note that the 'items' link is only followable by a user who can pass the comments
-	 * endpoint's `type` parameter. That parameter is protected: callers without
-	 * `edit_posts` may only request the 'comment' type, so for every other type the link
-	 * answers 401 to an anonymous client. The link is still advertised, because what a
-	 * caller may query is a question for the comments endpoint rather than something
-	 * discovery should second-guess, and because the answer changes once per-type
-	 * capabilities land.
+	 * The 'items' link is always advertised, but the comments endpoint only lets users
+	 * with `edit_posts` filter by types other than 'comment'.
 	 *
 	 * @since 7.2.0
 	 *
 	 * @param WP_Comment_Type $comment_type The comment type.
-	 * @return array Links for the given comment type.
+	 * @return array<non-falsy-string, array{href: string}> Links for the given comment type.
 	 */
 	protected function prepare_links( $comment_type ) {
 		return array(
@@ -265,7 +262,7 @@ class WP_REST_Comment_Types_Controller extends WP_REST_Controller {
 	 *
 	 * @since 7.2.0
 	 *
-	 * @return array Item schema data.
+	 * @return array<mixed> Item schema data.
 	 */
 	public function get_item_schema() {
 		if ( $this->schema ) {
@@ -314,7 +311,7 @@ class WP_REST_Comment_Types_Controller extends WP_REST_Controller {
 	 *
 	 * @since 7.2.0
 	 *
-	 * @return array Collection parameters.
+	 * @return array<string, mixed> Collection parameters.
 	 */
 	public function get_collection_params() {
 		return array(

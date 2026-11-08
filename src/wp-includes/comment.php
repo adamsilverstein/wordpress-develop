@@ -416,12 +416,9 @@ function create_initial_comment_types(): void {
  *    comment queries and counts by default.
  *  - `show_in_rest` controls REST discovery of the type's metadata, and nothing else.
  *
- * An argument never implies another argument, with one deliberate exception:
- * `show_in_rest` defaults from `public`, since a type meant to be seen is a type worth
- * discovering. Note that `internal` is not part of that cascade: a type registered with
- * `internal => true` but left `public` still defaults to REST-discoverable. A type that
- * should stay out of discovery must pass `show_in_rest => false` (or `public => false`),
- * as the built-in 'note' type does.
+ * An argument never implies another argument, except that `show_in_rest` defaults to
+ * the value of `public`. `internal` does not affect it, so an internal type that should
+ * stay out of REST discovery must also pass `show_in_rest => false` or `public => false`.
  *
  * Registrations live in a per-process global. Like post types, they are not scoped to a
  * site on multisite: a type registered by one site's plugins is visible after
@@ -455,10 +452,9 @@ function create_initial_comment_types(): void {
  *                                    by default. Core does not currently act on this argument.
  *                                    Default false.
  *     @type bool       $show_in_rest Whether to expose this comment type in the REST API comment types
- *                                    discovery endpoint (`/wp/v2/comment-types`). Exposing a type
- *                                    reveals its name, slug, description, and labels only; it does not
- *                                    make comments of this type readable or queryable via
- *                                    `/wp/v2/comments`. Default is the value of $public.
+ *                                    discovery endpoint (`/wp/v2/comment-types`). Does not affect
+ *                                    access to comments of this type via `/wp/v2/comments`.
+ *                                    Default is the value of $public.
  *     @type bool       $_builtin     For internal core use only. Marks the type as native to
  *                                    WordPress, which blocks it from being re-registered or
  *                                    unregistered. Default false.

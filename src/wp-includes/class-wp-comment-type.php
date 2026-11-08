@@ -90,12 +90,10 @@ final class WP_Comment_Type {
 	public $internal = false;
 
 	/**
-	 * Whether to include this comment type in the REST API.
+	 * Whether to expose this comment type in the `/wp/v2/comment-types` endpoint.
 	 *
-	 * Comment types with this enabled are exposed by the read-only
-	 * `/wp/v2/comment-types` discovery endpoint (name, slug, description,
-	 * labels). It does not affect whether comments of this type are readable
-	 * or queryable via `/wp/v2/comments`. Default is the value of $public.
+	 * Does not affect access to comments of this type via `/wp/v2/comments`.
+	 * Default is the value of $public.
 	 *
 	 * @since 7.2.0
 	 * @var bool
@@ -206,13 +204,7 @@ final class WP_Comment_Type {
 
 		$args = array_merge( $defaults, $args );
 
-		/*
-		 * If not set, default 'show_in_rest' to the setting for 'public'. This
-		 * deliberately diverges from WP_Post_Type, which defaults it to false only
-		 * for backward compatibility with post types registered before the REST API
-		 * existed. A new registry has no such constraint, and 'show_in_rest' gates
-		 * only the read-only comment-types discovery endpoint.
-		 */
+		// Unlike WP_Post_Type, there is no back-compat reason to default this to false.
 		if ( null === $args['show_in_rest'] ) {
 			$args['show_in_rest'] = $args['public'];
 		}
