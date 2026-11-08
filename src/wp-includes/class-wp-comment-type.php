@@ -96,6 +96,26 @@ final class WP_Comment_Type {
 	public $_builtin = false;
 
 	/**
+	 * Callback used to render a comment of this type in wp_list_comments().
+	 *
+	 * Receives the same arguments as the wp_list_comments() `callback` argument,
+	 * which takes precedence over it. Like that callback, it must echo only the
+	 * opening of the element (a `<div>` when `$args['style']` is 'div', an `<li>`
+	 * otherwise), which Walker_Comment::end_el() closes. A returned string is
+	 * discarded, and output is not escaped.
+	 *
+	 * Setting a callback on the 'comment' type through the
+	 * {@see 'register_comment_type_args'} filter also replaces the walker's link
+	 * stripping for pending comments.
+	 *
+	 * Not used by the `core/comment-template` block. Default null.
+	 *
+	 * @since 7.3.0
+	 * @var callable|null
+	 */
+	public $render_callback = null;
+
+	/**
 	 * Whether the comment type is hierarchical.
 	 *
 	 * Always false. Read by _get_custom_object_labels() to pick default labels.
@@ -172,11 +192,12 @@ final class WP_Comment_Type {
 
 		// No 'label' default, so get_comment_type_labels() can fall back to the default name.
 		$defaults = array(
-			'labels'      => array(),
-			'description' => '',
-			'public'      => true,
-			'internal'    => false,
-			'_builtin'    => false,
+			'labels'          => array(),
+			'description'     => '',
+			'public'          => true,
+			'internal'        => false,
+			'render_callback' => null,
+			'_builtin'        => false,
 		);
 
 		$args = array_merge( $defaults, $args );
