@@ -1029,9 +1029,9 @@ class WP_Comment_Query {
 	 *
 	 * @since 7.2.0
 	 *
-	 * @return array Query vars to hash into a cache key.
+	 * @return array<string, mixed> Query vars to hash into a cache key.
 	 */
-	protected function get_cache_key_args() {
+	protected function get_cache_key_args(): array {
 		$_args = wp_array_slice_assoc( $this->query_vars, array_keys( $this->query_var_defaults ) );
 		unset( $_args['fields'], $_args['update_comment_meta_cache'], $_args['update_comment_post_cache'] );
 
@@ -1057,8 +1057,9 @@ class WP_Comment_Query {
 	 *
 	 * @return string[] Comment type names.
 	 */
-	protected function get_ping_comment_types() {
+	protected function get_ping_comment_types(): array {
 		if ( null === $this->ping_comment_types ) {
+			/** @var string[] $ping_types */
 			$ping_types = get_comment_types( array( 'is_ping' => true ), 'names' );
 
 			// Queries can run before create_initial_comment_types() registers the built-ins.

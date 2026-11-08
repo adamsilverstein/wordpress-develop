@@ -285,6 +285,7 @@ class Walker_Comment extends Walker {
 			$comment_type_object
 			&& ! $comment_type_object->_builtin
 			&& isset( $comment_type_object->labels->singular_name )
+			&& is_string( $comment_type_object->labels->singular_name )
 			&& $default_labels['singular_name'][0] !== $comment_type_object->labels->singular_name
 		) {
 			/* translators: %s: Singular name of a registered comment type, e.g. "Webmention". */
