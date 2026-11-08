@@ -58,13 +58,13 @@ class Tests_Comment_Walker extends WP_UnitTestCase {
 	/**
 	 * Renders the comments on the test post and returns the markup.
 	 *
-	 * @param array $comments Comments to render.
-	 * @param array $args     Optional. Arguments merged into the wp_list_comments() defaults.
-	 *                        Default empty array.
+	 * @param WP_Comment[]         $comments Comments to render.
+	 * @param array<string, mixed> $args     Optional. Arguments merged into the wp_list_comments() defaults.
+	 *                                       Default empty array.
 	 * @return string Rendered markup.
 	 */
-	private function render_comments( $comments, $args = array() ) {
-		return wp_list_comments(
+	private function render_comments( array $comments, array $args = array() ): string {
+		return (string) wp_list_comments(
 			array_merge(
 				array(
 					'echo'   => false,
@@ -81,7 +81,7 @@ class Tests_Comment_Walker extends WP_UnitTestCase {
 	 *
 	 * @ticket 35214
 	 */
-	public function test_render_callback_renders_registered_comment_type() {
+	public function test_render_callback_renders_registered_comment_type(): void {
 		register_comment_type(
 			'review',
 			array(
@@ -108,12 +108,11 @@ class Tests_Comment_Walker extends WP_UnitTestCase {
 	}
 
 	/**
-	 * end_el() closes a `<div>` under the 'div' style, so a callback that always opened an
-	 * `<li>` would produce mismatched markup. The callback owns that choice.
+	 * A render_callback can open a `<div>` that end_el() closes under the 'div' style.
 	 *
 	 * @ticket 35214
 	 */
-	public function test_render_callback_pairs_with_the_div_style() {
+	public function test_render_callback_pairs_with_the_div_style(): void {
 		register_comment_type(
 			'review',
 			array(
@@ -143,13 +142,11 @@ class Tests_Comment_Walker extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Built-in types register without a callback and cannot be re-registered, but the
-	 * registration args filter can still set one. That is the sanctioned override path,
-	 * so pin it rather than leave it as an accident of the filter's placement.
+	 * The register_comment_type_args filter can add a render_callback to a built-in type.
 	 *
 	 * @ticket 35214
 	 */
-	public function test_render_callback_can_be_added_to_a_built_in_type_by_filter() {
+	public function test_render_callback_can_be_added_to_a_built_in_type_by_filter(): void {
 		add_filter(
 			'register_comment_type_args',
 			static function ( $args, $comment_type ) {
@@ -186,7 +183,7 @@ class Tests_Comment_Walker extends WP_UnitTestCase {
 	 *
 	 * @ticket 35214
 	 */
-	public function test_explicit_callback_takes_precedence_over_render_callback() {
+	public function test_explicit_callback_takes_precedence_over_render_callback(): void {
 		register_comment_type(
 			'review',
 			array(
@@ -462,7 +459,7 @@ class Tests_Comment_Walker extends WP_UnitTestCase {
 	 *
 	 * @ticket 35214
 	 */
-	public function test_comment_type_without_render_callback_renders_normally() {
+	public function test_comment_type_without_render_callback_renders_normally(): void {
 		$comment_id = self::factory()->comment->create(
 			array(
 				'comment_post_ID'  => $this->post_id,
@@ -483,7 +480,7 @@ class Tests_Comment_Walker extends WP_UnitTestCase {
 	 *
 	 * @ticket 35214
 	 */
-	public function test_render_callback_receives_comment_args_and_depth() {
+	public function test_render_callback_receives_comment_args_and_depth(): void {
 		$received = array();
 
 		register_comment_type(
@@ -519,12 +516,9 @@ class Tests_Comment_Walker extends WP_UnitTestCase {
 	/**
 	 * A child comment renders inside the element opened by its parent's render_callback.
 	 *
-	 * This pins the open-tag contract end to end: the callback outputs only the
-	 * element opening, children render within it, and end_el() closes each element.
-	 *
 	 * @ticket 35214
 	 */
-	public function test_child_comment_renders_within_render_callback_parent_element() {
+	public function test_child_comment_renders_within_render_callback_parent_element(): void {
 		register_comment_type(
 			'review',
 			array(
@@ -569,7 +563,7 @@ class Tests_Comment_Walker extends WP_UnitTestCase {
 	 *
 	 * @ticket 35214
 	 */
-	public function test_legacy_empty_type_renders_default_markup() {
+	public function test_legacy_empty_type_renders_default_markup(): void {
 		$comment_id = self::factory()->comment->create(
 			array(
 				'comment_post_ID'  => $this->post_id,
@@ -590,7 +584,7 @@ class Tests_Comment_Walker extends WP_UnitTestCase {
 	 *
 	 * @ticket 35214
 	 */
-	public function test_non_callable_render_callback_is_ignored() {
+	public function test_non_callable_render_callback_is_ignored(): void {
 		register_comment_type(
 			'review',
 			array(
@@ -613,13 +607,11 @@ class Tests_Comment_Walker extends WP_UnitTestCase {
 	}
 
 	/**
-	 * A render_callback must echo its output; a returned string is discarded, per the
-	 * documented contract. Pinned so the callback path never quietly starts honoring
-	 * return values.
+	 * A string returned by a render_callback is discarded.
 	 *
 	 * @ticket 35214
 	 */
-	public function test_render_callback_return_value_is_discarded() {
+	public function test_render_callback_return_value_is_discarded(): void {
 		register_comment_type(
 			'review',
 			array(
