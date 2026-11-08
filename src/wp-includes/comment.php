@@ -553,13 +553,14 @@ function register_comment_type( $comment_type, $args = array() ) {
  *
  * @since 7.3.0
  *
- * @global WP_Comment_Type[] $wp_comment_types List of comment types.
+ * @global WP_Comment_Type[]     $wp_comment_types       List of comment types.
+ * @global array<string, string> $comment_type_meta_caps Used to remove meta capabilities.
  *
  * @param string $comment_type Comment type key.
  * @return true|WP_Error True on success, WP_Error on failure or if the comment type doesn't exist.
  */
 function unregister_comment_type( $comment_type ) {
-	global $wp_comment_types;
+	global $wp_comment_types, $comment_type_meta_caps;
 
 	$comment_type_object = get_comment_type_object( $comment_type );
 
@@ -570,6 +571,12 @@ function unregister_comment_type( $comment_type ) {
 	// Do not allow unregistering built-in comment types.
 	if ( $comment_type_object->_builtin ) {
 		return new WP_Error( 'invalid_comment_type', __( 'Unregistering a built-in comment type is not allowed.' ) );
+	}
+
+	foreach ( (array) $comment_type_object->cap as $custom_cap ) {
+		if ( is_string( $custom_cap ) ) {
+			unset( $comment_type_meta_caps[ $custom_cap ] );
+		}
 	}
 
 	unset( $wp_comment_types[ $comment_type ] );
@@ -714,12 +721,19 @@ function get_comment_type_labels( $comment_type_object ) {
  * `capability_type` argument. A string base is pluralized by appending an 's';
  * an array supplies the singular and plural bases, e.g. array( 'story', 'stories' ).
  *
- * The capabilities are advisory: map_meta_cap() does not consult them yet, and
- * most of the generated names are not granted to any default role.
+ * By default, editing and deleting a comment derive from its parent post, and
+ * moderating requires `moderate_comments`. When a type overrides a singular meta
+ * capability, for example with `capability_type => 'review'`, map_meta_cap()
+ * instead requires the matching plural primitive (e.g. `edit_reviews`). No role
+ * has these by default; the plugin registering the type must grant them.
  *
  * Do not reuse a post type's `capability_type` as the base. A base of 'post'
  * generates `edit_comment => 'edit_post'`, which map_meta_cap() resolves
  * against a post with the comment's ID.
+ *
+ * The choice is per action: overriding only `edit_comment` gates editing by
+ * the type's `edit_comments` primitive while deletion still follows the parent
+ * post. The "others" axis is edit-only: there is no `delete_others_comments`.
  *
  * Normalizes the `capability_type` property of `$args` to its array form.
  *
@@ -768,7 +782,50 @@ function get_comment_type_capabilities( object $args ): stdClass {
 
 	$capabilities = array_merge( $default_capabilities, $args->capabilities );
 
+	_comment_type_meta_capabilities( $capabilities );
+
 	return (object) $capabilities;
+}
+
+/**
+ * Stores custom comment type meta capability names for map_meta_cap().
+ *
+ * Only `edit_comment`, `delete_comment`, and `moderate_comment` are stored.
+ * Names already registered as post type meta capabilities are skipped.
+ *
+ * @since 7.3.0
+ * @access private
+ *
+ * @global array<string, string> $comment_type_meta_caps Used to store comment type meta capabilities.
+ * @global array<string, string> $post_type_meta_caps    Post type meta capabilities, checked for collisions.
+ *
+ * @param array<mixed> $capabilities Comment type capabilities, keyed by generic capability name.
+ */
+function _comment_type_meta_capabilities( array $capabilities ): void {
+	global $comment_type_meta_caps, $post_type_meta_caps;
+
+	foreach ( array( 'edit_comment', 'delete_comment', 'moderate_comment' ) as $core ) {
+		$custom = $capabilities[ $core ] ?? null;
+
+		if ( ! is_string( $custom ) || $core === $custom ) {
+			continue;
+		}
+
+		if ( isset( $post_type_meta_caps[ $custom ] ) ) {
+			_doing_it_wrong(
+				'register_comment_type',
+				sprintf(
+					/* translators: %s: Capability name. */
+					__( 'The meta capability "%s" is already registered for a post type and cannot be reused for a comment type.' ),
+					$custom
+				),
+				'7.3.0'
+			);
+			continue;
+		}
+
+		$comment_type_meta_caps[ $custom ] = $core;
+	}
 }
 
 /**

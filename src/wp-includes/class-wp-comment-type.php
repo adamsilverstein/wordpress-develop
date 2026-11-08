@@ -99,8 +99,7 @@ final class WP_Comment_Type {
 	/**
 	 * Capabilities for this comment type.
 	 *
-	 * Advisory only; map_meta_cap() does not consult them yet.
-	 * See get_comment_type_capabilities().
+	 * Built by get_comment_type_capabilities() and enforced by map_meta_cap().
 	 *
 	 * @since 7.3.0
 	 * @var stdClass
