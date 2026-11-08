@@ -561,14 +561,11 @@ abstract class WP_UnitTestCase_Base extends PHPUnit_Adapter_TestCase {
 	 * a test forgets to unregister a comment type on its own, or fails before
 	 * it has a chance to do so.
 	 *
-	 * The registry is emptied outright rather than unregistered type by type, since a
-	 * test can register a custom type with '_builtin' set and that type would otherwise
-	 * survive into the next test. Registering a comment type creates no hooks, rewrite
-	 * rules, or meta boxes, so dropping the registry is complete cleanup.
+	 * Empties the registry outright, since a custom type registered with '_builtin'
+	 * cannot be unregistered.
 	 */
 	protected function reset_comment_types(): void {
-		// Direct get_comment_type_capabilities() calls register translations
-		// without a comment type to unregister, so reset the registry wholesale.
+		// get_comment_type_capabilities() can store translations without a registered type.
 		$GLOBALS['comment_type_meta_caps'] = array();
 		$GLOBALS['wp_comment_types']       = array();
 
