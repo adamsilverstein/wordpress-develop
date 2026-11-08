@@ -118,6 +118,27 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::create_initial_comment_types
 	 */
+	public function test_built_in_ping_types_are_marked_as_pings(): void {
+		$this->assertTrue( get_comment_type_object( 'pingback' )->is_ping );
+		$this->assertTrue( get_comment_type_object( 'trackback' )->is_ping );
+	}
+
+	/**
+	 * @ticket 35214
+	 *
+	 * @covers ::create_initial_comment_types
+	 */
+	public function test_built_in_non_ping_types_are_not_marked_as_pings(): void {
+		$this->assertFalse( get_comment_type_object( 'comment' )->is_ping );
+		$this->assertFalse( get_comment_type_object( 'note' )->is_ping );
+		$this->assertFalse( get_comment_type_object( 'reaction' )->is_ping );
+	}
+
+	/**
+	 * @ticket 35214
+	 *
+	 * @covers ::create_initial_comment_types
+	 */
 	public function test_built_in_reaction_type_is_internal_and_non_public(): void {
 		$reaction = $this->get_registered_comment_type( 'reaction' );
 
