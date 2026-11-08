@@ -98,6 +98,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 		$this->assertTrue( comment_type_exists( 'pingback' ) );
 		$this->assertTrue( comment_type_exists( 'trackback' ) );
 		$this->assertTrue( comment_type_exists( 'note' ) );
+		$this->assertTrue( comment_type_exists( 'reaction' ) );
 	}
 
 	/**
@@ -110,6 +111,21 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 
 		$this->assertTrue( $note->internal );
 		$this->assertFalse( $note->public );
+	}
+
+	/**
+	 * @ticket 35214
+	 *
+	 * @covers ::create_initial_comment_types
+	 */
+	public function test_built_in_reaction_type_is_internal_and_non_public(): void {
+		$reaction = $this->get_registered_comment_type( 'reaction' );
+
+		$this->assertTrue( $reaction->internal );
+		$this->assertFalse( $reaction->public );
+		$this->assertTrue( $reaction->_builtin );
+		$this->assertSame( 'Reactions', $reaction->label );
+		$this->assertSame( 'Reaction', $reaction->labels->singular_name );
 	}
 
 	/**
@@ -165,6 +181,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 		$this->assertContains( 'comment', $public );
 		$this->assertNotContains( 'foo', $public );
 		$this->assertNotContains( 'note', $public );
+		$this->assertNotContains( 'reaction', $public );
 	}
 
 	/**
@@ -223,6 +240,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 			array( 'pingback' ),
 			array( 'trackback' ),
 			array( 'note' ),
+			array( 'reaction' ),
 		);
 	}
 
@@ -401,7 +419,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 		create_initial_comment_types();
 		create_initial_comment_types();
 
-		$this->assertCount( 4, get_comment_types( array( '_builtin' => true ) ) );
+		$this->assertCount( 5, get_comment_types( array( '_builtin' => true ) ) );
 	}
 
 	/**
@@ -561,7 +579,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::register_comment_type
 	 */
-	public function test_registered_comment_type_exposes_cap_object() {
+	public function test_registered_comment_type_exposes_cap_object(): void {
 		register_comment_type( 'foo', array( 'capability_type' => 'review' ) );
 
 		$cobj = get_comment_type_object( 'foo' );
@@ -577,7 +595,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::get_comment_type_capabilities
 	 */
-	public function test_built_in_comment_type_capabilities_are_backward_compatible() {
+	public function test_built_in_comment_type_capabilities_are_backward_compatible(): void {
 		$cobj = get_comment_type_object( 'comment' );
 
 		$this->assertSame( 'edit_comment', $cobj->cap->edit_comment );
@@ -589,7 +607,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::get_comment_type_capabilities
 	 */
-	public function test_get_comment_type_capabilities_from_string() {
+	public function test_get_comment_type_capabilities_from_string(): void {
 		$caps = get_comment_type_capabilities(
 			(object) array(
 				'capability_type' => 'review',
@@ -609,7 +627,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::get_comment_type_capabilities
 	 */
-	public function test_get_comment_type_capabilities_honors_capabilities_override() {
+	public function test_get_comment_type_capabilities_honors_capabilities_override(): void {
 		$caps = get_comment_type_capabilities(
 			(object) array(
 				'capability_type' => 'comment',
@@ -629,7 +647,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::get_comment_type_capabilities
 	 */
-	public function test_get_comment_type_capabilities_generates_full_set() {
+	public function test_get_comment_type_capabilities_generates_full_set(): void {
 		$caps = get_comment_type_capabilities(
 			(object) array(
 				'capability_type' => 'review',
@@ -659,7 +677,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::get_comment_type_capabilities
 	 */
-	public function test_get_comment_type_capabilities_from_array() {
+	public function test_get_comment_type_capabilities_from_array(): void {
 		$caps = get_comment_type_capabilities(
 			(object) array(
 				'capability_type' => array( 'story', 'stories' ),
@@ -677,17 +695,14 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	}
 
 	/**
-	 * A 'read_comment' meta capability is deliberately not generated: unlike editing,
-	 * deleting, or moderating, reading a single comment has no defined semantics in core,
-	 * so there is nothing for a future map_meta_cap() case to enforce. The other meta
-	 * capabilities are advertised ahead of their mappings as advisory metadata; this one
-	 * is pinned out until real read semantics exist.
+	 * No 'read_comment' meta capability is generated, as core defines no semantics
+	 * for reading a single comment.
 	 *
 	 * @ticket 35214
 	 *
 	 * @covers ::get_comment_type_capabilities
 	 */
-	public function test_get_comment_type_capabilities_omits_read_comment() {
+	public function test_get_comment_type_capabilities_omits_read_comment(): void {
 		$caps = get_comment_type_capabilities(
 			(object) array(
 				'capability_type' => 'review',
@@ -700,8 +715,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	}
 
 	/**
-	 * The built-in types all register without a capability type, so they share one cap set.
-	 * Anything that gated on the existing comment capabilities keeps working for all four.
+	 * The built-in types register without a capability type, so they share one cap set.
 	 *
 	 * @ticket 35214
 	 *
@@ -711,7 +725,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @param string $comment_type Built-in comment type name.
 	 */
-	public function test_built_in_comment_types_share_the_comment_capabilities( $comment_type ) {
+	public function test_built_in_comment_types_share_the_comment_capabilities( string $comment_type ): void {
 		$this->assertEquals(
 			get_comment_type_object( 'comment' )->cap,
 			get_comment_type_object( $comment_type )->cap
@@ -726,7 +740,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::get_comment_type_capabilities
 	 */
-	public function test_get_comment_type_capabilities_honors_a_meta_capability_override() {
+	public function test_get_comment_type_capabilities_honors_a_meta_capability_override(): void {
 		$caps = get_comment_type_capabilities(
 			(object) array(
 				'capability_type' => 'review',

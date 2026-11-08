@@ -127,7 +127,7 @@ class Tests_Comment_WpCommentType extends WP_UnitTestCase {
 	 *
 	 * @covers ::set_props
 	 */
-	public function test_default_capability_type_and_cap_object() {
+	public function test_default_capability_type_and_cap_object(): void {
 		$comment_type = new WP_Comment_Type( 'foo' );
 
 		$this->assertSame( 'comment', $comment_type->capability_type );
@@ -141,7 +141,7 @@ class Tests_Comment_WpCommentType extends WP_UnitTestCase {
 	 *
 	 * @covers ::set_props
 	 */
-	public function test_custom_capability_type_builds_cap_object() {
+	public function test_custom_capability_type_builds_cap_object(): void {
 		$comment_type = new WP_Comment_Type( 'foo', array( 'capability_type' => 'review' ) );
 
 		$this->assertSame( 'review', $comment_type->capability_type );
@@ -157,7 +157,7 @@ class Tests_Comment_WpCommentType extends WP_UnitTestCase {
 	 *
 	 * @covers ::set_props
 	 */
-	public function test_array_capability_type_uses_explicit_plural() {
+	public function test_array_capability_type_uses_explicit_plural(): void {
 		$comment_type = new WP_Comment_Type( 'foo', array( 'capability_type' => array( 'story', 'stories' ) ) );
 
 		$this->assertSame( 'story', $comment_type->capability_type );
@@ -170,7 +170,7 @@ class Tests_Comment_WpCommentType extends WP_UnitTestCase {
 	 *
 	 * @covers ::set_props
 	 */
-	public function test_capabilities_argument_overrides_generated_caps() {
+	public function test_capabilities_argument_overrides_generated_caps(): void {
 		$comment_type = new WP_Comment_Type(
 			'foo',
 			array(
@@ -193,7 +193,7 @@ class Tests_Comment_WpCommentType extends WP_UnitTestCase {
 	 *
 	 * @covers ::set_props
 	 */
-	public function test_capabilities_input_is_not_retained_as_property() {
+	public function test_capabilities_input_is_not_retained_as_property(): void {
 		$comment_type = new WP_Comment_Type( 'foo', array( 'capabilities' => array( 'edit_comments' => 'x' ) ) );
 
 		$this->assertObjectNotHasProperty( 'capabilities', $comment_type );
