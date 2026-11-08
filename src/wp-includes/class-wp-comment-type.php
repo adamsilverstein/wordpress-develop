@@ -4,13 +4,13 @@
  *
  * @package WordPress
  * @subpackage Comments
- * @since 7.2.0
+ * @since 7.3.0
  */
 
 /**
  * Core class used for interacting with comment types.
  *
- * @since 7.2.0
+ * @since 7.3.0
  *
  * @see register_comment_type()
  */
@@ -19,7 +19,7 @@ final class WP_Comment_Type {
 	/**
 	 * Comment type key.
 	 *
-	 * @since 7.2.0
+	 * @since 7.3.0
 	 * @var string
 	 */
 	public $name;
@@ -27,7 +27,7 @@ final class WP_Comment_Type {
 	/**
 	 * Name of the comment type. Usually plural.
 	 *
-	 * @since 7.2.0
+	 * @since 7.3.0
 	 * @var string
 	 */
 	public $label;
@@ -39,7 +39,7 @@ final class WP_Comment_Type {
 	 *
 	 * @see get_comment_type_labels()
 	 *
-	 * @since 7.2.0
+	 * @since 7.3.0
 	 * @var stdClass
 	 */
 	public $labels;
@@ -47,7 +47,7 @@ final class WP_Comment_Type {
 	/**
 	 * Default labels.
 	 *
-	 * @since 7.2.0
+	 * @since 7.3.0
 	 * @var (string|null)[][] $default_labels
 	 */
 	protected static $default_labels = array();
@@ -55,7 +55,7 @@ final class WP_Comment_Type {
 	/**
 	 * A short descriptive summary of what the comment type is for.
 	 *
-	 * @since 7.2.0
+	 * @since 7.3.0
 	 * @var string
 	 */
 	public $description = '';
@@ -63,14 +63,11 @@ final class WP_Comment_Type {
 	/**
 	 * Whether a comment type is intended for use publicly either via the admin interface or by front-end users.
 	 *
-	 * Core does not currently act on this property, but it is the intended default
-	 * for future visibility-related arguments. It defaults to true so that
-	 * registering a type in order to provide labels never hides comments that are
-	 * already publicly visible.
+	 * Core does not currently act on this property.
 	 *
 	 * Default true.
 	 *
-	 * @since 7.2.0
+	 * @since 7.3.0
 	 * @var bool
 	 */
 	public $public = true;
@@ -78,13 +75,12 @@ final class WP_Comment_Type {
 	/**
 	 * Whether the comment type is for internal use only.
 	 *
-	 * Analogous to the `internal` argument of register_post_status(). Internal types
-	 * are meant to be excluded from comment queries and counts by default. Core does
-	 * not currently act on this flag.
+	 * Internal types are meant to be excluded from comment queries and counts by
+	 * default. Core does not currently act on this property.
 	 *
 	 * Default false.
 	 *
-	 * @since 7.2.0
+	 * @since 7.3.0
 	 * @var bool
 	 */
 	public $internal = false;
@@ -105,7 +101,7 @@ final class WP_Comment_Type {
 	 *
 	 * Default false.
 	 *
-	 * @since 7.2.0
+	 * @since 7.3.0
 	 * @var bool
 	 */
 	public $_builtin = false;
@@ -113,11 +109,9 @@ final class WP_Comment_Type {
 	/**
 	 * Whether the comment type is hierarchical.
 	 *
-	 * Comment types are never hierarchical. This property exists so the shared label
-	 * helper {@see _get_custom_object_labels()} can resolve default labels, and
-	 * set_props() forces it to false so a provided value cannot resolve them to null.
+	 * Always false. Read by _get_custom_object_labels() to pick default labels.
 	 *
-	 * @since 7.2.0
+	 * @since 7.3.0
 	 * @var bool
 	 */
 	public $hierarchical = false;
@@ -130,7 +124,7 @@ final class WP_Comment_Type {
 	 * Will populate object properties from the provided arguments and assign other
 	 * default properties based on that information.
 	 *
-	 * @since 7.2.0
+	 * @since 7.3.0
 	 *
 	 * @see register_comment_type()
 	 *
@@ -149,7 +143,7 @@ final class WP_Comment_Type {
 	 *
 	 * See the register_comment_type() function for accepted arguments for `$args`.
 	 *
-	 * @since 7.2.0
+	 * @since 7.3.0
 	 *
 	 * @param array<string, mixed>|string $args Array or string of arguments for registering a comment type.
 	 */
@@ -159,7 +153,7 @@ final class WP_Comment_Type {
 		/**
 		 * Filters the arguments for registering a comment type.
 		 *
-		 * @since 7.2.0
+		 * @since 7.3.0
 		 *
 		 * @param array  $args         Array of arguments for registering a comment type.
 		 *                             See the register_comment_type() function for accepted arguments.
@@ -179,7 +173,7 @@ final class WP_Comment_Type {
 		 *  - `register_comment_comment_type_args`
 		 *  - `register_pingback_comment_type_args`
 		 *
-		 * @since 7.2.0
+		 * @since 7.3.0
 		 *
 		 * @param array  $args         Array of arguments for registering a comment type.
 		 *                             See the register_comment_type() function for accepted arguments.
@@ -187,12 +181,7 @@ final class WP_Comment_Type {
 		 */
 		$args = apply_filters( "register_{$comment_type}_comment_type_args", $args, $this->name );
 
-		/*
-		 * Note: 'label' is intentionally omitted from the defaults. Leaving the property
-		 * unset (null) lets get_comment_type_labels() fall back to the default labels, the
-		 * same way WP_Post_Type and WP_Taxonomy behave. A 'label' default of false would be
-		 * treated as a provided value and overwrite the default name with false.
-		 */
+		// No 'label' default, so get_comment_type_labels() can fall back to the default name.
 		$defaults = array(
 			'labels'       => array(),
 			'description'  => '',
@@ -211,11 +200,7 @@ final class WP_Comment_Type {
 
 		$args['name'] = $this->name;
 
-		/*
-		 * Comment types are never hierarchical. The property exists only so the shared
-		 * label helper can pick a slot, and the hierarchical slot is deliberately null,
-		 * so honoring a provided value would resolve every default label to null.
-		 */
+		// The hierarchical label slots are null, so a true value would null every default label.
 		$args['hierarchical'] = false;
 
 		foreach ( $args as $property_name => $property_value ) {
@@ -229,7 +214,7 @@ final class WP_Comment_Type {
 	/**
 	 * Returns the default labels for comment types.
 	 *
-	 * @since 7.2.0
+	 * @since 7.3.0
 	 *
 	 * @return (string|null)[][] The default labels for comment types.
 	 */
@@ -249,7 +234,7 @@ final class WP_Comment_Type {
 	/**
 	 * Resets the cache for the default labels.
 	 *
-	 * @since 7.2.0
+	 * @since 7.3.0
 	 */
 	public static function reset_default_labels(): void {
 		self::$default_labels = array();
