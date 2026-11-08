@@ -263,7 +263,7 @@ class Walker_Comment extends Walker {
 	 * Outputs a pingback comment.
 	 *
 	 * @since 3.6.0
-	 * @since 7.2.0 A registered, non-built-in ping type is labeled with its singular name.
+	 * @since 7.2.0 A registered ping type with its own singular name is labeled with it.
 	 *
 	 * @see wp_list_comments()
 	 *
@@ -275,11 +275,8 @@ class Walker_Comment extends Walker {
 		$tag = ( 'div' === $args['style'] ) ? 'div' : 'li';
 
 		/*
-		 * The built-in ping types share the 'Pingback:' label - trackbacks have carried it
-		 * since 3.6 - so their markup is unchanged. A registered ping type would be
-		 * mislabeled by it, so use its own singular name instead, matching comment_type().
-		 * A ping type registered without labels inherits the default 'Comment' singular
-		 * name, which is even more wrong for a ping, so such types keep 'Pingback:' too.
+		 * Built-in types keep the 'Pingback:' label they have always used. So does a
+		 * registered type without its own singular name, which would read 'Comment:'.
 		 */
 		$comment_type_object = get_comment_type_object( $comment->comment_type );
 		$default_labels      = WP_Comment_Type::get_default_labels();

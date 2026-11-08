@@ -142,23 +142,12 @@ final class WP_Comment_Type {
 	public $render_callback = null;
 
 	/**
-	 * Whether the comment type represents a ping (a notification from another site)
-	 * rather than a human-authored comment.
+	 * Whether the comment type is a ping (a notification from another site).
 	 *
-	 * Ping types (such as `pingback` and `trackback`) are grouped together by
-	 * {@see separate_comments()} and returned by a `'pings'` type query in
-	 * {@see WP_Comment_Query}. When the `short_ping` argument of wp_list_comments()
-	 * is true, they are rendered with the compact ping markup by
-	 * {@see Walker_Comment}, which labels the comment with the type's
-	 * `singular_name`, so a ping type should register one. A registered
-	 * `render_callback` takes precedence over the ping markup. Like
-	 * `render_callback`, the rendering effects apply only to classic themes; block
-	 * themes do not use Walker_Comment.
-	 *
-	 * The flag drives grouping and display only. It does not change how a comment of
-	 * this type is validated, moderated, or notified about: the pingback and trackback
-	 * paths in {@see check_comment()}, {@see get_default_comment_status()}, and the
-	 * notification emails are still keyed to those two type names. Default false.
+	 * Ping types are grouped under 'pings' by separate_comments() and WP_Comment_Query,
+	 * and rendered with the compact ping markup by Walker_Comment when `short_ping` is
+	 * set, unless the type has a `render_callback`. Validation, moderation, and
+	 * notifications still key on the 'pingback' and 'trackback' type names. Default false.
 	 *
 	 * @since 7.2.0
 	 * @var bool

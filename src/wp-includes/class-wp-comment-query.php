@@ -120,11 +120,9 @@ class WP_Comment_Query {
 	public $max_num_pages = 0;
 
 	/**
-	 * Comment types a 'pings' type token expands to.
+	 * Comment types a 'pings' type token expands to, or null until resolved.
 	 *
-	 * Resolved lazily, once per parsed query, so that the set folded into the cache
-	 * keys is the same one get_comment_ids() builds the SQL from. Reset by
-	 * parse_query(); null until resolved.
+	 * Resolved once per parsed query so the cache keys and the SQL use the same set.
 	 *
 	 * @since 7.2.0
 	 * @var string[]|null
@@ -265,8 +263,8 @@ class WP_Comment_Query {
 	 *                                                      comment status. Default 'all'.
 	 *     @type string|string[] $type                      Include comments of a given type, or array of types.
 	 *                                                      Accepts 'comment', 'pings' (every comment type registered
-	 *                                                      with `is_ping`, which includes 'pingback' and
-	 *                                                      'trackback'), or any custom type string. Default empty.
+	 *                                                      with `is_ping`, including 'pingback' and 'trackback'),
+	 *                                                      or any custom type string. Default empty.
 	 *     @type string[]        $type__in                  Include comments from a given array of comment types.
 	 *                                                      Default empty.
 	 *     @type string[]        $type__not_in              Exclude comments from a given array of comment types.
@@ -357,7 +355,7 @@ class WP_Comment_Query {
 
 		$this->query_vars = wp_parse_args( $query, $this->query_var_defaults );
 
-		// Re-resolve the ping types per query, in case the registry changed in between.
+		// The ping type registry may have changed since the last query.
 		$this->ping_comment_types = null;
 
 		/**
@@ -1023,17 +1021,11 @@ class WP_Comment_Query {
 	}
 
 	/**
-	 * Builds the normalized set of query vars that comment query cache keys hash.
+	 * Returns the query vars that get_comments() and fill_descendants() hash into cache keys.
 	 *
-	 * Only uses the args defined in the query_var_defaults, ignoring 'fields',
-	 * 'update_comment_meta_cache', and 'update_comment_post_cache', which do not
-	 * affect query results.
-	 *
-	 * A 'pings' token expands to the registered ping types, which a plugin can change
-	 * from one request to the next, so the resolved set belongs in the cache key. The
-	 * comment last_changed salt only moves when a comment does, and would not catch
-	 * it. Both the main query cache in get_comments() and the per-parent descendant
-	 * caches in fill_descendants() hash these args, so the two cannot disagree.
+	 * Ignores 'fields', 'update_comment_meta_cache', and 'update_comment_post_cache',
+	 * which do not affect query results. Adds the resolved ping types when 'pings' is
+	 * queried, since registering a ping type does not bump the comment last_changed value.
 	 *
 	 * @since 7.2.0
 	 *
@@ -1057,10 +1049,9 @@ class WP_Comment_Query {
 	}
 
 	/**
-	 * Resolves the comment types a 'pings' type token expands to.
+	 * Returns the comment types a 'pings' type token expands to.
 	 *
-	 * Matches how separate_comments() and wp_list_comments() group pings, so that a
-	 * query for 'pings' returns the comments a theme would list under that heading.
+	 * Matches the 'pings' group built by separate_comments().
 	 *
 	 * @since 7.2.0
 	 *
@@ -1070,10 +1061,7 @@ class WP_Comment_Query {
 		if ( null === $this->ping_comment_types ) {
 			$ping_types = get_comment_types( array( 'is_ping' => true ), 'names' );
 
-			/*
-			 * The built-in ping types, for queries that run before create_initial_comment_types()
-			 * in a partial bootstrap and for any install running without the registry.
-			 */
+			// Queries can run before create_initial_comment_types() registers the built-ins.
 			if ( ! $ping_types ) {
 				$ping_types = array( 'pingback', 'trackback' );
 			}
