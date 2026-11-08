@@ -15,7 +15,7 @@ class Tests_Comment_WpCommentType extends WP_UnitTestCase {
 	 * @covers ::__construct
 	 * @covers ::set_props
 	 */
-	public function test_instance_defaults() {
+	public function test_instance_defaults(): void {
 		$comment_type = new WP_Comment_Type( 'foo' );
 
 		$this->assertSame( 'foo', $comment_type->name );
@@ -55,7 +55,7 @@ class Tests_Comment_WpCommentType extends WP_UnitTestCase {
 	 *
 	 * @covers ::set_props
 	 */
-	public function test_set_props_overrides_defaults() {
+	public function test_set_props_overrides_defaults(): void {
 		$comment_type = new WP_Comment_Type(
 			'foo',
 			array(
@@ -75,8 +75,8 @@ class Tests_Comment_WpCommentType extends WP_UnitTestCase {
 	 *
 	 * @covers ::set_props
 	 */
-	public function test_register_comment_type_args_filter() {
-		$filter = static function ( $args ) {
+	public function test_register_comment_type_args_filter(): void {
+		$filter = static function ( array $args ): array {
 			$args['public'] = false;
 			return $args;
 		};
@@ -93,8 +93,8 @@ class Tests_Comment_WpCommentType extends WP_UnitTestCase {
 	 *
 	 * @covers ::set_props
 	 */
-	public function test_register_specific_comment_type_args_filter() {
-		$filter = static function ( $args ) {
+	public function test_register_specific_comment_type_args_filter(): void {
+		$filter = static function ( array $args ): array {
 			$args['description'] = 'Filtered description.';
 			return $args;
 		};
@@ -114,7 +114,7 @@ class Tests_Comment_WpCommentType extends WP_UnitTestCase {
 	 * @covers ::get_default_labels
 	 * @covers ::reset_default_labels
 	 */
-	public function test_get_default_labels_returns_expected_defaults() {
+	public function test_get_default_labels_returns_expected_defaults(): void {
 		WP_Comment_Type::reset_default_labels();
 
 		$labels = WP_Comment_Type::get_default_labels();
@@ -129,7 +129,7 @@ class Tests_Comment_WpCommentType extends WP_UnitTestCase {
 	 * @covers ::get_default_labels
 	 * @covers ::reset_default_labels
 	 */
-	public function test_reset_default_labels_clears_cache() {
+	public function test_reset_default_labels_clears_cache(): void {
 		// Poison the static cache so a stale value is observable.
 		$property = new ReflectionProperty( WP_Comment_Type::class, 'default_labels' );
 		if ( PHP_VERSION_ID < 80100 ) {

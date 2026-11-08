@@ -8,13 +8,26 @@
 class Tests_Comment_Types extends WP_UnitTestCase {
 
 	/**
+	 * Gets a registered comment type object, failing the test if it is missing.
+	 *
+	 * @param string $comment_type Comment type key.
+	 * @return WP_Comment_Type The registered comment type object.
+	 */
+	private function get_registered_comment_type( string $comment_type ): WP_Comment_Type {
+		$comment_type_object = get_comment_type_object( $comment_type );
+		$this->assertInstanceOf( WP_Comment_Type::class, $comment_type_object, "The {$comment_type} comment type should be registered." );
+		return $comment_type_object;
+	}
+
+	/**
 	 * @ticket 35214
 	 *
 	 * @covers ::register_comment_type
 	 * @covers ::get_comment_type_object
 	 */
-	public function test_register_comment_type() {
-		$this->assertNull( get_comment_type_object( 'foo' ) );
+	public function test_register_comment_type(): void {
+		$before = get_comment_type_object( 'foo' );
+		$this->assertNull( $before );
 
 		register_comment_type( 'foo' );
 
@@ -34,10 +47,10 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 * @covers ::register_comment_type
 	 * @covers ::get_comment_type_labels
 	 */
-	public function test_register_comment_type_without_labels_uses_default_labels() {
+	public function test_register_comment_type_without_labels_uses_default_labels(): void {
 		register_comment_type( 'foo' );
 
-		$cobj = get_comment_type_object( 'foo' );
+		$cobj = $this->get_registered_comment_type( 'foo' );
 
 		$this->assertSame( 'Comments', $cobj->label );
 		$this->assertSame( 'Comments', $cobj->labels->name );
@@ -49,7 +62,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::register_comment_type
 	 */
-	public function test_register_comment_type_return_value() {
+	public function test_register_comment_type_return_value(): void {
 		$this->assertInstanceOf( 'WP_Comment_Type', register_comment_type( 'foo' ) );
 	}
 
@@ -60,7 +73,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @expectedIncorrectUsage register_comment_type
 	 */
-	public function test_register_comment_type_with_too_long_name() {
+	public function test_register_comment_type_with_too_long_name(): void {
 		$this->assertInstanceOf( 'WP_Error', register_comment_type( 'comment_type_with_a_too_long_name' ) );
 	}
 
@@ -71,7 +84,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @expectedIncorrectUsage register_comment_type
 	 */
-	public function test_register_comment_type_with_empty_name() {
+	public function test_register_comment_type_with_empty_name(): void {
 		$this->assertInstanceOf( 'WP_Error', register_comment_type( '' ) );
 	}
 
@@ -80,7 +93,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::create_initial_comment_types
 	 */
-	public function test_built_in_comment_types_are_registered() {
+	public function test_built_in_comment_types_are_registered(): void {
 		$this->assertTrue( comment_type_exists( 'comment' ) );
 		$this->assertTrue( comment_type_exists( 'pingback' ) );
 		$this->assertTrue( comment_type_exists( 'trackback' ) );
@@ -92,8 +105,8 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::create_initial_comment_types
 	 */
-	public function test_built_in_note_type_is_internal_and_non_public() {
-		$note = get_comment_type_object( 'note' );
+	public function test_built_in_note_type_is_internal_and_non_public(): void {
+		$note = $this->get_registered_comment_type( 'note' );
 
 		$this->assertTrue( $note->internal );
 		$this->assertFalse( $note->public );
@@ -124,7 +137,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::comment_type_exists
 	 */
-	public function test_comment_type_exists() {
+	public function test_comment_type_exists(): void {
 		$this->assertFalse( comment_type_exists( 'foo' ) );
 
 		register_comment_type( 'foo' );
@@ -137,7 +150,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::get_comment_types
 	 */
-	public function test_get_comment_types_names() {
+	public function test_get_comment_types_names(): void {
 		register_comment_type( 'foo' );
 
 		$types = get_comment_types();
@@ -151,7 +164,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::get_comment_types
 	 */
-	public function test_get_comment_types_objects() {
+	public function test_get_comment_types_objects(): void {
 		register_comment_type( 'foo' );
 
 		$types = get_comment_types( array(), 'objects' );
@@ -164,7 +177,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::get_comment_types
 	 */
-	public function test_get_comment_types_filtered_by_property() {
+	public function test_get_comment_types_filtered_by_property(): void {
 		register_comment_type( 'foo', array( 'public' => false ) );
 
 		$public = get_comment_types( array( 'public' => true ) );
@@ -179,7 +192,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::unregister_comment_type
 	 */
-	public function test_unregister_comment_type() {
+	public function test_unregister_comment_type(): void {
 		register_comment_type( 'foo' );
 
 		$this->assertTrue( unregister_comment_type( 'foo' ) );
@@ -191,7 +204,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::unregister_comment_type
 	 */
-	public function test_unregister_comment_type_unknown_returns_error() {
+	public function test_unregister_comment_type_unknown_returns_error(): void {
 		$this->assertWPError( unregister_comment_type( 'does_not_exist' ) );
 	}
 
@@ -200,7 +213,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::unregister_comment_type
 	 */
-	public function test_unregister_comment_type_twice_returns_error() {
+	public function test_unregister_comment_type_twice_returns_error(): void {
 		register_comment_type( 'foo' );
 
 		$this->assertTrue( unregister_comment_type( 'foo' ) );
@@ -214,7 +227,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @dataProvider data_built_in_comment_types
 	 */
-	public function test_unregister_built_in_comment_type_is_not_allowed( $comment_type ) {
+	public function test_unregister_built_in_comment_type_is_not_allowed( string $comment_type ): void {
 		$this->assertWPError( unregister_comment_type( $comment_type ) );
 		$this->assertTrue( comment_type_exists( $comment_type ) );
 	}
@@ -222,9 +235,9 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	/**
 	 * Data provider.
 	 *
-	 * @return array[]
+	 * @return array<int, array{0: string}>
 	 */
-	public function data_built_in_comment_types() {
+	public function data_built_in_comment_types(): array {
 		return array(
 			array( 'comment' ),
 			array( 'pingback' ),
@@ -242,14 +255,14 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @dataProvider data_built_in_comment_types
 	 */
-	public function test_register_built_in_comment_type_is_rejected( $comment_type ) {
-		$original_label = get_comment_type_object( $comment_type )->label;
+	public function test_register_built_in_comment_type_is_rejected( string $comment_type ): void {
+		$original_label = $this->get_registered_comment_type( $comment_type )->label;
 
 		$result = register_comment_type( $comment_type, array( 'label' => 'Hijacked' ) );
 
 		$this->assertWPError( $result );
 		$this->assertSame( 'comment_type_builtin', $result->get_error_code() );
-		$this->assertSame( $original_label, get_comment_type_object( $comment_type )->label );
+		$this->assertSame( $original_label, $this->get_registered_comment_type( $comment_type )->label );
 	}
 
 	/**
@@ -257,11 +270,11 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::register_comment_type
 	 */
-	public function test_register_comment_type_twice_overwrites_previous_registration() {
+	public function test_register_comment_type_twice_overwrites_previous_registration(): void {
 		register_comment_type( 'foo', array( 'label' => 'First' ) );
 		register_comment_type( 'foo', array( 'label' => 'Second' ) );
 
-		$this->assertSame( 'Second', get_comment_type_object( 'foo' )->label );
+		$this->assertSame( 'Second', $this->get_registered_comment_type( 'foo' )->label );
 	}
 
 	/**
@@ -270,7 +283,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 * @covers ::register_comment_type
 	 * @covers ::unregister_comment_type
 	 */
-	public function test_register_after_unregister_succeeds() {
+	public function test_register_after_unregister_succeeds(): void {
 		register_comment_type( 'foo' );
 		unregister_comment_type( 'foo' );
 
@@ -283,7 +296,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::register_comment_type
 	 */
-	public function test_registered_comment_type_actions_fire() {
+	public function test_registered_comment_type_actions_fire(): void {
 		$action         = new MockAction();
 		$action_for_foo = new MockAction();
 
@@ -301,7 +314,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::unregister_comment_type
 	 */
-	public function test_unregistered_comment_type_action_fires() {
+	public function test_unregistered_comment_type_action_fires(): void {
 		register_comment_type( 'foo' );
 
 		$action = new MockAction();
@@ -317,7 +330,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::register_comment_type
 	 */
-	public function test_register_comment_type_with_20_character_name_succeeds() {
+	public function test_register_comment_type_with_20_character_name_succeeds(): void {
 		$comment_type = str_repeat( 'a', 20 );
 
 		$this->assertInstanceOf( 'WP_Comment_Type', register_comment_type( $comment_type ) );
@@ -329,9 +342,10 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::register_comment_type
 	 */
-	public function test_register_comment_type_name_is_sanitized() {
+	public function test_register_comment_type_name_is_sanitized(): void {
 		$comment_type_object = register_comment_type( 'Foo Bar!' );
 
+		$this->assertInstanceOf( WP_Comment_Type::class, $comment_type_object );
 		$this->assertSame( 'foobar', $comment_type_object->name );
 		$this->assertFalse( comment_type_exists( 'Foo Bar!' ) );
 		$this->assertTrue( comment_type_exists( 'foobar' ) );
@@ -342,7 +356,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::get_comment_types
 	 */
-	public function test_get_comment_types_with_or_operator() {
+	public function test_get_comment_types_with_or_operator(): void {
 		register_comment_type( 'foo', array( 'public' => false ) );
 
 		$types = get_comment_types(
@@ -365,7 +379,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::get_comment_types
 	 */
-	public function test_get_comment_types_with_not_operator() {
+	public function test_get_comment_types_with_not_operator(): void {
 		register_comment_type( 'foo', array( 'internal' => true ) );
 
 		$types = get_comment_types( array( 'internal' => true ), 'names', 'not' );
@@ -380,7 +394,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::get_comment_types
 	 */
-	public function test_get_comment_types_names_output_is_keyed_by_type_name() {
+	public function test_get_comment_types_names_output_is_keyed_by_type_name(): void {
 		register_comment_type( 'foo' );
 
 		$types = get_comment_types();
@@ -394,8 +408,8 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::get_comment_type_object
 	 */
-	public function test_get_comment_type_object_with_non_scalar_returns_null() {
-		$this->assertNull( get_comment_type_object( array() ) );
+	public function test_get_comment_type_object_with_non_scalar_returns_null(): void {
+		$this->assertNull( get_comment_type_object( array() ) ); // @phpstan-ignore argument.type (Intentionally passing a non-scalar value.)
 	}
 
 	/**
@@ -403,7 +417,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::create_initial_comment_types
 	 */
-	public function test_create_initial_comment_types_is_idempotent() {
+	public function test_create_initial_comment_types_is_idempotent(): void {
 		create_initial_comment_types();
 		create_initial_comment_types();
 
@@ -415,7 +429,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::get_comment_type_labels
 	 */
-	public function test_labels_are_built_from_args() {
+	public function test_labels_are_built_from_args(): void {
 		register_comment_type(
 			'foo',
 			array(
@@ -426,7 +440,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 			)
 		);
 
-		$cobj = get_comment_type_object( 'foo' );
+		$cobj = $this->get_registered_comment_type( 'foo' );
 
 		$this->assertSame( 'Foos', $cobj->label );
 		$this->assertSame( 'Foos', $cobj->labels->name );
@@ -438,10 +452,10 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::get_comment_type_labels
 	 */
-	public function test_comment_type_labels_filter() {
+	public function test_comment_type_labels_filter(): void {
 		add_filter(
 			'comment_type_labels_foo',
-			static function ( $labels ) {
+			static function ( stdClass $labels ): stdClass {
 				$labels->singular_name = 'Filtered Foo';
 				return $labels;
 			}
@@ -449,7 +463,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 
 		register_comment_type( 'foo' );
 
-		$this->assertSame( 'Filtered Foo', get_comment_type_object( 'foo' )->labels->singular_name );
+		$this->assertSame( 'Filtered Foo', $this->get_registered_comment_type( 'foo' )->labels->singular_name );
 	}
 
 	/**
@@ -457,10 +471,10 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::get_comment_type_labels
 	 */
-	public function test_label_only_registration_populates_label_fallback_chain() {
+	public function test_label_only_registration_populates_label_fallback_chain(): void {
 		register_comment_type( 'foo', array( 'label' => 'Foos' ) );
 
-		$labels = get_comment_type_object( 'foo' )->labels;
+		$labels = $this->get_registered_comment_type( 'foo' )->labels;
 
 		$this->assertSame( 'Foos', $labels->name );
 		$this->assertSame( 'Foos', $labels->singular_name );
@@ -472,10 +486,10 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::get_comment_type_labels
 	 */
-	public function test_labels_do_not_include_post_type_only_labels() {
+	public function test_labels_do_not_include_post_type_only_labels(): void {
 		register_comment_type( 'foo', array( 'label' => 'Foos' ) );
 
-		$labels = get_comment_type_object( 'foo' )->labels;
+		$labels = $this->get_registered_comment_type( 'foo' )->labels;
 
 		$this->assertObjectNotHasProperty( 'name_admin_bar', $labels );
 		$this->assertObjectNotHasProperty( 'all_items', $labels );
@@ -487,10 +501,10 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::get_comment_type_labels
 	 */
-	public function test_get_comment_type_labels_does_not_modify_a_registered_type() {
+	public function test_get_comment_type_labels_does_not_modify_a_registered_type(): void {
 		register_comment_type( 'foo', array( 'label' => 'Foos' ) );
 
-		$comment_type_object = get_comment_type_object( 'foo' );
+		$comment_type_object = $this->get_registered_comment_type( 'foo' );
 		$registered_labels   = get_object_vars( $comment_type_object->labels );
 
 		$first  = get_comment_type_labels( $comment_type_object );
@@ -506,7 +520,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::get_comment_type_labels
 	 */
-	public function test_labels_do_not_spawn_post_type_only_labels_from_menu_name() {
+	public function test_labels_do_not_spawn_post_type_only_labels_from_menu_name(): void {
 		register_comment_type(
 			'foo',
 			array(
@@ -517,7 +531,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 			)
 		);
 
-		$labels = get_comment_type_object( 'foo' )->labels;
+		$labels = $this->get_registered_comment_type( 'foo' )->labels;
 
 		$this->assertSame( 'Foo Menu', $labels->menu_name );
 		$this->assertObjectNotHasProperty( 'all_items', $labels );
@@ -529,10 +543,10 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::get_comment_type_labels
 	 */
-	public function test_comment_type_labels_filter_missing_name_is_backfilled() {
+	public function test_comment_type_labels_filter_missing_name_is_backfilled(): void {
 		add_filter(
 			'comment_type_labels_foo',
-			static function ( $labels ) {
+			static function ( stdClass $labels ): stdClass {
 				unset( $labels->name );
 				return $labels;
 			}
@@ -540,7 +554,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 
 		register_comment_type( 'foo', array( 'label' => 'Foos' ) );
 
-		$this->assertSame( 'Foos', get_comment_type_object( 'foo' )->labels->name );
+		$this->assertSame( 'Foos', $this->get_registered_comment_type( 'foo' )->labels->name );
 	}
 
 	/**
@@ -548,7 +562,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::register_comment_type
 	 */
-	public function test_registered_comment_type_action_receives_type_and_object() {
+	public function test_registered_comment_type_action_receives_type_and_object(): void {
 		$action = new MockAction();
 
 		add_action( 'registered_comment_type', array( $action, 'action' ), 10, 2 );
@@ -570,10 +584,10 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers WP_Comment_Type::set_props
 	 */
-	public function test_register_comment_type_ignores_hierarchical_argument() {
+	public function test_register_comment_type_ignores_hierarchical_argument(): void {
 		register_comment_type( 'foo', array( 'hierarchical' => true ) );
 
-		$cobj = get_comment_type_object( 'foo' );
+		$cobj = $this->get_registered_comment_type( 'foo' );
 
 		$this->assertFalse( $cobj->hierarchical, 'A comment type should never be hierarchical.' );
 		$this->assertSame( 'Comments', $cobj->label, 'The default label should survive the argument.' );
@@ -595,7 +609,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @param string $comment_type Reserved comment type name.
 	 */
-	public function test_register_reserved_comment_type_is_rejected( string $comment_type ) {
+	public function test_register_reserved_comment_type_is_rejected( string $comment_type ): void {
 		$result = register_comment_type( $comment_type );
 
 		$this->assertInstanceOf( 'WP_Error', $result );
@@ -626,7 +640,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::register_comment_type
 	 */
-	public function test_register_comment_type_builtin_argument_bypasses_the_built_in_guard() {
+	public function test_register_comment_type_builtin_argument_bypasses_the_built_in_guard(): void {
 		$result = register_comment_type(
 			'pingback',
 			array(
@@ -636,7 +650,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 		);
 
 		$this->assertInstanceOf( 'WP_Comment_Type', $result, 'Passing _builtin bypasses the guard.' );
-		$this->assertSame( 'Hijacked', get_comment_type_object( 'pingback' )->label );
+		$this->assertSame( 'Hijacked', $this->get_registered_comment_type( 'pingback' )->label );
 	}
 
 	/**
@@ -650,7 +664,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @expectedIncorrectUsage register_comment_type
 	 */
-	public function test_register_comment_type_builtin_argument_locks_a_custom_type() {
+	public function test_register_comment_type_builtin_argument_locks_a_custom_type(): void {
 		register_comment_type( 'foo', array( '_builtin' => true ) );
 
 		$this->assertInstanceOf( 'WP_Error', register_comment_type( 'foo' ) );
@@ -665,8 +679,8 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::create_initial_comment_types
 	 */
-	public function test_built_in_labels_are_rebuilt_on_locale_change() {
-		$original = get_comment_type_object( 'comment' )->label;
+	public function test_built_in_labels_are_rebuilt_on_locale_change(): void {
+		$original = $this->get_registered_comment_type( 'comment' )->label;
 
 		add_filter(
 			'gettext',
@@ -677,14 +691,15 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 			2
 		);
 
+		/** This action is documented in wp-includes/class-wp-locale-switcher.php */
 		do_action( 'change_locale', 'de_DE' );
 
 		$this->assertSame(
 			'Kommentare',
-			get_comment_type_object( 'comment' )->label,
+			$this->get_registered_comment_type( 'comment' )->label,
 			'A locale change should rebuild the built-in labels.'
 		);
-		$this->assertNotSame( $original, get_comment_type_object( 'comment' )->label );
+		$this->assertNotSame( $original, $this->get_registered_comment_type( 'comment' )->label );
 	}
 
 	/**
@@ -696,7 +711,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 * @covers ::get_comment_types
 	 * @covers ::get_comment_type_object
 	 */
-	public function test_accessors_handle_an_unset_registry() {
+	public function test_accessors_handle_an_unset_registry(): void {
 		$registry = $GLOBALS['wp_comment_types'];
 		unset( $GLOBALS['wp_comment_types'] );
 
@@ -719,7 +734,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::register_comment_type
 	 */
-	public function test_registry_is_not_scoped_to_a_site() {
+	public function test_registry_is_not_scoped_to_a_site(): void {
 		register_comment_type( 'foo' );
 
 		$blog_id = self::factory()->blog->create();
