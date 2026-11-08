@@ -32,7 +32,7 @@ class Tests_Comment_WpCommentType extends WP_UnitTestCase {
 	 *
 	 * @covers ::set_props
 	 */
-	public function test_is_ping_is_stored() {
+	public function test_is_ping_is_stored(): void {
 		$comment_type = new WP_Comment_Type( 'foo', array( 'is_ping' => true ) );
 
 		$this->assertTrue( $comment_type->is_ping );

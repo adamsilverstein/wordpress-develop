@@ -350,7 +350,7 @@ class Tests_Comment_Query extends WP_UnitTestCase {
 	 *
 	 * @covers WP_Comment_Query::query
 	 */
-	public function test_query_type_pings_includes_registered_ping_types() {
+	public function test_query_type_pings_includes_registered_ping_types(): void {
 		register_comment_type( 'webmention', array( 'is_ping' => true ) );
 
 		$pingback = self::factory()->comment->create(
@@ -387,6 +387,51 @@ class Tests_Comment_Query extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Excluding 'pings' excludes every registered ping type.
+	 *
+	 * @ticket 35214
+	 *
+	 * @covers WP_Comment_Query::query
+	 */
+	public function test_query_type__not_in_pings_excludes_registered_ping_types(): void {
+		register_comment_type( 'webmention', array( 'is_ping' => true ) );
+
+		$comment = self::factory()->comment->create(
+			array(
+				'comment_post_ID'  => self::$post_id,
+				'comment_approved' => '1',
+			)
+		);
+		$review  = self::factory()->comment->create(
+			array(
+				'comment_post_ID'  => self::$post_id,
+				'comment_approved' => '1',
+				'comment_type'     => 'review',
+			)
+		);
+
+		foreach ( array( 'pingback', 'trackback', 'webmention' ) as $ping_type ) {
+			self::factory()->comment->create(
+				array(
+					'comment_post_ID'  => self::$post_id,
+					'comment_approved' => '1',
+					'comment_type'     => $ping_type,
+				)
+			);
+		}
+
+		$q     = new WP_Comment_Query();
+		$found = $q->query(
+			array(
+				'type__not_in' => 'pings',
+				'fields'       => 'ids',
+			)
+		);
+
+		$this->assertSameSets( array( $comment, $review ), $found );
+	}
+
+	/**
 	 * The registered ping types are part of the 'pings' cache key. Otherwise a plugin
 	 * registering a ping type would keep serving results cached before it existed, since
 	 * the comment last_changed salt only moves when a comment does.
@@ -395,7 +440,7 @@ class Tests_Comment_Query extends WP_UnitTestCase {
 	 *
 	 * @covers WP_Comment_Query::get_comments
 	 */
-	public function test_query_type_pings_is_not_served_from_a_stale_cache() {
+	public function test_query_type_pings_is_not_served_from_a_stale_cache(): void {
 		$pingback = self::factory()->comment->create(
 			array(
 				'comment_post_ID'  => self::$post_id,
@@ -436,7 +481,7 @@ class Tests_Comment_Query extends WP_UnitTestCase {
 	 *
 	 * @covers WP_Comment_Query::fill_descendants
 	 */
-	public function test_threaded_pings_descendants_are_not_served_from_a_stale_cache() {
+	public function test_threaded_pings_descendants_are_not_served_from_a_stale_cache(): void {
 		$pingback = self::factory()->comment->create(
 			array(
 				'comment_post_ID'  => self::$post_id,

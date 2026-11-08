@@ -223,7 +223,7 @@ class Tests_Comment_Walker extends WP_UnitTestCase {
 	 *
 	 * @ticket 35214
 	 */
-	public function test_registered_ping_type_renders_as_ping() {
+	public function test_registered_ping_type_renders_as_ping(): void {
 		register_comment_type(
 			'webmention',
 			array(
@@ -257,7 +257,7 @@ class Tests_Comment_Walker extends WP_UnitTestCase {
 	 *
 	 * @ticket 35214
 	 */
-	public function test_wp_list_comments_type_pings_lists_registered_ping_types() {
+	public function test_wp_list_comments_type_pings_lists_registered_ping_types(): void {
 		register_comment_type( 'webmention', array( 'is_ping' => true ) );
 
 		$comments = array();
@@ -288,7 +288,7 @@ class Tests_Comment_Walker extends WP_UnitTestCase {
 	 *
 	 * @ticket 35214
 	 */
-	public function test_registered_ping_type_renders_with_its_own_label() {
+	public function test_registered_ping_type_renders_with_its_own_label(): void {
 		register_comment_type(
 			'webmention',
 			array(
@@ -321,7 +321,7 @@ class Tests_Comment_Walker extends WP_UnitTestCase {
 	 *
 	 * @ticket 35214
 	 */
-	public function test_ping_type_without_labels_falls_back_to_pingback_label() {
+	public function test_ping_type_without_labels_falls_back_to_pingback_label(): void {
 		register_comment_type( 'webmention', array( 'is_ping' => true ) );
 
 		$comment_id = self::factory()->comment->create(
@@ -349,7 +349,7 @@ class Tests_Comment_Walker extends WP_UnitTestCase {
 	 *
 	 * @ticket 35214
 	 */
-	public function test_built_in_pingback_still_renders_as_ping() {
+	public function test_built_in_pingback_still_renders_as_ping(): void {
 		$comment_id = self::factory()->comment->create(
 			array(
 				'comment_post_ID'  => $this->post_id,
@@ -373,7 +373,7 @@ class Tests_Comment_Walker extends WP_UnitTestCase {
 	 *
 	 * @ticket 35214
 	 */
-	public function test_ping_type_renders_full_markup_when_short_ping_disabled() {
+	public function test_ping_type_renders_full_markup_when_short_ping_disabled(): void {
 		register_comment_type( 'webmention', array( 'is_ping' => true ) );
 
 		$comment_id = self::factory()->comment->create(
@@ -399,7 +399,7 @@ class Tests_Comment_Walker extends WP_UnitTestCase {
 	 *
 	 * @ticket 35214
 	 */
-	public function test_non_ping_type_is_not_rendered_as_ping_with_short_ping() {
+	public function test_non_ping_type_is_not_rendered_as_ping_with_short_ping(): void {
 		register_comment_type( 'review' );
 
 		$comment_id = self::factory()->comment->create(
@@ -428,7 +428,7 @@ class Tests_Comment_Walker extends WP_UnitTestCase {
 	 *
 	 * @ticket 35214
 	 */
-	public function test_render_callback_takes_precedence_over_short_ping_markup() {
+	public function test_render_callback_takes_precedence_over_short_ping_markup(): void {
 		register_comment_type(
 			'webmention',
 			array(

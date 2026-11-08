@@ -111,7 +111,7 @@ class Tests_Comment_SeparateComments extends WP_UnitTestCase {
 	 *
 	 * @ticket 35214
 	 */
-	public function test_registered_ping_type_is_grouped_into_pings_bucket() {
+	public function test_registered_ping_type_is_grouped_into_pings_bucket(): void {
 		register_comment_type( 'webmention', array( 'is_ping' => true ) );
 
 		$comments = array( $this->create_comment( 'webmention' ) );
@@ -127,7 +127,7 @@ class Tests_Comment_SeparateComments extends WP_UnitTestCase {
 	 *
 	 * @ticket 35214
 	 */
-	public function test_non_ping_type_is_not_grouped_into_pings_bucket() {
+	public function test_non_ping_type_is_not_grouped_into_pings_bucket(): void {
 		register_comment_type( 'review' );
 
 		$comments = array( $this->create_comment( 'review' ) );

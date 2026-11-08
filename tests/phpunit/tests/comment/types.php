@@ -117,7 +117,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::create_initial_comment_types
 	 */
-	public function test_built_in_ping_types_are_marked_as_pings() {
+	public function test_built_in_ping_types_are_marked_as_pings(): void {
 		$this->assertTrue( get_comment_type_object( 'pingback' )->is_ping );
 		$this->assertTrue( get_comment_type_object( 'trackback' )->is_ping );
 	}
@@ -127,7 +127,7 @@ class Tests_Comment_Types extends WP_UnitTestCase {
 	 *
 	 * @covers ::create_initial_comment_types
 	 */
-	public function test_built_in_non_ping_types_are_not_marked_as_pings() {
+	public function test_built_in_non_ping_types_are_not_marked_as_pings(): void {
 		$this->assertFalse( get_comment_type_object( 'comment' )->is_ping );
 		$this->assertFalse( get_comment_type_object( 'note' )->is_ping );
 	}
