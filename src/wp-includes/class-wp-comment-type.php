@@ -22,7 +22,7 @@ final class WP_Comment_Type {
 	 * @since 7.3.0
 	 * @var string
 	 */
-	public $name;
+	public string $name;
 
 	/**
 	 * Name of the comment type. Usually plural.
@@ -50,7 +50,7 @@ final class WP_Comment_Type {
 	 * @since 7.3.0
 	 * @var (string|null)[][] $default_labels
 	 */
-	protected static $default_labels = array();
+	protected static array $default_labels = array();
 
 	/**
 	 * A short descriptive summary of what the comment type is for.
@@ -107,16 +107,6 @@ final class WP_Comment_Type {
 	public $_builtin = false;
 
 	/**
-	 * Whether the comment type is hierarchical.
-	 *
-	 * Always false. Read by _get_custom_object_labels() to pick default labels.
-	 *
-	 * @since 7.3.0
-	 * @var bool
-	 */
-	public $hierarchical = false;
-
-	/**
 	 * Constructor.
 	 *
 	 * See the register_comment_type() function for accepted arguments for `$args`.
@@ -132,7 +122,7 @@ final class WP_Comment_Type {
 	 * @param array<string, mixed>|string $args         Optional. Array or string of arguments for registering
 	 *                                                  a comment type. Default empty array.
 	 */
-	public function __construct( $comment_type, $args = array() ) {
+	public function __construct( string $comment_type, $args = array() ) {
 		$this->name = $comment_type;
 
 		$this->set_props( $args );
@@ -150,8 +140,13 @@ final class WP_Comment_Type {
 	public function set_props( $args ): void {
 		$args = wp_parse_args( $args );
 
+		// Captured before the filters run, so they cannot add or remove built-in status.
+		$is_builtin = ! empty( $args['_builtin'] );
+
 		/**
 		 * Filters the arguments for registering a comment type.
+		 *
+		 * Changes to the `_builtin` argument are ignored.
 		 *
 		 * @since 7.3.0
 		 *
@@ -167,6 +162,7 @@ final class WP_Comment_Type {
 		 * Filters the arguments for registering a specific comment type.
 		 *
 		 * The dynamic portion of the filter name, `$comment_type`, refers to the comment type key.
+		 * Changes to the `_builtin` argument are ignored.
 		 *
 		 * Possible hook names include:
 		 *
@@ -198,10 +194,8 @@ final class WP_Comment_Type {
 			$args['show_in_rest'] = $args['public'];
 		}
 
-		$args['name'] = $this->name;
-
-		// The hierarchical label slots are null, so a true value would null every default label.
-		$args['hierarchical'] = false;
+		$args['name']     = $this->name;
+		$args['_builtin'] = $is_builtin;
 
 		foreach ( $args as $property_name => $property_value ) {
 			$this->$property_name = $property_value;
@@ -216,9 +210,13 @@ final class WP_Comment_Type {
 	 *
 	 * @since 7.3.0
 	 *
+	 * Each label is a pair of non-hierarchical and hierarchical values, matching the
+	 * post type and taxonomy shape. Comment types are never hierarchical, so only the
+	 * first value is used.
+	 *
 	 * @return (string|null)[][] The default labels for comment types.
 	 */
-	public static function get_default_labels() {
+	public static function get_default_labels(): array {
 		if ( ! empty( self::$default_labels ) ) {
 			return self::$default_labels;
 		}
