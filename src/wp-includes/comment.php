@@ -749,7 +749,7 @@ function get_comment_type_labels( $comment_type_object ): stdClass {
  *                                        Default 'moderate_comments'.
  * }
  */
-function get_comment_type_capabilities( object $args ): stdClass {
+function get_comment_type_capabilities( $args ): stdClass {
 	if ( ! is_array( $args->capability_type ) ) {
 		$args->capability_type = array( $args->capability_type, $args->capability_type . 's' );
 	}
