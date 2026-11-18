@@ -453,7 +453,7 @@ function create_initial_comment_types(): void {
  * @return WP_Comment_Type|WP_Error The registered comment type object on success,
  *                                  WP_Error object on failure.
  */
-function register_comment_type( string $comment_type, $args = array() ) {
+function register_comment_type( $comment_type, $args = array() ) {
 	global $wp_comment_types;
 
 	if ( ! is_array( $wp_comment_types ) ) {
@@ -548,7 +548,7 @@ function register_comment_type( string $comment_type, $args = array() ) {
  * @param string $comment_type Comment type key.
  * @return true|WP_Error True on success, WP_Error on failure or if the comment type doesn't exist.
  */
-function unregister_comment_type( string $comment_type ) {
+function unregister_comment_type( $comment_type ) {
 	global $wp_comment_types;
 
 	$comment_type_object = get_comment_type_object( $comment_type );
@@ -614,7 +614,7 @@ function get_comment_type_object( $comment_type ): ?WP_Comment_Type {
  *
  * @phpstan-param 'and'|'AND'|'or'|'OR'|'not'|'NOT' $operator
  */
-function get_comment_types( array $args = array(), string $output = 'names', string $operator = 'and' ): array {
+function get_comment_types( $args = array(), $output = 'names', $operator = 'and' ): array {
 	global $wp_comment_types;
 
 	$field = ( 'names' === $output ) ? 'name' : false;
@@ -649,7 +649,7 @@ function comment_type_exists( $comment_type ): bool {
  *     @type string $menu_name     Label for the menu name. Default is the same as `name`.
  * }
  */
-function get_comment_type_labels( WP_Comment_Type $comment_type_object ): stdClass {
+function get_comment_type_labels( $comment_type_object ): stdClass {
 	$defaults = array();
 
 	foreach ( WP_Comment_Type::get_default_labels() as $key => $value ) {
