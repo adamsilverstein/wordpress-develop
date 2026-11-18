@@ -458,7 +458,11 @@ function create_initial_rest_routes() {
  * @global WP $wp Current WordPress environment instance.
  */
 function rest_api_loaded() {
-	if ( empty( $GLOBALS['wp']->query_vars['rest_route'] ) ) {
+	/*
+	 * Admin screens call wp() for list queries; they are never REST entry points.
+	 * Check WP_ADMIN rather than is_admin(), which follows the current screen.
+	 */
+	if ( empty( $GLOBALS['wp']->query_vars['rest_route'] ) || defined( 'WP_ADMIN' ) ) {
 		return;
 	}
 
@@ -535,6 +539,8 @@ function rest_get_url_prefix() {
  * @param string   $path    Optional. REST route. Default '/'.
  * @param string   $scheme  Optional. Sanitization scheme. Default 'rest'.
  * @return string Full URL to the endpoint.
+ *
+ * @phpstan-return non-falsy-string
  */
 function get_rest_url( $blog_id = null, $path = '/', $scheme = 'rest' ) {
 	if ( empty( $path ) ) {
@@ -593,6 +599,8 @@ function get_rest_url( $blog_id = null, $path = '/', $scheme = 'rest' ) {
 	 * @param string   $path    REST route.
 	 * @param int|null $blog_id Blog ID.
 	 * @param string   $scheme  Sanitization scheme.
+	 *
+	 * @phpstan-param non-falsy-string $url
 	 */
 	return apply_filters( 'rest_url', $url, $path, $blog_id, $scheme );
 }
@@ -607,6 +615,8 @@ function get_rest_url( $blog_id = null, $path = '/', $scheme = 'rest' ) {
  * @param string $path   Optional. REST route. Default empty.
  * @param string $scheme Optional. Sanitization scheme. Default 'rest'.
  * @return string Full URL to the endpoint.
+ *
+ * @phpstan-return non-falsy-string
  */
 function rest_url( $path = '', $scheme = 'rest' ) {
 	return get_rest_url( null, $path, $scheme );
