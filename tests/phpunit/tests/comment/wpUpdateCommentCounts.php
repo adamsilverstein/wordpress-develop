@@ -210,6 +210,26 @@ class Tests_Comment_wpUpdateCommentCounts extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Comments left behind by a deleted post give the null path a batch to visit
+	 * but nothing to recount, so cached comment queries should survive.
+	 *
+	 * @ticket 65537
+	 */
+	public function test_null_path_with_only_orphaned_comments_leaves_the_comment_query_cache_alone(): void {
+		self::factory()->comment->create(
+			array(
+				'comment_post_ID'  => PHP_INT_MAX,
+				'comment_approved' => 1,
+			)
+		);
+
+		$before = wp_cache_get_last_changed( 'comment' );
+
+		$this->assertSame( 0, wp_update_comment_counts() );
+		$this->assertSame( $before, wp_cache_get_last_changed( 'comment' ) );
+	}
+
+	/**
 	 * Recounting every post bumps the comment last_changed key.
 	 *
 	 * @ticket 65537
@@ -234,6 +254,7 @@ class Tests_Comment_wpUpdateCommentCounts extends WP_UnitTestCase {
 		return array(
 			'empty list'       => array( array() ),
 			'only invalid IDs' => array( array( 0, -1 ) ),
+			'nonexistent post' => array( array( PHP_INT_MAX ) ),
 		);
 	}
 

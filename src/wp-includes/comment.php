@@ -3416,7 +3416,7 @@ function wp_update_comment_count_now( $post_id ) {
  * large site is slow, so run it from WP-CLI or a scheduled event rather than an
  * activation hook. It is idempotent and safe to interrupt.
  *
- * Bumps the comment `last_changed` cache key when there is a post to recount.
+ * Bumps the comment `last_changed` cache key once a post has been recalculated.
  * Performs no capability checks.
  *
  * @since 7.3.0
@@ -3449,10 +3449,13 @@ function wp_update_comment_counts( $post_ids = null ) {
 			return 0;
 		}
 
-		wp_cache_set_last_changed( 'comment' );
-
 		foreach ( $post_ids as $post_id ) {
 			if ( wp_update_comment_count_now( $post_id ) ) {
+				// Bump on the first recount so an interrupted run has still invalidated the cache.
+				if ( 0 === $recalculated ) {
+					wp_cache_set_last_changed( 'comment' );
+				}
+
 				++$recalculated;
 			}
 		}
@@ -3497,12 +3500,12 @@ function wp_update_comment_counts( $post_ids = null ) {
 			)
 		);
 
-		if ( $batch && 0 === $last_post_id ) {
-			wp_cache_set_last_changed( 'comment' );
-		}
-
 		foreach ( $batch as $post_id ) {
 			if ( wp_update_comment_count_now( (int) $post_id ) ) {
+				if ( 0 === $recalculated ) {
+					wp_cache_set_last_changed( 'comment' );
+				}
+
 				++$recalculated;
 			}
 		}
