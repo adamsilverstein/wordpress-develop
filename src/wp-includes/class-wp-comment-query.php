@@ -472,7 +472,7 @@ class WP_Comment_Query {
 		 * The excluded set changes the results without bumping 'last_changed', so it is
 		 * part of the key. get_comment_ids() reuses it.
 		 */
-		$this->default_excluded_comment_types = wp_get_default_excluded_comment_types( $this );
+		$this->default_excluded_comment_types = wp_get_default_excluded_comment_types();
 
 		$_args['default_excluded_comment_types'] = $this->default_excluded_comment_types;
 
@@ -800,7 +800,7 @@ class WP_Comment_Query {
 
 		// Resolved in get_comments() when the cache key is built; resolve here for direct calls.
 		if ( null === $this->default_excluded_comment_types ) {
-			$this->default_excluded_comment_types = wp_get_default_excluded_comment_types( $this );
+			$this->default_excluded_comment_types = wp_get_default_excluded_comment_types();
 		}
 
 		$excluded_types = $this->default_excluded_comment_types;
@@ -1100,7 +1100,12 @@ class WP_Comment_Query {
 			0 => wp_list_pluck( $comments, 'comment_ID' ),
 		);
 
-		$key          = md5( serialize( wp_array_slice_assoc( $this->query_vars, array_keys( $this->query_var_defaults ) ) ) );
+		$_args = wp_array_slice_assoc( $this->query_vars, array_keys( $this->query_var_defaults ) );
+
+		// The excluded set shapes the descendant queries too. See get_comments().
+		$_args['default_excluded_comment_types'] = $this->default_excluded_comment_types;
+
+		$key          = md5( serialize( $_args ) );
 		$last_changed = wp_cache_get_last_changed( 'comment' );
 
 		// Fetch an entire level of the descendant tree at a time.

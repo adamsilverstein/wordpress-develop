@@ -416,8 +416,11 @@ function get_lastcommentmodified( $timezone = 'server' ) {
 	$timezone = strtolower( $timezone );
 	$key      = "lastcommentmodified:$timezone";
 
-	$comment_modified_date = wp_cache_get( $key, 'timeinfo' );
-	if ( false !== $comment_modified_date ) {
+	// Salted with the excluded set, which changes the date without clearing the cache.
+	$salt = implode( ',', wp_get_default_excluded_comment_types() );
+
+	$comment_modified_date = wp_cache_get_salted( $key, 'timeinfo', $salt );
+	if ( is_string( $comment_modified_date ) ) {
 		return $comment_modified_date;
 	}
 
@@ -440,7 +443,7 @@ function get_lastcommentmodified( $timezone = 'server' ) {
 	// phpcs:enable
 
 	if ( $comment_modified_date ) {
-		wp_cache_set( $key, $comment_modified_date, 'timeinfo' );
+		wp_cache_set_salted( $key, $comment_modified_date, 'timeinfo', $salt );
 
 		return $comment_modified_date;
 	}
@@ -3225,27 +3228,16 @@ function wp_update_comment_count( $post_id, $do_deferred = false ) {
 /**
  * Retrieves the comment types that are excluded from queries and counts by default.
  *
- * Starts from 'note', 'reaction' and every comment type registered as internal, then
- * applies the {@see 'default_excluded_comment_types'} filter. The result holds unique,
- * non-empty strings and never the WP_Comment_Query type aliases ('all', 'comment',
- * 'comments', 'pings').
+ * Starts from 'note' and 'reaction', then applies the
+ * {@see 'default_excluded_comment_types'} filter. The result holds unique, non-empty
+ * strings and never the WP_Comment_Query type aliases ('all', 'comment', 'comments',
+ * 'pings').
  *
  * @since 7.3.0
  *
- * @param WP_Comment_Query|null $query Optional. The comment query resolving the set, if any.
- *                                     Default null.
  * @return string[] Comment types excluded by default.
  */
-function wp_get_default_excluded_comment_types( $query = null ) {
-	$default_excluded_types = array( 'note', 'reaction' );
-
-	// The comment type registry is optional; 'note' and 'reaction' stay excluded without it.
-	if ( function_exists( 'get_comment_types' ) ) {
-		$internal_types = array_filter( (array) get_comment_types( array( 'internal' => true ), 'names' ), 'is_string' );
-
-		$default_excluded_types = array_values( array_unique( array_merge( $default_excluded_types, $internal_types ) ) );
-	}
-
+function wp_get_default_excluded_comment_types() {
 	/**
 	 * Filters the comment types that are excluded from query results by default.
 	 *
@@ -3266,28 +3258,25 @@ function wp_get_default_excluded_comment_types( $query = null ) {
 	 *
 	 * @since 7.3.0
 	 *
-	 * @param string[]              $excluded_types Comment types excluded by default. Defaults to
-	 *                                              'note', 'reaction' and every comment type
-	 *                                              registered as internal.
-	 * @param WP_Comment_Query|null $query          The comment query resolving the set, or null
-	 *                                              outside of a comment query.
+	 * @param string[] $excluded_types Comment types excluded by default. Default 'note' and 'reaction'.
 	 */
-	$excluded_types = apply_filters( 'default_excluded_comment_types', $default_excluded_types, $query );
+	$excluded_types = apply_filters( 'default_excluded_comment_types', array( 'note', 'reaction' ) );
 
 	$excluded_types = array_filter( (array) $excluded_types, 'is_scalar' );
 
-	// Keeps a type named '0', which array_filter() without a callback would drop.
+	/*
+	 * Keeps a type named '0', which array_filter() without a callback would drop. An alias
+	 * in the set would exclude types a query requests explicitly, and the database matches
+	 * it in any case.
+	 */
 	$excluded_types = array_filter(
 		array_map( 'strval', $excluded_types ),
 		static function ( $excluded_type ) {
-			return '' !== $excluded_type;
+			return '' !== $excluded_type && ! in_array( strtolower( $excluded_type ), array( 'all', 'comment', 'comments', 'pings' ), true );
 		}
 	);
 
-	$excluded_types = array_unique( $excluded_types );
-
-	// An alias in the set would exclude types a query requests explicitly.
-	return array_values( array_diff( $excluded_types, array( 'all', 'comment', 'comments', 'pings' ) ) );
+	return array_values( array_unique( $excluded_types ) );
 }
 
 /**
