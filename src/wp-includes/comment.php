@@ -3477,41 +3477,39 @@ function wp_update_comment_counts( $post_ids = null ) {
 	}
 
 	/*
-	 * Visit posts with comment rows plus posts with a nonzero stored count, in
-	 * keyset batches. Each union arm needs its own ORDER BY and LIMIT because
-	 * MySQL does not push the outer ones into the arms. The first N rows of the
-	 * union of two ascending sets are always among the first N of each.
+	 * Two keyset passes: posts that have comment rows, then posts left with a
+	 * nonzero stored count and no comment rows. A single pass over both sets
+	 * would rescan the rest of the posts table on every batch once the nonzero
+	 * counts ran out, as comment_count is not indexed.
 	 */
-	$last_post_id = 0;
+	$queries = array(
+		"SELECT DISTINCT comment_post_ID FROM {$wpdb->comments} WHERE comment_post_ID > %d ORDER BY comment_post_ID LIMIT %d",
+		"SELECT p.ID FROM {$wpdb->posts} p
+		WHERE p.comment_count <> 0 AND p.ID > %d
+		AND NOT EXISTS ( SELECT 1 FROM {$wpdb->comments} c WHERE c.comment_post_ID = p.ID )
+		ORDER BY p.ID LIMIT %d",
+	);
 
-	do {
-		$batch = $wpdb->get_col(
-			$wpdb->prepare(
-				"( SELECT DISTINCT comment_post_ID AS post_id FROM {$wpdb->comments} WHERE comment_post_ID > %d ORDER BY comment_post_ID LIMIT %d )
-				UNION
-				( SELECT ID AS post_id FROM {$wpdb->posts} WHERE comment_count <> 0 AND ID > %d ORDER BY ID LIMIT %d )
-				ORDER BY post_id
-				LIMIT %d",
-				$last_post_id,
-				$batch_size,
-				$last_post_id,
-				$batch_size,
-				$batch_size
-			)
-		);
+	foreach ( $queries as $query ) {
+		$last_post_id = 0;
 
-		foreach ( $batch as $post_id ) {
-			if ( wp_update_comment_count_now( (int) $post_id ) ) {
-				if ( 0 === $recalculated ) {
-					wp_cache_set_last_changed( 'comment' );
+		do {
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Both queries are static strings with placeholders.
+			$batch = $wpdb->get_col( $wpdb->prepare( $query, $last_post_id, $batch_size ) );
+
+			foreach ( $batch as $post_id ) {
+				if ( wp_update_comment_count_now( (int) $post_id ) ) {
+					if ( 0 === $recalculated ) {
+						wp_cache_set_last_changed( 'comment' );
+					}
+
+					++$recalculated;
 				}
-
-				++$recalculated;
 			}
-		}
 
-		$last_post_id = $batch ? (int) end( $batch ) : 0;
-	} while ( count( $batch ) === $batch_size );
+			$last_post_id = $batch ? (int) end( $batch ) : 0;
+		} while ( count( $batch ) === $batch_size );
+	}
 
 	return $recalculated;
 }

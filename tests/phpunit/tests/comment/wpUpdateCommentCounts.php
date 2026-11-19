@@ -260,7 +260,7 @@ class Tests_Comment_wpUpdateCommentCounts extends WP_UnitTestCase {
 
 	/**
 	 * The keyset loop has to advance across batches, and a post that has both comments
-	 * and a stale nonzero count appears in both arms of the union.
+	 * and a stale nonzero count is only visited by the first pass.
 	 *
 	 * @ticket 65537
 	 */
@@ -275,7 +275,7 @@ class Tests_Comment_wpUpdateCommentCounts extends WP_UnitTestCase {
 				)
 			);
 
-			// Stale count, so each post is returned by both union arms.
+			// Stale count, so each post qualifies for both passes.
 			$this->set_stored_count( $post_id, 7 );
 		}
 
@@ -298,17 +298,17 @@ class Tests_Comment_wpUpdateCommentCounts extends WP_UnitTestCase {
 	}
 
 	/**
-	 * Posts found by only one arm of the union interleave across batch boundaries
-	 * without being skipped.
+	 * Posts found by only one of the two passes are all visited when their IDs
+	 * interleave and each pass spans several batches.
 	 *
 	 * @ticket 65537
 	 */
-	public function test_recount_interleaves_union_arms_across_batches(): void {
+	public function test_recount_visits_posts_from_both_passes_across_batches(): void {
 		$post_ids = self::factory()->post->create_many( 6 );
 
 		foreach ( $post_ids as $index => $post_id ) {
 			if ( 0 === $index % 2 ) {
-				// Comments arm only: an unapproved comment leaves the stored count at 0.
+				// First pass only: an unapproved comment leaves the stored count at 0.
 				self::factory()->comment->create(
 					array(
 						'comment_post_ID'  => $post_id,
@@ -316,7 +316,7 @@ class Tests_Comment_wpUpdateCommentCounts extends WP_UnitTestCase {
 					)
 				);
 			} else {
-				// Posts arm only: a stale count with no comment rows.
+				// Second pass only: a stale count with no comment rows.
 				$this->set_stored_count( $post_id, 4 );
 			}
 		}
