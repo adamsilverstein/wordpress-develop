@@ -565,7 +565,9 @@ abstract class WP_UnitTestCase_Base extends PHPUnit_Adapter_TestCase {
 	 * cannot be unregistered.
 	 */
 	protected function reset_comment_types(): void {
-		$GLOBALS['wp_comment_types'] = array();
+		// get_comment_type_capabilities() can store translations without a registered type.
+		$GLOBALS['comment_type_meta_caps'] = array();
+		$GLOBALS['wp_comment_types']       = array();
 
 		create_initial_comment_types();
 	}
