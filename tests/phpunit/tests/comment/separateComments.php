@@ -105,4 +105,36 @@ class Tests_Comment_SeparateComments extends WP_UnitTestCase {
 		$this->assertSame( $replacement, $comments[0], 'Replacing an element in a group should replace it in the passed array.' );
 		$this->assertSame( $replacement, $grouped['pings'][0], 'The pings group should reference the same element.' );
 	}
+
+	/**
+	 * A registered comment type marked as a ping is grouped into 'pings'.
+	 *
+	 * @ticket 35214
+	 */
+	public function test_registered_ping_type_is_grouped_into_pings_bucket(): void {
+		register_comment_type( 'webmention', array( 'is_ping' => true ) );
+
+		$comments = array( $this->create_comment( 'webmention' ) );
+
+		$separated = separate_comments( $comments );
+
+		$this->assertCount( 1, $separated['webmention'] );
+		$this->assertCount( 1, $separated['pings'] );
+	}
+
+	/**
+	 * A registered comment type that is not a ping stays out of the 'pings' bucket.
+	 *
+	 * @ticket 35214
+	 */
+	public function test_non_ping_type_is_not_grouped_into_pings_bucket(): void {
+		register_comment_type( 'review' );
+
+		$comments = array( $this->create_comment( 'review' ) );
+
+		$separated = separate_comments( $comments );
+
+		$this->assertCount( 1, $separated['review'] );
+		$this->assertCount( 0, $separated['pings'] );
+	}
 }

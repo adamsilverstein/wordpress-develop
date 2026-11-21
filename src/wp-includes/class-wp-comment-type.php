@@ -113,6 +113,19 @@ final class WP_Comment_Type {
 	public $render_callback = null;
 
 	/**
+	 * Whether the comment type is a ping (a notification from another site).
+	 *
+	 * Ping types are grouped under 'pings' by separate_comments() and WP_Comment_Query,
+	 * and rendered with the compact ping markup by Walker_Comment when `short_ping` is
+	 * set, unless the type has a `render_callback`. Validation, moderation, and
+	 * notifications still key on the 'pingback' and 'trackback' type names. Default false.
+	 *
+	 * @since 7.3.0
+	 * @var bool
+	 */
+	public $is_ping = false;
+
+	/**
 	 * Constructor.
 	 *
 	 * See the register_comment_type() function for accepted arguments for `$args`.
@@ -188,6 +201,7 @@ final class WP_Comment_Type {
 			'public'          => true,
 			'internal'        => false,
 			'render_callback' => null,
+			'is_ping'         => false,
 			'_builtin'        => false,
 		);
 

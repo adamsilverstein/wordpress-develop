@@ -159,7 +159,8 @@ class Walker_Comment extends Walker {
 	 * @since 5.9.0 Renamed `$comment` to `$data_object` and `$id` to `$current_object_id`
 	 *              to match parent class for PHP 8 named parameter support.
 	 * @since 7.3.0 Comments of a registered comment type with a `render_callback`
-	 *              are rendered via that callback.
+	 *              are rendered via that callback, and short-ping rendering is
+	 *              driven by the comment type's `is_ping` property.
 	 *
 	 * @see Walker::start_el()
 	 * @see wp_list_comments()
@@ -201,7 +202,9 @@ class Walker_Comment extends Walker {
 			add_filter( 'comment_text', array( $this, 'filter_comment_text' ), 40, 2 );
 		}
 
-		if ( ( 'pingback' === $comment->comment_type || 'trackback' === $comment->comment_type ) && $args['short_ping'] ) {
+		$is_ping = $comment_type_object && $comment_type_object->is_ping;
+
+		if ( $is_ping && $args['short_ping'] ) {
 			ob_start();
 			$this->ping( $comment, $depth, $args );
 			$output .= ob_get_clean();
@@ -257,6 +260,7 @@ class Walker_Comment extends Walker {
 	 * Outputs a pingback comment.
 	 *
 	 * @since 3.6.0
+	 * @since 7.3.0 A registered ping type with its own singular name is labeled with it.
 	 *
 	 * @see wp_list_comments()
 	 *
@@ -266,10 +270,30 @@ class Walker_Comment extends Walker {
 	 */
 	protected function ping( $comment, $depth, $args ) {
 		$tag = ( 'div' === $args['style'] ) ? 'div' : 'li';
+
+		/*
+		 * Built-in types keep the 'Pingback:' label they have always used. So does a
+		 * registered type without its own singular name, which would read 'Comment:'.
+		 */
+		$comment_type_object = get_comment_type_object( $comment->comment_type );
+		$default_labels      = WP_Comment_Type::get_default_labels();
+
+		if (
+			$comment_type_object
+			&& ! $comment_type_object->_builtin
+			&& isset( $comment_type_object->labels->singular_name )
+			&& is_string( $comment_type_object->labels->singular_name )
+			&& $default_labels['singular_name'][0] !== $comment_type_object->labels->singular_name
+		) {
+			/* translators: %s: Singular name of a registered comment type, e.g. "Webmention". */
+			$label = sprintf( _x( '%s:', 'comment type label' ), esc_html( $comment_type_object->labels->singular_name ) );
+		} else {
+			$label = __( 'Pingback:' );
+		}
 		?>
 		<<?php echo $tag; ?> id="comment-<?php comment_ID(); ?>" <?php comment_class( '', $comment ); ?>>
 			<div class="comment-body">
-				<?php _e( 'Pingback:' ); ?> <?php comment_author_link( $comment ); ?> <?php edit_comment_link( __( 'Edit' ), '<span class="edit-link">', '</span>' ); ?>
+				<?php echo $label; ?> <?php comment_author_link( $comment ); ?> <?php edit_comment_link( __( 'Edit' ), '<span class="edit-link">', '</span>' ); ?>
 			</div>
 		<?php
 	}
