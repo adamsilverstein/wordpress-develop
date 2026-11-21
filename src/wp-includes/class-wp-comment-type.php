@@ -84,6 +84,28 @@ final class WP_Comment_Type {
 	public bool $internal = false;
 
 	/**
+	 * The base used to build the edit, delete, and moderate capabilities.
+	 *
+	 * Registered as an array of singular and plural bases, this holds the
+	 * singular base. Default 'comment'.
+	 *
+	 * @since 7.3.0
+	 * @var string
+	 */
+	public $capability_type = 'comment';
+
+	/**
+	 * Capabilities for this comment type.
+	 *
+	 * Advisory only; map_meta_cap() does not consult them yet.
+	 * See get_comment_type_capabilities().
+	 *
+	 * @since 7.3.0
+	 * @var stdClass
+	 */
+	public $cap;
+
+	/**
 	 * Whether this comment type is a native or "built-in" comment type.
 	 *
 	 * Default false.
@@ -163,11 +185,13 @@ final class WP_Comment_Type {
 
 		// No 'label' default, so get_comment_type_labels() can fall back to the default name.
 		$defaults = array(
-			'labels'      => array(),
-			'description' => '',
-			'public'      => true,
-			'internal'    => false,
-			'_builtin'    => false,
+			'labels'          => array(),
+			'description'     => '',
+			'public'          => true,
+			'internal'        => false,
+			'capability_type' => 'comment',
+			'capabilities'    => array(),
+			'_builtin'        => false,
 		);
 
 		$args = array_merge( $defaults, (array) $args );
@@ -183,6 +207,14 @@ final class WP_Comment_Type {
 
 		if ( isset( $args['label'] ) && ! is_string( $args['label'] ) ) {
 			unset( $args['label'] );
+		}
+
+		$this->cap = get_comment_type_capabilities( (object) $args );
+		unset( $args['capabilities'] );
+
+		// Collapse an array capability type back to its singular base.
+		if ( is_array( $args['capability_type'] ) ) {
+			$args['capability_type'] = $args['capability_type'][0];
 		}
 
 		foreach ( $args as $property_name => $property_value ) {
