@@ -23,6 +23,19 @@ class Tests_Comment_WpCommentType extends WP_UnitTestCase {
 		$this->assertFalse( $comment_type->internal );
 		$this->assertFalse( $comment_type->_builtin );
 		$this->assertFalse( $comment_type->hierarchical );
+		$this->assertNull( $comment_type->render_callback );
+	}
+
+	/**
+	 * @ticket 35214
+	 *
+	 * @covers ::set_props
+	 */
+	public function test_render_callback_is_stored() {
+		$callback     = static function () {};
+		$comment_type = new WP_Comment_Type( 'foo', array( 'render_callback' => $callback ) );
+
+		$this->assertSame( $callback, $comment_type->render_callback );
 	}
 
 	/**

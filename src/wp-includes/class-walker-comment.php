@@ -158,6 +158,8 @@ class Walker_Comment extends Walker {
 	 * @since 2.7.0
 	 * @since 5.9.0 Renamed `$comment` to `$data_object` and `$id` to `$current_object_id`
 	 *              to match parent class for PHP 8 named parameter support.
+	 * @since 7.1.0 Comments of a registered comment type with a `render_callback`
+	 *              are rendered via that callback.
 	 *
 	 * @see Walker::start_el()
 	 * @see wp_list_comments()
@@ -181,6 +183,19 @@ class Walker_Comment extends Walker {
 		if ( ! empty( $args['callback'] ) ) {
 			ob_start();
 			call_user_func( $args['callback'], $comment, $args, $depth );
+			$output .= ob_get_clean();
+			return;
+		}
+
+		/*
+		 * Allow a registered comment type to render itself. An explicit `callback`
+		 * argument passed to wp_list_comments() takes precedence and is handled above.
+		 */
+		$comment_type_object = get_comment_type_object( $comment->comment_type );
+
+		if ( $comment_type_object && is_callable( $comment_type_object->render_callback ) ) {
+			ob_start();
+			call_user_func( $comment_type_object->render_callback, $comment, $args, $depth );
 			$output .= ob_get_clean();
 			return;
 		}

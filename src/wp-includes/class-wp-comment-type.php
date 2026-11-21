@@ -141,6 +141,34 @@ final class WP_Comment_Type {
 	public $_builtin = false;
 
 	/**
+	 * Callback used to render a comment of this type in comment lists.
+	 *
+	 * When set to a callable, {@see Walker_Comment} invokes it to render a
+	 * comment of this type, receiving the same arguments as the `callback`
+	 * argument of wp_list_comments(): the comment object, the arguments array,
+	 * and the depth. The precedence chain is: an explicit `callback` passed to
+	 * wp_list_comments(), then this callback, then the default markup.
+	 *
+	 * Like the `callback` argument of wp_list_comments(), the callback must only
+	 * output the opening of the list element (an unclosed `<li>` by default);
+	 * {@see Walker_Comment::end_el()} (or the `end-callback` argument) closes
+	 * the element after any child comments have been rendered.
+	 *
+	 * Output from the callback is printed unescaped; the callback is
+	 * responsible for escaping all output.
+	 *
+	 * Only applies when comments are rendered via wp_list_comments() (classic
+	 * themes). Block themes render comments through the `core/comment-template`
+	 * block and do not invoke this callback.
+	 *
+	 * Default null.
+	 *
+	 * @since 7.1.0
+	 * @var callable|null
+	 */
+	public $render_callback = null;
+
+	/**
 	 * Whether the comment type is hierarchical.
 	 *
 	 * Comment types are never hierarchical. This property exists so the shared
@@ -230,6 +258,7 @@ final class WP_Comment_Type {
 			'show_in_rest'    => null,
 			'capability_type' => 'comment',
 			'capabilities'    => array(),
+			'render_callback' => null,
 			'_builtin'        => false,
 		);
 
