@@ -3392,6 +3392,117 @@ function wp_update_comment_count_now( $post_id ) {
 	return true;
 }
 
+/**
+ * Recalculates the stored comment count for one or more posts.
+ *
+ * Counts are recomputed with wp_update_comment_count_now(), so they honor the
+ * {@see 'default_excluded_comment_types'} filter. Call this once after changing
+ * the excluded types, the same way flush_rewrite_rules() is called after
+ * changing rewrite rules.
+ *
+ * Each recount fires the `wp_update_comment_count` and `edit_post` hooks and is
+ * written immediately, ignoring wp_defer_comment_counting(). A full recount on a
+ * large site is slow, so run it from WP-CLI or a scheduled event rather than an
+ * activation hook. It is idempotent and safe to interrupt.
+ *
+ * Bumps the comment `last_changed` cache key once a post has been recalculated.
+ * Performs no capability checks.
+ *
+ * @since 7.3.0
+ *
+ * @global wpdb $wpdb WordPress database abstraction object.
+ *
+ * @param int[]|int|null $post_ids Optional. Post ID or array of post IDs to recalculate.
+ *                                 Default null, which recalculates every post that has
+ *                                 at least one comment or a nonzero stored count.
+ * @return int Number of posts whose comment count was recalculated. Nonexistent
+ *             post IDs are skipped.
+ */
+function wp_update_comment_counts( $post_ids = null ) {
+	global $wpdb;
+
+	$recalculated = 0;
+
+	if ( null !== $post_ids ) {
+		$post_ids = array_map( 'intval', (array) $post_ids );
+		$post_ids = array_unique(
+			array_filter(
+				$post_ids,
+				static function ( $post_id ) {
+					return $post_id > 0;
+				}
+			)
+		);
+
+		if ( ! $post_ids ) {
+			return 0;
+		}
+
+		foreach ( $post_ids as $post_id ) {
+			if ( wp_update_comment_count_now( $post_id ) ) {
+				// Bump on the first recount so an interrupted run has still invalidated the cache.
+				if ( 0 === $recalculated ) {
+					wp_cache_set_last_changed( 'comment' );
+				}
+
+				++$recalculated;
+			}
+		}
+
+		return $recalculated;
+	}
+
+	/**
+	 * Filters how many posts wp_update_comment_counts() recalculates per batch.
+	 *
+	 * @since 7.3.0
+	 *
+	 * @param int $batch_size Number of posts to look up per query. Default 1000.
+	 */
+	$batch_size = (int) apply_filters( 'wp_update_comment_counts_batch_size', 1000 );
+
+	if ( $batch_size < 1 ) {
+		$batch_size = 1;
+	}
+
+	/*
+	 * Two keyset passes: posts that have comment rows, then posts left with a
+	 * nonzero stored count and no comment rows. A single pass over both sets
+	 * would rescan the rest of the posts table on every batch once the nonzero
+	 * counts ran out, as comment_count is not indexed.
+	 */
+	$queries = array(
+		"SELECT DISTINCT comment_post_ID FROM {$wpdb->comments} WHERE comment_post_ID > %d ORDER BY comment_post_ID LIMIT %d",
+		"SELECT p.ID FROM {$wpdb->posts} p
+		WHERE p.comment_count <> 0 AND p.ID > %d
+		AND NOT EXISTS ( SELECT 1 FROM {$wpdb->comments} c WHERE c.comment_post_ID = p.ID )
+		ORDER BY p.ID LIMIT %d",
+	);
+
+	foreach ( $queries as $query ) {
+		$last_post_id = 0;
+
+		do {
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Both queries are static strings with placeholders.
+			$batch = $wpdb->get_col( $wpdb->prepare( $query, $last_post_id, $batch_size ) );
+
+			foreach ( $batch as $post_id ) {
+				if ( wp_update_comment_count_now( (int) $post_id ) ) {
+					if ( 0 === $recalculated ) {
+						wp_cache_set_last_changed( 'comment' );
+					}
+
+					++$recalculated;
+				}
+			}
+
+			$last_post_id = $batch ? (int) end( $batch ) : 0;
+		} while ( count( $batch ) === $batch_size );
+	}
+
+	return $recalculated;
+}
+
 //
 // Ping and trackback functions.
 //
