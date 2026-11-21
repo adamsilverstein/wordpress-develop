@@ -422,11 +422,11 @@ function create_initial_comment_types(): void {
  *
  * @global WP_Comment_Type[] $wp_comment_types List of comment types.
  *
- * @param string       $comment_type Comment type key. Must not exceed 20 characters and may only
- *                                   contain lowercase alphanumeric characters, dashes, and underscores.
- *                                   See sanitize_key().
- * @param array|string $args {
- *     Optional. Array or string of arguments for registering a comment type. Default empty array.
+ * @param string $comment_type Comment type key. Must not exceed 20 characters and may only
+ *                             contain lowercase alphanumeric characters, dashes, and underscores.
+ *                             See sanitize_key().
+ * @param array  $args {
+ *     Optional. Array of arguments for registering a comment type. Default empty array.
  *
  *     @type string        $label           Name of the comment type. Usually plural.
  *                                          Default is the value of $labels['name'].
@@ -458,8 +458,10 @@ function create_initial_comment_types(): void {
  * }
  * @return WP_Comment_Type|WP_Error The registered comment type object on success,
  *                                  WP_Error object on failure.
+ *
+ * @phpstan-param non-falsy-string $comment_type
  */
-function register_comment_type( $comment_type, $args = array() ) {
+function register_comment_type( string $comment_type, array $args = array() ) {
 	global $wp_comment_types;
 
 	if ( ! is_array( $wp_comment_types ) ) {
@@ -555,13 +557,13 @@ function register_comment_type( $comment_type, $args = array() ) {
  *
  * @since 7.3.0
  *
- * @global WP_Comment_Type[]     $wp_comment_types       List of comment types.
- * @global array<string, string> $comment_type_meta_caps Used to remove meta capabilities.
+ * @global array<string, WP_Comment_Type> $wp_comment_types       List of comment types.
+ * @global array<string, string>          $comment_type_meta_caps Used to remove meta capabilities.
  *
  * @param string $comment_type Comment type key.
  * @return true|WP_Error True on success, WP_Error on failure or if the comment type doesn't exist.
  */
-function unregister_comment_type( $comment_type ) {
+function unregister_comment_type( string $comment_type ) {
 	global $wp_comment_types, $comment_type_meta_caps;
 
 	$comment_type_object = get_comment_type_object( $comment_type );
@@ -600,7 +602,7 @@ function unregister_comment_type( $comment_type ) {
  *
  * @since 7.3.0
  *
- * @global WP_Comment_Type[] $wp_comment_types List of comment types.
+ * @global array<string, WP_Comment_Type> $wp_comment_types List of comment types.
  *
  * @param string $comment_type The name of a registered comment type.
  * @return WP_Comment_Type|null WP_Comment_Type object if it exists, null otherwise.
@@ -620,7 +622,7 @@ function get_comment_type_object( $comment_type ): ?WP_Comment_Type {
  *
  * @since 7.3.0
  *
- * @global WP_Comment_Type[] $wp_comment_types List of comment types.
+ * @global array<string, WP_Comment_Type> $wp_comment_types List of comment types.
  *
  * @param array<string, mixed> $args     Optional. An array of key => value arguments to match against
  *                                       the comment type objects. Default empty array.
@@ -632,13 +634,17 @@ function get_comment_type_object( $comment_type ): ?WP_Comment_Type {
  * @return string[]|WP_Comment_Type[] An array of comment type names or objects.
  *
  * @phpstan-param 'and'|'AND'|'or'|'OR'|'not'|'NOT' $operator
+ * @phpstan-return ( $output is 'names' ? array<non-falsy-string, non-falsy-string> : array<non-falsy-string, WP_Comment_Type> )
  */
 function get_comment_types( $args = array(), $output = 'names', $operator = 'and' ): array {
 	global $wp_comment_types;
 
 	$field = ( 'names' === $output ) ? 'name' : false;
 
-	return wp_filter_object_list( $wp_comment_types, $args, $operator, $field );
+	/** @var array<non-falsy-string, non-falsy-string>|array<non-falsy-string, WP_Comment_Type> $comment_types */
+	$comment_types = wp_filter_object_list( $wp_comment_types, $args, $operator, $field );
+
+	return $comment_types;
 }
 
 /**
@@ -654,7 +660,7 @@ function get_comment_types( $args = array(), $output = 'names', $operator = 'and
  * @return string[] Comment types excluded by default, including every internal type.
  */
 function _wp_exclude_internal_comment_types( $excluded_types ): array {
-	$internal_types = array_filter( get_comment_types( array( 'internal' => true ) ), 'is_string' );
+	$internal_types = get_comment_types( array( 'internal' => true ) );
 
 	return array_values( array_unique( array_merge( (array) $excluded_types, $internal_types ) ) );
 }
